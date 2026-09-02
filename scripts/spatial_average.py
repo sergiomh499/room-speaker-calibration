@@ -1,127 +1,134 @@
 #!/usr/bin/env python3
 """
-Spatial Averaging & Multipoint Acoustic Calibration Engine
-Implements Dr. Floyd Toole's spatial averaging methodology:
-Combines multi-point acoustic sweeps across the listening area using RMS energy averaging.
-Separates true room modes (coherent across all positions) from local comb-filtering phase notches.
+Interactive Multi-Point Spatial Averaging Engine (Dr. Floyd Toole)
+Customized for Longitudinally Split Rectangular Rooms (Right: TV/Cinema, Left: Living Area)
 """
 
 import os
 import sys
 import argparse
+import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
 
 REPO_DIR = "/home/sergio/room-speaker-calibration"
 DATA_DIR = f"{REPO_DIR}/data"
 FIG_DIR = f"{REPO_DIR}/figures"
+SWEEP_SCRIPT = f"{REPO_DIR}/scripts/01_measure_sweep.py"
 
-def compute_spatial_average(measurements_list):
-    """
-    Computes RMS (Root Mean Square) energy spatial average from a list of measurement dicts.
-    """
-    if not measurements_list:
-        raise ValueError("No se han proporcionado mediciones para el promedio espacial.")
+POINTS_DEF = {
+    1: "Punto 1: Sofá Centro (Zona TV / Sweet Spot - Altura Oídos ~95 cm)",
+    2: "Punto 2: Sofá Izquierda (Transición hacia Zona de Vida)",
+    3: "Punto 3: Sofá Derecha (Cerca de Pared Lateral Derecha)",
+    4: "Punto 4: Zona de Vida Centro (Mitad Izquierda - Altura Mesa ~1.15 m)",
+    5: "Punto 5: Zona de Vida Fondo (Mitad Izquierda - Altura Persona ~1.35 m)"
+}
+
+def capture_point(point_num):
+    if point_num not in POINTS_DEF:
+        print(f"[!] Número de punto inválido ({point_num}). Debe ser del 1 al 5.")
+        return
         
-    freqs = measurements_list[0]["freqs"]
-    n_meas = len(measurements_list)
+    label = POINTS_DEF[point_num]
+    print(f"[*] Iniciando captura para: {label}...")
     
-    # Accumulate linear power
+    # Run the acoustic sweep
+    p = subprocess.run(["python3", SWEEP_SCRIPT], capture_output=True, text=True)
+    if p.returncode != 0:
+        print(f"[!] Error ejecutando barrido acústico: {p.stderr}", file=sys.stderr)
+        return
+        
+    data = np.load(f"{DATA_DIR}/medicion_real_calibracion.npz")
+    out_file = f"{DATA_DIR}/medicion_punto_{point_num}.npz"
+    np.savez(out_file, **data)
+    print(f"[v] {label} capturado y guardado en: {out_file}")
+
+def compute_and_save_average():
+    print("=== PROCESANDO PROMEDIO ESPACIAL MULTIPUNTO (DR. FLOYD TOOLE) ===")
+    
+    measurements = []
+    for num, label in POINTS_DEF.items():
+        fpath = f"{DATA_DIR}/medicion_punto_{num}.npz"
+        if os.path.exists(fpath):
+            d = np.load(fpath)
+            smooth_l = d["smooth_l"] if "smooth_l" in d else d.get("l_smooth")
+            smooth_r = d["smooth_r"] if "smooth_r" in d else d.get("r_smooth")
+            measurements.append({
+                "label": label,
+                "freqs": d["freqs"],
+                "smooth_l": smooth_l,
+                "smooth_r": smooth_r
+            })
+            
+    if not measurements:
+        print("[!] No se encontraron puntos medidos (medicion_punto_*.npz).")
+        return
+
+    print(f"[*] Promediando {len(measurements)} puntos espaciales...")
+    freqs = measurements[0]["freqs"]
+    n_meas = len(measurements)
+    
     p_l_total = np.zeros_like(freqs, dtype=float)
     p_r_total = np.zeros_like(freqs, dtype=float)
     
-    for m in measurements_list:
-        smooth_l = m["smooth_l"] if "smooth_l" in m else m.get("l_smooth")
-        smooth_r = m["smooth_r"] if "smooth_r" in m else m.get("r_smooth")
+    for m in measurements:
+        p_l_total += 10.0 ** (m["smooth_l"] / 10.0)
+        p_r_total += 10.0 ** (m["smooth_r"] / 10.0)
         
-        # Convert dB to power
-        p_l_total += 10.0 ** (smooth_l / 10.0)
-        p_r_total += 10.0 ** (smooth_r / 10.0)
-        
-    avg_p_l = p_l_total / float(n_meas)
-    avg_p_r = p_r_total / float(n_meas)
+    avg_l = 10.0 * np.log10(p_l_total / float(n_meas) + 1e-12)
+    avg_r = 10.0 * np.log10(p_r_total / float(n_meas) + 1e-12)
     
-    avg_smooth_l = 10.0 * np.log10(avg_p_l + 1e-12)
-    avg_smooth_r = 10.0 * np.log10(avg_p_r + 1e-12)
+    # Save master spatial average dataset
+    out_npz = f"{DATA_DIR}/medicion_promedio_espacial.npz"
+    np.savez(out_npz, freqs=freqs, smooth_l=avg_l, smooth_r=avg_r, raw_l=avg_l, raw_r=avg_r)
+    print(f"[v] Promedio espacial maestro guardado en: {out_npz}")
     
-    return freqs, avg_smooth_l, avg_smooth_r
-
-def generate_spatial_average_plot(measurements_list, freqs, avg_l, avg_r, out_fig=None):
-    if out_fig is None:
-        out_fig = f"{FIG_DIR}/promedio_espacial_multipunto.png"
-        
+    # Generate Plot
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6), dpi=140)
     
-    # Left Channel
-    for i, m in enumerate(measurements_list):
-        s_l = m["smooth_l"] if "smooth_l" in m else m.get("l_smooth")
-        label = m.get("label", f"Posición {i+1}")
-        ax1.semilogx(freqs, s_l, color='#90caf9', alpha=0.5, linestyle=':', linewidth=1.2, label=label if i < 5 else None)
-    ax1.semilogx(freqs, avg_l, color='#0d47a1', linewidth=2.5, label='Promedio Espacial RMS (Toole Target)')
-    ax1.set_title("Canal Izquierdo (Front L) - Promedio Espacial Multipunto", fontsize=11, fontweight='bold', color='#0d47a1')
+    colors_pts = ['#90caf9', '#81d4fa', '#80deea', '#a7ffeb', '#b9f6ca']
+    
+    for i, m in enumerate(measurements):
+        ax1.semilogx(freqs, m["smooth_l"], color=colors_pts[i % len(colors_pts)], 
+                     linestyle=':', linewidth=1.3, alpha=0.7, label=m["label"].split(':')[0])
+        ax2.semilogx(freqs, m["smooth_r"], color=colors_pts[i % len(colors_pts)], 
+                     linestyle=':', linewidth=1.3, alpha=0.7, label=m["label"].split(':')[0])
+                     
+    ax1.semilogx(freqs, avg_l, color='#0d47a1', linewidth=2.6, label='Promedio Espacial RMS (L)')
+    ax1.set_title("Canal Izquierdo (Front L) - Promedio Espacial (Zona TV & Zona de Vida)", fontsize=11, fontweight='bold', color='#0d47a1')
     ax1.set_xlabel("Frecuencia (Hz)", fontsize=10)
     ax1.set_ylabel("Magnitud (dB SPL)", fontsize=10)
     ax1.set_xlim(20, 20000)
     ax1.set_ylim(-20, 18)
     ax1.grid(True, which="both", ls=":", alpha=0.6)
-    ax1.legend(loc="lower left", fontsize=8.5)
+    ax1.legend(loc="lower left", fontsize=8.0)
     
-    # Right Channel
-    for i, m in enumerate(measurements_list):
-        s_r = m["smooth_r"] if "smooth_r" in m else m.get("r_smooth")
-        label = m.get("label", f"Posición {i+1}")
-        ax2.semilogx(freqs, s_r, color='#ef9a9a', alpha=0.5, linestyle=':', linewidth=1.2, label=label if i < 5 else None)
-    ax2.semilogx(freqs, avg_r, color='#b71c1c', linewidth=2.5, label='Promedio Espacial RMS (Toole Target)')
-    ax2.set_title("Canal Derecho (Front R) - Promedio Espacial Multipunto", fontsize=11, fontweight='bold', color='#b71c1c')
+    ax2.semilogx(freqs, avg_r, color='#b71c1c', linewidth=2.6, label='Promedio Espacial RMS (R)')
+    ax2.set_title("Canal Derecho (Front R - Esquina) - Promedio Espacial (Zona TV & Zona de Vida)", fontsize=11, fontweight='bold', color='#b71c1c')
     ax2.set_xlabel("Frecuencia (Hz)", fontsize=10)
     ax2.set_ylabel("Magnitud (dB SPL)", fontsize=10)
     ax2.set_xlim(20, 20000)
     ax2.set_ylim(-20, 18)
     ax2.grid(True, which="both", ls=":", alpha=0.6)
-    ax2.legend(loc="lower left", fontsize=8.5)
+    ax2.legend(loc="lower left", fontsize=8.0)
     
     plt.tight_layout()
+    out_fig = f"{FIG_DIR}/promedio_espacial_multipunto.png"
     plt.savefig(out_fig)
     plt.close()
-    print(f"[v] Gráfica de promedio espacial guardada en: {out_fig}")
-
-def run_spatial_averaging():
-    print("=== MOTOR DE PROMEDIO ESPACIAL MULTIPUNTO (DR. FLOYD TOOLE) ===")
-    
-    # Load all available measurements in data/
-    available_files = [
-        f"{DATA_DIR}/medicion_harman_impact.npz",
-        f"{DATA_DIR}/medicion_harman_neutral.npz",
-        f"{DATA_DIR}/medicion_real_calibracion.npz"
-    ]
-    
-    measurements = []
-    labels = ["Punto Central (Sweet Spot)", "Punto Desplazado Lateral (+25 cm)", "Punto Altura Oídos (+10 cm)"]
-    
-    for i, fp in enumerate(available_files):
-        if os.path.exists(fp):
-            d = np.load(fp)
-            measurements.append({
-                "label": labels[i] if i < len(labels) else f"Medición {i+1}",
-                "freqs": d["freqs"],
-                "smooth_l": d["smooth_l"] if "smooth_l" in d else d.get("l_smooth"),
-                "smooth_r": d["smooth_r"] if "smooth_r" in d else d.get("r_smooth")
-            })
-            
-    if not measurements:
-        print("[!] No se encontraron mediciones para calcular el promedio espacial.")
-        return
-        
-    freqs, avg_l, avg_r = compute_spatial_average(measurements)
-    
-    # Save spatial average dataset
-    out_npz = f"{DATA_DIR}/medicion_promedio_espacial.npz"
-    np.savez(out_npz, freqs=freqs, smooth_l=avg_l, smooth_r=avg_r, raw_l=avg_l, raw_r=avg_r)
-    print(f"[v] Conjunto de datos de promedio espacial guardado en: {out_npz}")
-    
-    generate_spatial_average_plot(measurements, freqs, avg_l, avg_r)
-    print("[v] Promedio espacial completado con éxito.")
+    print(f"[v] Gráfica de promedio espacial actualizada en: {out_fig}")
 
 if __name__ == "__main__":
-    run_spatial_averaging()
+    parser = argparse.ArgumentParser(description="Multipoint Spatial Averaging Engine")
+    parser.add_argument("--point", type=int, choices=[1, 2, 3, 4, 5], help="Capture a specific spatial point (1-5)")
+    parser.add_argument("--average", action="store_true", help="Compute spatial average from captured points")
+    args = parser.parse_args()
+    
+    if args.point:
+        capture_point(args.point)
+        compute_and_save_average()
+    elif args.average:
+        compute_and_save_average()
+    else:
+        parser.print_help()
