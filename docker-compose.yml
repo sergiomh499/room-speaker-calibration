@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  yamaha-calibration-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yamaha-calibration-bridge
+    restart: unless-stopped
+    environment:
+      - YAMAHA_IP=192.168.1.39
+      - BRIDGE_PORT=8899
+    ports:
+      - "8899:8899"
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+      - ./figures:/app/figures
+    # network_mode: host # Uncomment if direct ALSA / multicast discovery is desired
+    # devices:
+    #   - /dev/snd:/dev/snd # Uncomment if local microphone sweep is run inside container

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yamaha-calibration-bridge
+  namespace: home-automation
+  labels:
+    app: yamaha-calibration-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yamaha-calibration-bridge
+  template:
+    metadata:
+      labels:
+        app: yamaha-calibration-bridge
+    spec:
+      containers:
+        - name: bridge
+          image: ghcr.io/sergiomh499/room-speaker-calibration:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: yamaha-calibration-config
+          ports:
+            - containerPort: 8899
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 8899
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 8899
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

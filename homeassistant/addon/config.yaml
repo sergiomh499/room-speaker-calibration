@@ -1,0 +1,18 @@
+name: "Room Speaker Calibration Bridge"
+description: "Motor de Calibración Acústica y Control Bidireccional para Yamaha AVR"
+slug: "yamaha_calibration_bridge"
+version: "1.0.0"
+startup: "services"
+boot: "auto"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+ports:
+  8899/tcp: 8899
+options:
+  yamaha_ip: "192.168.1.39"
+schema:
+  yamaha_ip: "str"

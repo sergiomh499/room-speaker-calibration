@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yamaha-calibration-config
+  namespace: home-automation
+data:
+  YAMAHA_IP: "192.168.1.39"
+  BRIDGE_PORT: "8899"

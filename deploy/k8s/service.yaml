@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: yamaha-calibration-service
+  namespace: home-automation
+spec:
+  selector:
+    app: yamaha-calibration-bridge
+  ports:
+    - protocol: TCP
+      port: 8899
+      targetPort: 8899
+  type: ClusterIP
