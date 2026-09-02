@@ -1,0 +1,4 @@
+.omp/
+.specify/
+__pycache__/
+*.pyc
