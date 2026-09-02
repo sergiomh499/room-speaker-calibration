@@ -10,6 +10,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 
 repo_dir = "/home/sergio/room-speaker-calibration"
+ts_file_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+pdf_path_ts = f"{repo_dir}/reports/Informe_Calibracion_Acustica_Real_{ts_file_str}.pdf"
 pdf_path = f"{repo_dir}/reports/Informe_Calibracion_Acustica_Real.pdf"
 home_pdf_path = "/home/sergio/Informe_Calibracion_Acustica_Yamaha_Q_Acoustics.pdf"
 
@@ -211,5 +213,9 @@ doc = SimpleDocTemplate(
 )
 
 doc.build(story)
+shutil.copy(pdf_path, pdf_path_ts)
 shutil.copy(pdf_path, home_pdf_path)
+home_ts_pdf = f"/home/sergio/Informe_Calibracion_Acustica_Yamaha_Q_Acoustics_{ts_file_str}.pdf"
+shutil.copy(pdf_path, home_ts_pdf)
+print(f"[v] PDF generado con timestamp en nombre ({ts_file_str}) en:\n  - {pdf_path_ts}\n  - {home_ts_pdf}\n  - {home_pdf_path}")
 print("[v] PDF generado con fecha y hora (" + now_str + ") en: " + home_pdf_path)

@@ -188,7 +188,16 @@ finally:
     ync_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>{orig_volume_val}</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
     ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>AV4</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
 
-out_npz = f"{DATA_DIR}/medicion_real_calibracion.npz"
-np.savez(out_npz, freqs=freqs, raw_l=raw_l, smooth_l=smooth_l, raw_r=raw_r, smooth_r=smooth_r, ir_l=ir_l, ir_r=ir_r)
-print(f"[4/5] Datos acústicos validados y guardados en: {out_npz}")
+
+# Save real measurement dataset with timestamp
+ts_str = time.strftime("%Y%m%d_%H%M%S")
+out_npz_ts = f"{DATA_DIR}/medicion_real_calibracion_{ts_str}.npz"
+out_npz_latest = f"{DATA_DIR}/medicion_real_calibracion.npz"
+
+np.savez(out_npz_ts, freqs=freqs, raw_l=raw_l, smooth_l=smooth_l, raw_r=raw_r, smooth_r=smooth_r, ir_l=ir_l, ir_r=ir_r)
+np.savez(out_npz_latest, freqs=freqs, raw_l=raw_l, smooth_l=smooth_l, raw_r=raw_r, smooth_r=smooth_r, ir_l=ir_l, ir_r=ir_r)
+
+print(f"[4/5] Datos acústicos validados y guardados en:")
+print(f"  - {out_npz_ts}")
+print(f"  - {out_npz_latest}")
 print("[5/5] ¡Medición acústica completada y certificada con éxito!")

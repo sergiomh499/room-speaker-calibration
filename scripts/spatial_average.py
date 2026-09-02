@@ -1,3 +1,4 @@
+import time
 #!/usr/bin/env python3
 """
 Interactive Multi-Point Spatial Averaging Engine (Dr. Floyd Toole)
@@ -39,9 +40,14 @@ def capture_point(point_num):
         return
         
     data = np.load(f"{DATA_DIR}/medicion_real_calibracion.npz")
-    out_file = f"{DATA_DIR}/medicion_punto_{point_num}.npz"
-    np.savez(out_file, **data)
-    print(f"[v] {label} capturado y guardado en: {out_file}")
+    ts_str = time.strftime("%Y%m%d_%H%M%S")
+    out_file_ts = f"{DATA_DIR}/medicion_punto_{point_num}_{ts_str}.npz"
+    out_file_latest = f"{DATA_DIR}/medicion_punto_{point_num}.npz"
+    np.savez(out_file_ts, **data)
+    np.savez(out_file_latest, **data)
+    print(f"[v] {label} capturado y guardado en:
+  - {out_file_ts}
+  - {out_file_latest}")
 
 def compute_and_save_average():
     print("=== PROCESANDO PROMEDIO ESPACIAL MULTIPUNTO (DR. FLOYD TOOLE) ===")
@@ -79,9 +85,14 @@ def compute_and_save_average():
     avg_r = 10.0 * np.log10(p_r_total / float(n_meas) + 1e-12)
     
     # Save master spatial average dataset
-    out_npz = f"{DATA_DIR}/medicion_promedio_espacial.npz"
-    np.savez(out_npz, freqs=freqs, smooth_l=avg_l, smooth_r=avg_r, raw_l=avg_l, raw_r=avg_r)
-    print(f"[v] Promedio espacial maestro guardado en: {out_npz}")
+    ts_str = time.strftime("%Y%m%d_%H%M%S")
+    out_npz_ts = f"{DATA_DIR}/medicion_promedio_espacial_{ts_str}.npz"
+    out_npz_latest = f"{DATA_DIR}/medicion_promedio_espacial.npz"
+    np.savez(out_npz_ts, freqs=freqs, smooth_l=avg_l, smooth_r=avg_r, raw_l=avg_l, raw_r=avg_r)
+    np.savez(out_npz_latest, freqs=freqs, smooth_l=avg_l, smooth_r=avg_r, raw_l=avg_l, raw_r=avg_r)
+    print(f"[v] Promedio espacial maestro guardado en:
+  - {out_npz_ts}
+  - {out_npz_latest}")
     
     # Generate Plot
     plt.style.use('seaborn-v0_8-whitegrid')
@@ -114,8 +125,10 @@ def compute_and_save_average():
     ax2.legend(loc="lower left", fontsize=8.0)
     
     plt.tight_layout()
-    out_fig = f"{FIG_DIR}/promedio_espacial_multipunto.png"
-    plt.savefig(out_fig)
+    out_fig_ts = f"{FIG_DIR}/promedio_espacial_multipunto_{ts_str}.png"
+    out_fig_latest = f"{FIG_DIR}/promedio_espacial_multipunto.png"
+    plt.savefig(out_fig_ts)
+    plt.savefig(out_fig_latest)
     plt.close()
     print(f"[v] Gráfica de promedio espacial actualizada en: {out_fig}")
 
