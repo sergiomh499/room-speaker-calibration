@@ -1,13 +1,70 @@
 # ==============================================================================
-# PAQUETE DE CALIBRACIÓN Y CONTROL ACÚSTICO PARA HOME ASSISTANT
-# Sistema: Yamaha RX-V673 + Q Acoustics 3020i + LG C5 OLED
+# PAQUETE INTEGRAL HOME ASSISTANT: YAMAHA RX-V673 + CALIBRACIÓN DE SALA
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 1. COMANDOS REST / EJECUCIÓN DIRECTA
+# 1. INTEGRACIÓN NATIVA MEDIA PLAYER DE YAMAHA
+# ------------------------------------------------------------------------------
+media_player:
+  - platform: yamaha
+    host: 192.168.1.39
+    name: "Yamaha RX-V673"
+    zone_names:
+      Main_Zone: "Salón Principal"
+
+# ------------------------------------------------------------------------------
+# 2. SENSOR REST DE TELEMETRÍA EN TIEMPO REAL (YAMAHA + CALIBRACIÓN)
+# ------------------------------------------------------------------------------
+rest:
+  - resource: "http://localhost:8899/api/status"
+    scan_interval: 5
+    sensor:
+      - name: "Yamaha Entrada Activa"
+        unique_id: "yamaha_sensor_input"
+        value_template: "{{ value_json.input }}"
+        icon: "mdi:import"
+
+      - name: "Yamaha Volumen dB"
+        unique_id: "yamaha_sensor_volume_db"
+        value_template: "{{ value_json.volume_db }}"
+        unit_of_measurement: "dB"
+        icon: "mdi:volume-high"
+
+      - name: "Yamaha Programa DSP"
+        unique_id: "yamaha_sensor_sound_program"
+        value_template: "{{ value_json.sound_program }}"
+        icon: "mdi:surround-sound"
+
+      - name: "Yamaha Modo Straight"
+        unique_id: "yamaha_sensor_straight"
+        value_template: "{{ 'Activo' if value_json.straight else 'Inactivo' }}"
+        icon: "mdi:swap-horizontal"
+
+      - name: "Yamaha Dialogue Lift"
+        unique_id: "yamaha_sensor_dialogue_lift"
+        value_template: "{{ value_json.dialogue_lift }}"
+        icon: "mdi:arrow-up-bold-box-outline"
+
+      - name: "Yamaha Dialogue Level"
+        unique_id: "yamaha_sensor_dialogue_lvl"
+        value_template: "{{ value_json.dialogue_lvl }}"
+        icon: "mdi:account-voice"
+
+      - name: "Yamaha Adaptive DRC"
+        unique_id: "yamaha_sensor_adaptive_drc"
+        value_template: "{{ value_json.adaptive_drc }}"
+        icon: "mdi:compress"
+
+      - name: "Yamaha Perfil PEQ Activo"
+        unique_id: "yamaha_sensor_active_peq"
+        value_template: "{{ value_json.active_peq }}"
+        icon: "mdi:equalizer"
+
+# ------------------------------------------------------------------------------
+# 3. COMANDOS REST (CONTROL Y CALIBRACIÓN)
 # ------------------------------------------------------------------------------
 rest_command:
-  # Calibración Acústica por Perfiles
+  # Calibraciones de Sala
   yamaha_calibrate_harman_impact:
     url: "http://localhost:8899/api/calibrate?target=harman_impact"
     method: GET
@@ -32,7 +89,7 @@ rest_command:
     url: "http://localhost:8899/api/calibrate?target=audiophile_flat"
     method: GET
 
-  # Conmutación de Escenas Directa
+  # Escenas Rápidas
   yamaha_set_scene_1_music:
     url: "http://localhost:8899/api/scene?num=1"
     method: GET
@@ -49,12 +106,100 @@ rest_command:
     url: "http://localhost:8899/api/scene?num=4"
     method: GET
 
+  # Control de Parámetros de Audio
+  yamaha_set_straight:
+    url: "http://localhost:8899/api/control?param=straight&val={{ val }}"
+    method: GET
+
+  yamaha_set_dialogue_lift:
+    url: "http://localhost:8899/api/control?param=dialogue_lift&val={{ val }}"
+    method: GET
+
+  yamaha_set_dialogue_lvl:
+    url: "http://localhost:8899/api/control?param=dialogue_lvl&val={{ val }}"
+    method: GET
+
+  yamaha_set_adaptive_drc:
+    url: "http://localhost:8899/api/control?param=adaptive_drc&val={{ val }}"
+    method: GET
+
+  yamaha_set_sound_program:
+    url: "http://localhost:8899/api/control?param=sound_program&val={{ val }}"
+    method: GET
+
+  yamaha_set_input:
+    url: "http://localhost:8899/api/control?param=input&val={{ val }}"
+    method: GET
+
 # ------------------------------------------------------------------------------
-# 2. BOTONES DE CALIBRACIÓN Y ESCENAS (UI)
+# 4. SELECTORES E INTERRUPTORES (UI)
+# ------------------------------------------------------------------------------
+input_select:
+  yamaha_active_profile:
+    name: "Perfil Acústico (Curva)"
+    options:
+      - "Harman Impact (Definitivo)"
+      - "Harman Neutral"
+      - "Cinema Impact"
+      - "Vocal Clarity"
+      - "Warm Music"
+      - "Audiophile Flat"
+    initial: "Harman Impact (Definitivo)"
+    icon: "mdi:equalizer"
+
+  yamaha_dsp_mode_select:
+    name: "Programa Cinema DSP"
+    options:
+      - "Straight"
+      - "Standard"
+      - "Drama"
+      - "Music Video"
+      - "Spectacle"
+      - "Sci-Fi"
+      - "Adventure"
+      - "7ch Stereo"
+      - "Hall in Munich"
+    initial: "Standard"
+    icon: "mdi:surround-sound"
+
+  yamaha_input_select:
+    name: "Entrada de Audio / Vídeo"
+    options:
+      - "AV4"
+      - "V-AUX"
+      - "HDMI1"
+      - "HDMI2"
+      - "AUDIO1"
+      - "TUNER"
+      - "NET"
+    initial: "AV4"
+    icon: "mdi:import"
+
+# ------------------------------------------------------------------------------
+# 5. NÚMEROS / CONTROLES DESLIZANTES
+# ------------------------------------------------------------------------------
+input_number:
+  yamaha_dialogue_lift_slider:
+    name: "Elevación de Diálogos (Lift)"
+    min: 0
+    max: 5
+    step: 1
+    initial: 1
+    icon: "mdi:arrow-up-bold-box-outline"
+
+  yamaha_dialogue_lvl_slider:
+    name: "Nivel de Diálogos (Level)"
+    min: 0
+    max: 3
+    step: 1
+    initial: 1
+    icon: "mdi:account-voice"
+
+# ------------------------------------------------------------------------------
+# 6. BOTONES DIRECTOS
 # ------------------------------------------------------------------------------
 template:
   - button:
-      # Botones de Calibración
       - name: "Calibrar Harman Impact (Definitivo)"
         unique_id: "yamaha_btn_calib_harman_impact"
         icon: "mdi:bullhorn-outline"
@@ -99,7 +244,7 @@ template:
             data:
               option: "Warm Music"
 
-      # Botones de Escena
+      # Escenas
       - name: "Escena 1: Música Hi-Fi"
         unique_id: "yamaha_btn_scene_1"
         icon: "mdi:music"
@@ -125,23 +270,7 @@ template:
           - action: rest_command.yamaha_set_scene_4_concerts
 
 # ------------------------------------------------------------------------------
-# 3. SELECTOR DE PERFIL ACÚSTICO
-# ------------------------------------------------------------------------------
-input_select:
-  yamaha_active_profile:
-    name: "Perfil Acústico Activo"
-    options:
-      - "Harman Impact (Definitivo)"
-      - "Harman Neutral"
-      - "Cinema Impact"
-      - "Vocal Clarity"
-      - "Warm Music"
-      - "Audiophile Flat"
-    initial: "Harman Impact (Definitivo)"
-    icon: "mdi:equalizer"
-
-# ------------------------------------------------------------------------------
-# 4. AUTOMATIZACIÓN DE SINCRONIZACIÓN
+# 7. AUTOMATISMOS DE CONTROL BIDIRECCIONAL
 # ------------------------------------------------------------------------------
 automation:
   - alias: "Yamaha - Aplicar Calibración al Cambiar Selector"
@@ -157,38 +286,86 @@ automation:
                 state: "Harman Impact (Definitivo)"
             sequence:
               - action: rest_command.yamaha_calibrate_harman_impact
-
           - conditions:
               - condition: state
                 entity_id: input_select.yamaha_active_profile
                 state: "Harman Neutral"
             sequence:
               - action: rest_command.yamaha_calibrate_harman_neutral
-
           - conditions:
               - condition: state
                 entity_id: input_select.yamaha_active_profile
                 state: "Cinema Impact"
             sequence:
               - action: rest_command.yamaha_calibrate_cinema_impact
-
           - conditions:
               - condition: state
                 entity_id: input_select.yamaha_active_profile
                 state: "Vocal Clarity"
             sequence:
               - action: rest_command.yamaha_calibrate_vocal_clarity
-
           - conditions:
               - condition: state
                 entity_id: input_select.yamaha_active_profile
                 state: "Warm Music"
             sequence:
               - action: rest_command.yamaha_calibrate_warm_music
-
           - conditions:
               - condition: state
                 entity_id: input_select.yamaha_active_profile
                 state: "Audiophile Flat"
             sequence:
               - action: rest_command.yamaha_calibrate_audiophile_flat
+
+  - alias: "Yamaha - Sincronizar Dialogue Lift Slider"
+    id: "yamaha_sync_dialogue_lift"
+    trigger:
+      - platform: state
+        entity_id: input_number.yamaha_dialogue_lift_slider
+    action:
+      - action: rest_command.yamaha_set_dialogue_lift
+        data:
+          val: "{{ states('input_number.yamaha_dialogue_lift_slider') | int }}"
+
+  - alias: "Yamaha - Sincronizar Dialogue Level Slider"
+    id: "yamaha_sync_dialogue_lvl"
+    trigger:
+      - platform: state
+        entity_id: input_number.yamaha_dialogue_lvl_slider
+    action:
+      - action: rest_command.yamaha_set_dialogue_lvl
+        data:
+          val: "{{ states('input_number.yamaha_dialogue_lvl_slider') | int }}"
+
+  - alias: "Yamaha - Sincronizar Modo DSP Select"
+    id: "yamaha_sync_dsp_select"
+    trigger:
+      - platform: state
+        entity_id: input_select.yamaha_dsp_mode_select
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_select.yamaha_dsp_mode_select
+                state: "Straight"
+            sequence:
+              - action: rest_command.yamaha_set_straight
+                data:
+                  val: "On"
+        default:
+          - action: rest_command.yamaha_set_straight
+            data:
+              val: "Off"
+          - action: rest_command.yamaha_set_sound_program
+            data:
+              val: "{{ states('input_select.yamaha_dsp_mode_select') }}"
+
+  - alias: "Yamaha - Sincronizar Entrada Select"
+    id: "yamaha_sync_input_select"
+    trigger:
+      - platform: state
+        entity_id: input_select.yamaha_input_select
+    action:
+      - action: rest_command.yamaha_set_input
+        data:
+          val: "{{ states('input_select.yamaha_input_select') }}"

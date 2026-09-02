@@ -1,16 +1,46 @@
 # ==============================================================================
-# TARJETA LOVELACE DASHBOARD: CALIBRACIÓN Y CONTROL ACÚSTICO YAMAHA
+# PANEL DE CONTROL INTEGRAL: RECEPTOR YAMAHA RX-V673 & CALIBRACIÓN ACÚSTICA
 # ==============================================================================
 type: vertical-stack
-title: 🎛️ Control Acústico y Calibración
+title: 🎛️ Yamaha RX-V673 · Control Acústico Total
 cards:
-  # Selector de Perfil Activo
+  # 1. Reproductor y Estado Multimedia Principal
+  - type: media-control
+    entity: media_player.yamaha_receiver
+
+  # 2. Telemetría y Estado de Procesamiento en Tiempo Real
+  - type: glance
+    title: 📊 Estado Acústico en Vivo
+    show_name: true
+    show_icon: true
+    show_state: true
+    entities:
+      - entity: sensor.yamaha_perfil_peq_activo
+        name: Perfil PEQ
+        icon: mdi:equalizer
+      - entity: sensor.yamaha_programa_dsp
+        name: Modo DSP
+        icon: mdi:surround-sound
+      - entity: sensor.yamaha_modo_straight
+        name: Straight
+        icon: mdi:swap-horizontal
+      - entity: sensor.yamaha_dialogue_lift
+        name: Diag Lift
+        icon: mdi:arrow-up-bold-box-outline
+      - entity: sensor.yamaha_dialogue_level
+        name: Diag Lvl
+        icon: mdi:account-voice
+      - entity: sensor.yamaha_entrada_activa
+        name: Entrada
+        icon: mdi:import
+
+  # 3. Selector de Curva Psicoacústica y Calibración Rápida
   - type: entities
+    title: 🎯 Calibración Acústica de Sala
     entities:
       - entity: input_select.yamaha_active_profile
         name: Curva Psicoacústica Activa
 
-  # Botones de Calibración Rápida
   - type: grid
     columns: 2
     square: false
@@ -51,7 +81,7 @@ cards:
           target:
             entity_id: button.calibrar_calidez_analogica_jazz
 
-  # Botones de Escenas del Receptor
+  # 4. Escenas Rápidas del Receptor
   - type: grid
     columns: 4
     square: false
@@ -91,3 +121,16 @@ cards:
           perform_action: button.press
           target:
             entity_id: button.escena_4_conciertos_live_deportes
+
+  # 5. Ajustes Finos de Audio y Diálogos
+  - type: entities
+    title: 🗣️ Procesado y Elevación de Diálogos
+    entities:
+      - entity: input_number.yamaha_dialogue_lift_slider
+        name: Dialogue Lift (Elevación a Pantalla)
+      - entity: input_number.yamaha_dialogue_lvl_slider
+        name: Dialogue Level (Claridad)
+      - entity: input_select.yamaha_dsp_mode_select
+        name: Programa DSP
+      - entity: input_select.yamaha_input_select
+        name: Entrada Activa
