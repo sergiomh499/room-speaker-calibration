@@ -45,9 +45,7 @@ def capture_point(point_num):
     out_file_latest = f"{DATA_DIR}/medicion_punto_{point_num}.npz"
     np.savez(out_file_ts, **data)
     np.savez(out_file_latest, **data)
-    print(f"[v] {label} capturado y guardado en:
-  - {out_file_ts}
-  - {out_file_latest}")
+    print(f"[v] {label} capturado y guardado en:\n  - {out_file_ts}\n  - {out_file_latest}")
 
 def compute_and_save_average():
     print("=== PROCESANDO PROMEDIO ESPACIAL MULTIPUNTO (DR. FLOYD TOOLE) ===")
@@ -90,9 +88,7 @@ def compute_and_save_average():
     out_npz_latest = f"{DATA_DIR}/medicion_promedio_espacial.npz"
     np.savez(out_npz_ts, freqs=freqs, smooth_l=avg_l, smooth_r=avg_r, raw_l=avg_l, raw_r=avg_r)
     np.savez(out_npz_latest, freqs=freqs, smooth_l=avg_l, smooth_r=avg_r, raw_l=avg_l, raw_r=avg_r)
-    print(f"[v] Promedio espacial maestro guardado en:
-  - {out_npz_ts}
-  - {out_npz_latest}")
+    print(f"[v] Promedio espacial maestro guardado en:\n  - {out_npz_ts}\n  - {out_npz_latest}")
     
     # Generate Plot
     plt.style.use('seaborn-v0_8-whitegrid')
@@ -130,7 +126,7 @@ def compute_and_save_average():
     plt.savefig(out_fig_ts)
     plt.savefig(out_fig_latest)
     plt.close()
-    print(f"[v] Gráfica de promedio espacial actualizada en: {out_fig}")
+    print(f"[v] Gráfica de promedio espacial actualizada en: {out_fig_latest}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multipoint Spatial Averaging Engine")
