@@ -53,6 +53,38 @@ def print_status():
     print(f"  * Adaptive DRC:               {st.get('Adaptive_DRC', 'Off')}")
     print("=" * 65)
 
+
+def send_key(key):
+    key = key.lower()
+    mapping = {
+        "on_screen": ("Menu_Control", "On Screen"),
+        "onscreen": ("Menu_Control", "On Screen"),
+        "menu": ("Menu_Control", "On Screen"),
+        "setup": ("Menu_Control", "On Screen"),
+        "option": ("Menu_Control", "Option"),
+        "top_menu": ("Menu_Control", "Top Menu"),
+        "display": ("Menu_Control", "Display"),
+        "up": ("Cursor", "Up"),
+        "down": ("Cursor", "Down"),
+        "left": ("Cursor", "Left"),
+        "right": ("Cursor", "Right"),
+        "enter": ("Cursor", "Sel"),
+        "sel": ("Cursor", "Sel"),
+        "ok": ("Cursor", "Sel"),
+        "return": ("Cursor", "Return"),
+        "back": ("Cursor", "Return")
+    }
+    
+    if key not in mapping:
+        print(f"Tecla no reconocida: {key}")
+        print("Teclas válidas: on_screen, option, up, down, left, right, enter, return")
+        return
+        
+    tag, val = mapping[key]
+    xml = f'<YAMAHA_AV cmd="PUT"><Main_Zone><List_Control><{tag}>{val}</{tag}></List_Control></Main_Zone></YAMAHA_AV>'
+    res = send_cmd(xml)
+    print(f"[>] Tecla enviada al Yamaha: {key.upper()} ({tag}={val})")
+
 def apply_preset(num):
     if num not in [1, 2, 3, 4]:
         print("Número de preset inválido. Usa 1, 2, 3 o 4.")
@@ -111,7 +143,16 @@ if __name__ == "__main__":
             apply_preset(3)
         elif arg in ["direct", "puredirect", "pure", "4"]:
             apply_preset(4)
+        elif arg in ["key", "k", "send"]:
+            if len(sys.argv) > 2:
+                for k in sys.argv[2:]:
+                    send_key(k)
+                    time.sleep(0.3)
+            else:
+                print("Indica una tecla: on_screen, option, up, down, left, right, enter, return")
+        elif arg in ["up", "down", "left", "right", "enter", "sel", "ok", "return", "back", "on_screen", "onscreen", "option", "menu", "setup"]:
+            send_key(arg)
         else:
-            print("Uso: python3 04_yamaha_control.py [status | 1 | 2 | 3 | 4 | musica | cine | tv | direct]")
+            print("Uso: python3 04_yamaha_control.py [status | 1 | 2 | 3 | 4 | on_screen | option | up | down | left | right | enter | return]")
     else:
         print_status()
