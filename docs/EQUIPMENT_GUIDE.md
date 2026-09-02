@@ -1,60 +1,57 @@
-# Guía Técnica de Equipamiento y Procesamiento
+# Guía de Equipamiento, Conectividad y Hoja de Ruta de Hardware
 
-Este documento recopila las especificaciones de ingeniería de los componentes actuales del sistema, el análisis del hardware de audio y la justificación de los ajustes configurados.
-
----
-
-## 1. Receptor Audiovisual: Yamaha RX-V673
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           YAMAHA RX-V673 (ARQUITECTURA)                     │
-│  • Etapa de Potencia: Discreta de alta corriente (90 W/canal @ 8 Ω, 0.09%)  │
-│  • DAC Interno: Burr-Brown PCM1681 (192 kHz / 24-bit, 105 dB SNR)           │
-│  • Motor DSP: Cinema DSP 3D con Virtual Presence Speaker (VPS)              │
-│  • Ecualizador: PEQ Paramétrico 7 bandas IIR Biquad por canal               │
-│  • Interfaz de Red: Protocolo YNC (XML over HTTP en puerto 80)              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### A. Gestión de Impedancia: ¿Por qué 8 $\Omega$ MIN y no 6 $\Omega$?
-En el menú avanzado (`ADVANCED SETUP` $\rightarrow$ `SP IMP.`), Yamaha permite seleccionar entre `8 \Omega MIN` y `6 \Omega MIN`.
-* **Explicación Técnica**: El ajuste de 6 $\Omega$ no añade capacidad de corriente; activa un limitador de tensión en el secundario del transformador para superar homologaciones térmicas en laboratorio.
-* **Impacto en el Audio**: Limitar la tensión recorta el *headroom* dinámico en los picos transitorios de música y cine.
-* **Configuración Aplicada**: Se mantiene en **`8 \Omega MIN`** para que los transistores entreguen toda la dinámica a los altavoces de 6 $\Omega$, asegurando al menos 10 cm de ventilación sobre el chasis.
-
-### B. Motor Cinema DSP 3D y Virtual Presence Speaker (VPS)
-* El procesador Yamaha RX-V673 incluye algoritmos propietarios de función de transferencia relacionada con la cabeza (HRTF).
-* Con `Cinema DSP 3D Mode: Auto` activo, al detectar que no hay altavoces de presencia físicos conectados en la pared, el receptor **habilita automáticamente el Virtual Presence Speaker (VPS)**, proyectando las fuentes sonoras hacia la altura del panel LG C5 OLED.
+Este documento detalla los componentes del sistema actual, su acoplamiento electroacústico y las opciones de mejora de hardware a futuro.
 
 ---
 
-## 2. Altavoces de Estantería: Q Acoustics 3020i
+## 1. Cadena de Equipamiento Actual
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Q ACOUSTICS 3020i (ESPECIFICACIONES)                │
-│  • Configuración: 2 vías Bass-Reflex con puerto trasero afinado             │
-│  • Woofer: 125 mm (5 pulgadas) de papel recubierto con suspensión de goma   │
-│  • Tweeter: 22 mm cúpula suave desacoplada del deflector frontal            │
-│  • Frecuencia de Cruce (Crossover): 2.4 kHz (Filtro divisor orden acústico)  │
-│  • Respuesta Anecoica: 64 Hz – 30 kHz (-3 dB)                               │
-│  • Sensibilidad / Impedancia: 88 dB/W/m · 6 Ω nominal (mínimo 4.0 Ω)        │
-│  • Construcción: Refuerzos internos punto a punto (P2P Bracing)             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Compensación de Cruce en PEQ:
-* En la zona de cruce anecoico (~2.4 kHz – 2.5 kHz), existe una ligera pérdida de energía por la directividad fuera de eje del cono de 5 pulgadas.
-* El filtro de **`Band 6: 2.52 kHz (+1.5 dB, Q=1.260)`** en el ecualizador compensa este escalón, solidificando la presencia vocal.
+| Componente | Modelo | Rol en la Cadena | Configuración Activa |
+| :--- | :--- | :--- | :--- |
+| **Fuente / Pantalla** | **LG C5 OLED (2025)** | Reproductor AV & HDMI ARC | *Pass Through (Paso directo)*, Bitstream, eARC Off (ARC nativo). |
+| **Receptor AV** | **Yamaha RX-V673** | Procesador DSP & Amplificador | *8 Ω MIN*, Pure Direct Off, Dynamic Range MAX, PEQ Manual. |
+| **Altavoces** | **Q Acoustics 3020i** | Transductores Estéreo 2.0 | Woofer 125 mm, Tweeter 22 mm desacoplado, 0° Toe-In (Paralelo). |
+| **Micrófono Actual** | **Yamaha YPAO Stock (3.5mm)** | Captura de Barridos Acústicos | Cápsula omnidireccional a 90° (orientada al techo). |
 
 ---
 
-## 3. Pantalla: LG C5 OLED
+## 2. Análisis del Micrófono YPAO de Serie vs Micrófono Calibrado
 
-* **Conexión**: HDMI 2 (eARC/ARC) $\rightarrow$ HDMI OUT (ARC) del Yamaha.
-* **Ajustes Óptimos en webOS**:
-  * *Salida de sonido*: **Dispositivo HDMI(ARC)**.
-  * *Salida de sonido digital*: **Paso a través (Pass Through)** (evita remuestreos y latencia).
-  * *Formato de entrada HDMI*: **Bitstream**.
-  * *Compatibilidad eARC*: Desactivar si se experimentan cortes con HDMI 1.4 legado.
+### Estado Actual: Micrófono YPAO de Yamaha (Incluido)
+* **Precisión en Graves (20 Hz - 400 Hz)**: **Excelente ($\pm 0.5	ext{ dB}$)**. Las cápsulas electret son omnidireccionales y su respuesta en bajas frecuencias es plana y altamente precisa para detectar modos de sala y frecuencias de resonancia de esquina (110 Hz).
+* **Limitación en Agudos (>2 kHz)**: No dispone de un archivo de calibración individual de fábrica para compensar tolerancias de manufactura en agudos extremos.
+* **Solución Aplicada**: El sistema utiliza la **compensación anecoica Klippel NFS de laboratorio (Audio Science Review)** para corregir los 3020i en agudos/crossover y el micro YPAO para los modos de sala.
+
+---
+
+## 3. Hoja de Ruta de Mejora a Futuro (Micrófonos Calibrados de Precisión)
+
+Para usuarios que deseen llevar la calibración a un estándar de laboratorio de $20	ext{ Hz}$ a $20	ext{ kHz}$ en toda la banda audible:
+
+```
++-----------------------------------------------------------------------------------+
+| OPCIONES DE MEJORA DE MICRÓFONO CALIBRADO A FUTURO                               |
++----------------------+--------------------+-----------------+---------------------+
+| Modelo               | Tipo de Conexión   | Rango Calibrado | Archivo de Cal (.cal)
++----------------------+--------------------+-----------------+---------------------+
+| 1. miniDSP UMIK-1    | USB Directo        | 10 Hz - 20 kHz  | 90° Diffuse Field   |
+| 2. Dayton UMM-6      | USB Directo        | 18 Hz - 20 kHz  | Serial-matched 90°  |
+| 3. Dayton iMM-6C     | USB-C              | 20 Hz - 20 kHz  | Calibración ind.    |
++----------------------+--------------------+-----------------+---------------------+
+```
+
+### Cómo ejecutar una medición con micrófono calibrado a futuro:
+```bash
+# 1. Conectar el micrófono USB (UMIK-1 / UMM-6)
+# 2. Descargar el archivo .cal correspondiente a su número de serie
+# 3. Lanzar la calibración acústica con el archivo de compensación:
+python3 scripts/01_measure_sweep.py --mic umik1 --cal-file /ruta/a/umik1_90deg.cal
+python3 scripts/spatial_average.py --compute-average
+python3 scripts/auto_calibrate.py --target harman_wide_room --multipoint --export-pdf
+```
+
+---
+
+## 4. Segunda Hoja de Ruta de Mejora: Subwoofer Activo (Corte a 80 Hz)
+* **Hardware Recomendado**: *Q Acoustics 3060S* o *SVS SB-1000 Pro* conectado a la salida `SUBWOOFER OUT` del Yamaha.
+* **Beneficio**: Alivia a los 3020i de reproducir por debajo de 80 Hz, reduciendo la distorsión por intermodulación en medios y extendiendo la respuesta hasta los 20 Hz reales.

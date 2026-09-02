@@ -6,6 +6,22 @@ import threading
 import subprocess
 import urllib.request
 import xml.etree.ElementTree as ET
+
+import argparse
+
+parser = argparse.ArgumentParser(description="Acoustic Measurement Sweep Engine")
+parser.add_argument("--mic", type=str, default="ypao_stock", help="Microphone profile (ypao_stock, umik1, umm6, custom)")
+parser.add_argument("--cal-file", type=str, default="", help="Path to .cal microphone calibration file")
+args, _ = parser.parse_known_args()
+
+def load_cal_curve(cal_path, target_freqs):
+    if not cal_path or not os.path.exists(cal_path):
+        return np.zeros_like(target_freqs)
+    print(f"[*] Aplicando curva de calibración de micrófono desde: {cal_path}")
+    cal_data = np.loadtxt(cal_path, comments=['*', '"', '#'])
+    cal_f = cal_data[:, 0]
+    cal_db = cal_data[:, 1]
+    return np.interp(target_freqs, cal_f, cal_db, left=0.0, right=0.0)
 import numpy as np
 import scipy.signal
 import scipy.io.wavfile as wav
@@ -167,6 +183,9 @@ def measure_channel(wav_path, ch_name):
     
     ref_mask = (freqs >= 500) & (freqs <= 2000)
     mag_norm = mag_db - np.mean(mag_db[ref_mask])
+    # Apply microphone calibration offset if available
+    cal_offset = load_cal_curve(args.cal_file, freqs)
+    mag_norm -= cal_offset
     
     smoothed = np.zeros_like(mag_norm)
     factor = 2 ** (1.0 / 24.0)

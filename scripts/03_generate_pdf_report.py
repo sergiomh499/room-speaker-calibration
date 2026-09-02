@@ -95,7 +95,8 @@ sys_data = [
     ["Receptor AV", "Yamaha RX-V673 (HDMI 1.4a / ARC)", "Impedancia: 8 Ω MIN | Pure Direct: Off | ECO Mode: Off | Dynamic Range: MAX | Lipsync: Auto"],
     ["Altavoces Estéreo", "Q Acoustics 3020i (Pareja)", "2 vías Bass-Reflex | Woofer: 125 mm (5 pulgadas) | Tweeter: 22 mm desacoplado | Imp: 6 Ω | 0° Toe-In (Paralelo)"],
     ["Entorno Acústico", "Sala Rectangular Dividida (Longitudinal)", "Mitad Derecha: Zona TV/Cine (Front R en Esquina) | Mitad Izquierda: Zona de Vida/Música Abierta"],
-    ["Procesamiento DSP", "Yamaha YPAO Parametric EQ", "7 bandas IIR biquad por canal | Perfil: Harman Wide Room (5 Puntos Toole) | 4 Escenas en AV4"]
+    ["Procesamiento DSP", "Yamaha YPAO Parametric EQ", "7 bandas IIR biquad por canal | Perfil: Harman Wide Room (5 Puntos Toole) | 4 Escenas en AV4"],
+    ["Micrófono de Medición", "Yamaha YPAO Stock (3.5mm)", "Cápsula Electret Omnidireccional a 90° (Actual) | Soporte nativo para UMIK-1 / UMM-6 (.cal) a futuro"]
 ]
 t_sys = Table(sys_data, colWidths=[2.8*cm, 4.8*cm, 10.2*cm])
 t_sys.setStyle(TableStyle([
