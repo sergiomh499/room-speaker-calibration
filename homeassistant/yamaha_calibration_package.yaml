@@ -1,0 +1,194 @@
+# ==============================================================================
+# PAQUETE DE CALIBRACIÓN Y CONTROL ACÚSTICO PARA HOME ASSISTANT
+# Sistema: Yamaha RX-V673 + Q Acoustics 3020i + LG C5 OLED
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. COMANDOS REST / EJECUCIÓN DIRECTA
+# ------------------------------------------------------------------------------
+rest_command:
+  # Calibración Acústica por Perfiles
+  yamaha_calibrate_harman_impact:
+    url: "http://localhost:8899/api/calibrate?target=harman_impact"
+    method: GET
+
+  yamaha_calibrate_harman_neutral:
+    url: "http://localhost:8899/api/calibrate?target=harman_neutral"
+    method: GET
+
+  yamaha_calibrate_cinema_impact:
+    url: "http://localhost:8899/api/calibrate?target=cinema_impact"
+    method: GET
+
+  yamaha_calibrate_vocal_clarity:
+    url: "http://localhost:8899/api/calibrate?target=vocal_clarity"
+    method: GET
+
+  yamaha_calibrate_warm_music:
+    url: "http://localhost:8899/api/calibrate?target=warm_music"
+    method: GET
+
+  yamaha_calibrate_audiophile_flat:
+    url: "http://localhost:8899/api/calibrate?target=audiophile_flat"
+    method: GET
+
+  # Conmutación de Escenas Directa
+  yamaha_set_scene_1_music:
+    url: "http://localhost:8899/api/scene?num=1"
+    method: GET
+
+  yamaha_set_scene_2_cinema:
+    url: "http://localhost:8899/api/scene?num=2"
+    method: GET
+
+  yamaha_set_scene_3_night:
+    url: "http://localhost:8899/api/scene?num=3"
+    method: GET
+
+  yamaha_set_scene_4_concerts:
+    url: "http://localhost:8899/api/scene?num=4"
+    method: GET
+
+# ------------------------------------------------------------------------------
+# 2. BOTONES DE CALIBRACIÓN Y ESCENAS (UI)
+# ------------------------------------------------------------------------------
+template:
+  - button:
+      # Botones de Calibración
+      - name: "Calibrar Harman Impact (Definitivo)"
+        unique_id: "yamaha_btn_calib_harman_impact"
+        icon: "mdi:bullhorn-outline"
+        press:
+          - action: rest_command.yamaha_calibrate_harman_impact
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.yamaha_active_profile
+            data:
+              option: "Harman Impact (Definitivo)"
+
+      - name: "Calibrar Cine Espectacular"
+        unique_id: "yamaha_btn_calib_cinema_impact"
+        icon: "mdi:movie-open-play"
+        press:
+          - action: rest_command.yamaha_calibrate_cinema_impact
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.yamaha_active_profile
+            data:
+              option: "Cinema Impact"
+
+      - name: "Calibrar Noche & Voces"
+        unique_id: "yamaha_btn_calib_vocal_clarity"
+        icon: "mdi:account-voice"
+        press:
+          - action: rest_command.yamaha_calibrate_vocal_clarity
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.yamaha_active_profile
+            data:
+              option: "Vocal Clarity"
+
+      - name: "Calibrar Calidez Analógica / Jazz"
+        unique_id: "yamaha_btn_calib_warm_music"
+        icon: "mdi:music-circle-outline"
+        press:
+          - action: rest_command.yamaha_calibrate_warm_music
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.yamaha_active_profile
+            data:
+              option: "Warm Music"
+
+      # Botones de Escena
+      - name: "Escena 1: Música Hi-Fi"
+        unique_id: "yamaha_btn_scene_1"
+        icon: "mdi:music"
+        press:
+          - action: rest_command.yamaha_set_scene_1_music
+
+      - name: "Escena 2: Cine Estándar"
+        unique_id: "yamaha_btn_scene_2"
+        icon: "mdi:filmstrip"
+        press:
+          - action: rest_command.yamaha_set_scene_2_cinema
+
+      - name: "Escena 3: Noche y Voces"
+        unique_id: "yamaha_btn_scene_3"
+        icon: "mdi:weather-night"
+        press:
+          - action: rest_command.yamaha_set_scene_3_night
+
+      - name: "Escena 4: Conciertos Live & Deportes"
+        unique_id: "yamaha_btn_scene_4"
+        icon: "mdi:stadium"
+        press:
+          - action: rest_command.yamaha_set_scene_4_concerts
+
+# ------------------------------------------------------------------------------
+# 3. SELECTOR DE PERFIL ACÚSTICO
+# ------------------------------------------------------------------------------
+input_select:
+  yamaha_active_profile:
+    name: "Perfil Acústico Activo"
+    options:
+      - "Harman Impact (Definitivo)"
+      - "Harman Neutral"
+      - "Cinema Impact"
+      - "Vocal Clarity"
+      - "Warm Music"
+      - "Audiophile Flat"
+    initial: "Harman Impact (Definitivo)"
+    icon: "mdi:equalizer"
+
+# ------------------------------------------------------------------------------
+# 4. AUTOMATIZACIÓN DE SINCRONIZACIÓN
+# ------------------------------------------------------------------------------
+automation:
+  - alias: "Yamaha - Aplicar Calibración al Cambiar Selector"
+    id: "yamaha_auto_apply_calibration"
+    trigger:
+      - platform: state
+        entity_id: input_select.yamaha_active_profile
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_select.yamaha_active_profile
+                state: "Harman Impact (Definitivo)"
+            sequence:
+              - action: rest_command.yamaha_calibrate_harman_impact
+
+          - conditions:
+              - condition: state
+                entity_id: input_select.yamaha_active_profile
+                state: "Harman Neutral"
+            sequence:
+              - action: rest_command.yamaha_calibrate_harman_neutral
+
+          - conditions:
+              - condition: state
+                entity_id: input_select.yamaha_active_profile
+                state: "Cinema Impact"
+            sequence:
+              - action: rest_command.yamaha_calibrate_cinema_impact
+
+          - conditions:
+              - condition: state
+                entity_id: input_select.yamaha_active_profile
+                state: "Vocal Clarity"
+            sequence:
+              - action: rest_command.yamaha_calibrate_vocal_clarity
+
+          - conditions:
+              - condition: state
+                entity_id: input_select.yamaha_active_profile
+                state: "Warm Music"
+            sequence:
+              - action: rest_command.yamaha_calibrate_warm_music
+
+          - conditions:
+              - condition: state
+                entity_id: input_select.yamaha_active_profile
+                state: "Audiophile Flat"
+            sequence:
+              - action: rest_command.yamaha_calibrate_audiophile_flat

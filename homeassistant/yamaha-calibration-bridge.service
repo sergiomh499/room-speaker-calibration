@@ -1,0 +1,13 @@
+[Unit]
+Description=Yamaha Room Speaker Calibration Bridge for Home Assistant
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/sergio/room-speaker-calibration
+ExecStart=/usr/bin/python3 /home/sergio/room-speaker-calibration/scripts/ha_bridge.py --serve
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

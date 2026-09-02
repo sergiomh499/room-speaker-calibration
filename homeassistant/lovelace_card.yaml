@@ -1,0 +1,93 @@
+# ==============================================================================
+# TARJETA LOVELACE DASHBOARD: CALIBRACIÓN Y CONTROL ACÚSTICO YAMAHA
+# ==============================================================================
+type: vertical-stack
+title: 🎛️ Control Acústico y Calibración
+cards:
+  # Selector de Perfil Activo
+  - type: entities
+    entities:
+      - entity: input_select.yamaha_active_profile
+        name: Curva Psicoacústica Activa
+
+  # Botones de Calibración Rápida
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: button
+        name: Harman Impact (Top)
+        icon: mdi:bullhorn-outline
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.calibrar_harman_impact_definitivo
+
+      - type: button
+        name: Cine Espectacular
+        icon: mdi:movie-open-play
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.calibrar_cine_espectacular
+
+      - type: button
+        name: Noche & Voces
+        icon: mdi:account-voice
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.calibrar_noche_voces
+
+      - type: button
+        name: Calidez Analógica
+        icon: mdi:music-circle-outline
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.calibrar_calidez_analogica_jazz
+
+  # Botones de Escenas del Receptor
+  - type: grid
+    columns: 4
+    square: false
+    cards:
+      - type: button
+        name: SCENE 1
+        icon: mdi:music
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.escena_1_musica_hi_fi
+
+      - type: button
+        name: SCENE 2
+        icon: mdi:filmstrip
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.escena_2_cine_estandar
+
+      - type: button
+        name: SCENE 3
+        icon: mdi:weather-night
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.escena_3_noche_y_voces
+
+      - type: button
+        name: SCENE 4
+        icon: mdi:stadium
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.escena_4_conciertos_live_deportes
