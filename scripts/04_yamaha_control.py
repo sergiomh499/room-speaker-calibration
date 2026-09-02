@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Yamaha RX-V673 Network Control Utility
-Provides programmatic control, status queries, and SCENE switching via the HTTP YNC (XML) API.
+Yamaha RX-V673 Network Control Engine & Presets
+Direct hardware integration via HTTP YNC (XML) API.
 """
 import sys
+import time
 import urllib.request
 import xml.etree.ElementTree as ET
 
@@ -19,51 +20,98 @@ def send_cmd(xml_payload):
     with urllib.request.urlopen(req, timeout=3.0) as resp:
         return resp.read().decode('utf-8', errors='ignore')
 
-def get_status():
+def get_parsed_status():
     xml = '<YAMAHA_AV cmd="GET"><Main_Zone><Basic_Status>GetParam</Basic_Status></Main_Zone></YAMAHA_AV>'
     res = send_cmd(xml)
-    print("=== ESTADO ACTUAL DEL YAMAHA RX-V673 ===")
-    for line in res.replace('><', '>\n<').splitlines():
-        if any(k in line for k in ['Power', 'Input_Sel>', 'Lvl>', 'Mute', 'Straight', 'Sound_Program', 'Bass', 'Treble', 'Dialogue_Lvl', 'Adaptive_DRC']):
-            print(" ", line.strip())
+    root = ET.fromstring(res)
+    
+    status = {}
+    for elem in root.iter():
+        if elem.text and elem.text.strip():
+            status[elem.tag] = elem.text.strip()
+            
+    # Pure direct
+    for elem in root.iter('Pure_Direct'):
+        for child in elem:
+            if child.tag == 'Mode':
+                status['Pure_Direct'] = child.text.strip()
+                
+    return status
 
-def select_scene(num):
+def print_status():
+    st = get_parsed_status()
+    print("=" * 65)
+    print("       ESTADO REAL DEL RECEPTOR YAMAHA RX-V673 (ONLINE)")
+    print("=" * 65)
+    print(f"  * Alimentación (Power):       {st.get('Power', 'N/A')}")
+    print(f"  * Entrada Seleccionada:       {st.get('Input_Sel', 'N/A')} (LG C5 HDMI ARC)")
+    print(f"  * Volumen Actual:             {st.get('Val', 'N/A')} dB")
+    print(f"  * Modo Straight:              {st.get('Straight', 'N/A')}")
+    print(f"  * Programa DSP:               {st.get('Sound_Program', 'N/A')}")
+    print(f"  * Pure Direct:                {st.get('Pure_Direct', 'Off')}")
+    print(f"  * Dialogue Lift / Level:      Lift: {st.get('Dialogue_Lift', '0')} | Level: {st.get('Dialogue_Lvl', '0')}")
+    print(f"  * Adaptive DRC:               {st.get('Adaptive_DRC', 'Off')}")
+    print("=" * 65)
+
+def apply_preset(num):
     if num not in [1, 2, 3, 4]:
-        print("Número de escena inválido. Usa 1, 2, 3 o 4.")
+        print("Número de preset inválido. Usa 1, 2, 3 o 4.")
         return
-    scene_names = {
-        1: "SCENE 1: Música Hi-Fi (Straight / Bit-perfect)",
-        2: "SCENE 2: Cine Estándar (Cinema DSP / Dialogue +1)",
-        3: "SCENE 3: Noche y Voces (Drama / Adaptive DRC / Dialogue +2)",
-        4: "SCENE 4: Conciertos / Live (Music Video DSP / Inmersión)"
-    }
-    xml = f'<YAMAHA_AV cmd="PUT"><Main_Zone><Scene><Scene_Sel>Scene {num}</Scene_Sel></Scene></Main_Zone></YAMAHA_AV>'
-    send_cmd(xml)
-    print(f"[✓] Conmutado a {scene_names[num]}")
 
-def set_input(input_name="AV4"):
-    xml = f'<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>{input_name}</Input_Sel></Input></Main_Zone></YAMAHA_AV>'
-    send_cmd(xml)
-    print(f"Entrada cambiada a {input_name}")
+    # 1. Asegurar Power On y entrada AV4
+    send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Power_Control><Power>On</Power></Power_Control></Main_Zone></YAMAHA_AV>')
+    send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>AV4</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
 
-def set_straight(on=True):
-    val = "On" if on else "Off"
-    xml = f'<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Straight>{val}</Straight></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>'
-    send_cmd(xml)
-    print(f"Modo Straight: {val}")
+    if num == 1:
+        # SCENE 1: Música Hi-Fi
+        print("\n[+] Aplicando PRESET 1: MÚSICA HI-FI (Straight / PEQ Manual Activo)...")
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Pure_Direct><Mode>Off</Mode></Pure_Direct></Sound_Video></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Straight>On</Straight></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Enhancer>Off</Enhancer></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Adaptive_DRC>Off</Adaptive_DRC></Sound_Video></Main_Zone></YAMAHA_AV>')
+
+    elif num == 2:
+        # SCENE 2: Cine & Películas
+        print("\n[+] Aplicando PRESET 2: CINE & PELÍCULAS (Standard DSP / Dialogue Lift +1)...")
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Pure_Direct><Mode>Off</Mode></Pure_Direct></Sound_Video></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Straight>Off</Straight></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Sound_Program>Standard</Sound_Program></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Dialogue_Adjust><Dialogue_Lift>1</Dialogue_Lift><Dialogue_Lvl>1</Dialogue_Lvl></Dialogue_Adjust></Sound_Video></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Adaptive_DRC>Off</Adaptive_DRC></Sound_Video></Main_Zone></YAMAHA_AV>')
+
+    elif num == 3:
+        # SCENE 3: TV & Series
+        print("\n[+] Aplicando PRESET 3: TV & SERIES (Drama DSP / Diálogos Optimizados)...")
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Pure_Direct><Mode>Off</Mode></Pure_Direct></Sound_Video></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Straight>Off</Straight></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Sound_Program>Drama</Sound_Program></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Dialogue_Adjust><Dialogue_Lift>1</Dialogue_Lift><Dialogue_Lvl>1</Dialogue_Lvl></Dialogue_Adjust></Sound_Video></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Adaptive_DRC>Off</Adaptive_DRC></Sound_Video></Main_Zone></YAMAHA_AV>')
+
+    elif num == 4:
+        # SCENE 4: Pure Direct
+        print("\n[+] Aplicando PRESET 4: PURE DIRECT (Bypass Digital)...")
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Pure_Direct><Mode>On</Mode></Pure_Direct></Sound_Video></Main_Zone></YAMAHA_AV>')
+
+    time.sleep(0.2)
+    print_status()
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        cmd = sys.argv[1].lower()
-        if cmd == "status":
-            get_status()
-        elif cmd == "scene" and len(sys.argv) > 2:
-            select_scene(int(sys.argv[2]))
-        elif cmd == "input" and len(sys.argv) > 2:
-            set_input(sys.argv[2])
-        elif cmd == "straight":
-            set_straight(True)
+        arg = sys.argv[1].lower()
+        if arg in ["status", "estado", "-s"]:
+            print_status()
+        elif arg.isdigit() and int(arg) in [1, 2, 3, 4]:
+            apply_preset(int(arg))
+        elif arg in ["musica", "music", "hifi", "1"]:
+            apply_preset(1)
+        elif arg in ["cine", "pelis", "movies", "2"]:
+            apply_preset(2)
+        elif arg in ["tv", "series", "drama", "3"]:
+            apply_preset(3)
+        elif arg in ["direct", "puredirect", "pure", "4"]:
+            apply_preset(4)
         else:
-            print("Uso: python3 04_yamaha_control.py [status | scene <1-4> | input <NOMBRE> | straight]")
+            print("Uso: python3 04_yamaha_control.py [status | 1 | 2 | 3 | 4 | musica | cine | tv | direct]")
     else:
-        get_status()
+        print_status()
