@@ -58,5 +58,67 @@
     "modal_notch_q": 2.0,
     "modal_notch_freq_hz": 99.2,
     "modal_notch_cut_db": -5.5
+  },
+  "harman_wide_room": {
+    "name": "Harman Wide Room Coverage (0° Toe-In / Sala Rectangular Dividida)",
+    "description": "Optimización acústica multipunto para cobertura total de sala rectangular longitudinal. Resuelve la resonancia modal de 110 Hz en la esquina derecha (Front R) manteniendo los agudos abiertos (0.0 dB a 10 kHz) para compensar la caída natural fuera de eje en la zona de vida.",
+    "bands": {
+      "Band 1 (62.5 Hz)": {
+        "freq": 62.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro graves profundos"
+      },
+      "Band 2 (99.2 Hz)": {
+        "freq": 99.2,
+        "q_l": 1.587,
+        "q_r": 2.0,
+        "gain_l": 1.5,
+        "gain_r": -5.0,
+        "desc": "Notch quirúrgico de esquina en Front R"
+      },
+      "Band 3 (157.5 Hz)": {
+        "freq": 157.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 0.0,
+        "gain_r": 0.5,
+        "desc": "Transición neutra medios-graves"
+      },
+      "Band 4 (250 Hz)": {
+        "freq": 250.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Límite Schroeder transparente"
+      },
+      "Band 5 (500 Hz)": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación tímbrica anecoica"
+      },
+      "Band 6 (2.52 kHz)": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 1.5,
+        "gain_r": 1.5,
+        "desc": "Compensación de cruce y claridad vocal en toda la sala"
+      },
+      "Band 7 (10.1 kHz)": {
+        "freq": 10100.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Transparencia y aire fuera de eje en zona de vida"
+      }
+    }
   }
 }

@@ -22,7 +22,7 @@ def load_json(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def run_calibration(target_key="harman_impact", use_spatial_avg=False, export_pdf=False):
+def run_calibration(target_key="harman_wide_room", use_spatial_avg=True, export_pdf=False):
     equip = load_json(f"{CONFIG_DIR}/equipment.json")
     targets = load_json(f"{CONFIG_DIR}/targets.json")
     
@@ -54,40 +54,30 @@ def run_calibration(target_key="harman_impact", use_spatial_avg=False, export_pd
     print(f"Descripción: {target_info['description']}")
     print("="*80)
     
-    # Calculate optimized 7 bands
     peq_table = []
-    
-    # Band 1: 62.5 Hz (Sub-bass Shelf)
-    b1_gain_l = +3.0 if "impact" in target_key else (+1.5 if "neutral" in target_key else 0.0)
-    b1_gain_r = +2.0 if "impact" in target_key else (+1.5 if "neutral" in target_key else 0.0)
-    peq_table.append({"band": 1, "freq": 62.5, "q_l": 1.260, "q_r": 1.260, "gain_l": b1_gain_l, "gain_r": b1_gain_r, "func": "Refuerzo y pegada subgrave táctil"})
-    
-    # Band 2: 99.2 Hz (Modal Room Resonance Notch)
-    if "surgical" in target_key:
-        b2_q_r = 2.000
-        b2_gain_r = -5.0
-        b2_gain_l = +1.5
+    if "bands" in target_info:
+        for idx, (b_name, b_val) in enumerate(target_info["bands"].items(), start=1):
+            peq_table.append({
+                "band": idx,
+                "freq": b_val["freq"],
+                "q_l": b_val["q_l"],
+                "q_r": b_val["q_r"],
+                "gain_l": b_val["gain_l"],
+                "gain_r": b_val["gain_r"],
+                "func": b_val.get("desc", "")
+            })
     else:
-        b2_q_r = 1.260
-        b2_gain_r = -4.0 if "impact" in target_key else -4.5
-        b2_gain_l = +2.0 if "impact" in target_key else +3.0
-    peq_table.append({"band": 2, "freq": 99.2, "q_l": 1.587, "q_r": b2_q_r, "gain_l": b2_gain_l, "gain_r": b2_gain_r, "func": "Control de resonancia modal en esquina (Front R)"})
-    
-    # Band 3: 157.5 Hz (Mid-bass boundary)
-    peq_table.append({"band": 3, "freq": 157.5, "q_l": 1.260, "q_r": 1.260, "gain_l": 0.0, "gain_r": +0.5, "func": "Transición neutra medios-graves"})
-    
-    # Band 4: 250 Hz (Schroeder transition)
-    peq_table.append({"band": 4, "freq": 250.0, "q_l": 1.000, "q_r": 1.000, "gain_l": 0.0, "gain_r": 0.0, "func": "Paso neutro transparente (Límite Schroeder)"})
-    
-    # Band 5: 500 Hz (Direct Timbre)
-    peq_table.append({"band": 5, "freq": 500.0, "q_l": 1.000, "q_r": 1.000, "gain_l": 0.0, "gain_r": 0.0, "func": "Paso neutro transparente (Preservación tímbrica)"})
-    
-    # Band 6: 2.52 kHz (Crossover Hole Compensation)
-    peq_table.append({"band": 6, "freq": 2520.0, "q_l": 1.260, "q_r": 1.260, "gain_l": +1.5, "gain_r": +1.5, "func": "Compensación de cruce y proyección holográfica de voces"})
-    
-    # Band 7: 10.1 kHz (Harman High-Frequency Roll-off)
-    peq_table.append({"band": 7, "freq": 10100.0, "q_l": 1.000, "q_r": 1.000, "gain_l": -1.0, "gain_r": -1.0, "func": "Harman House Curve (Caída suave anti-fatiga)"})
-    
+        # Fallback table
+        peq_table = [
+            {"band": 1, "freq": 62.5, "q_l": 1.260, "q_r": 1.260, "gain_l": 0.0, "gain_r": 0.0, "func": "Paso neutro graves profundos"},
+            {"band": 2, "freq": 99.2, "q_l": 1.587, "q_r": 2.000, "gain_l": 1.5, "gain_r": -5.0, "func": "Notch quirúrgico resonancia de esquina (Front R)"},
+            {"band": 3, "freq": 157.5, "q_l": 1.260, "q_r": 1.260, "gain_l": 0.0, "gain_r": 0.5, "func": "Transición neutra medios-graves"},
+            {"band": 4, "freq": 250.0, "q_l": 1.000, "q_r": 1.000, "gain_l": 0.0, "gain_r": 0.0, "func": "Límite Schroeder transparente"},
+            {"band": 5, "freq": 500.0, "q_l": 1.000, "q_r": 1.000, "gain_l": 0.0, "gain_r": 0.0, "func": "Preservación tímbrica anecoica"},
+            {"band": 6, "freq": 2520.0, "q_l": 1.260, "q_r": 1.260, "gain_l": 1.5, "gain_r": 1.5, "func": "Compensación de cruce y claridad vocal"},
+            {"band": 7, "freq": 10100.0, "q_l": 1.000, "q_r": 1.000, "gain_l": 0.0, "gain_r": 0.0, "func": "Transparencia y aire fuera de eje"}
+        ]
+        
     print("TABLA DE PARÁMETROS PEQ OPTIMIZADOS (INTRODUCIR EN YAMAHA SETUP -> EQUALIZER)")
     print("="*80)
     print("Banda  | Frecuencia | Q (L / R)       | Gain Front L | Gain Front R | Función Acústica")
@@ -103,8 +93,8 @@ def run_calibration(target_key="harman_impact", use_spatial_avg=False, export_pd
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automated PEQ Optimization Engine")
-    parser.add_argument("--target", type=str, default="harman_impact", help="Target curve name")
-    parser.add_argument("--multipoint", action="store_true", help="Use spatial average dataset (Dr. Floyd Toole)")
+    parser.add_argument("--target", type=str, default="harman_wide_room", help="Target curve name")
+    parser.add_argument("--multipoint", action="store_true", default=True, help="Use spatial average dataset (Dr. Floyd Toole)")
     parser.add_argument("--export-pdf", action="store_true", help="Export updated PDF technical report")
     args = parser.parse_args()
     
