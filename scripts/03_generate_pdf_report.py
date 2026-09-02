@@ -273,11 +273,11 @@ story = [
     Paragraph("6. Programación y Asignación de Escenas en el Mando a Distancia", h1_style),
     Paragraph("<b>SCENE 1 (Música Hi-Fi):</b> Entrada: <code>AV4 (TV ARC)</code> &bull; Modo: <code>Straight</code> &bull; Adaptive DRC: <code>Off</code> &bull; Dialogue Lift: <code>0</code> &bull; PEQ: <code>Manual</code> &bull; <i>Fidelidad estéreo pura sin DSP artificial</i>.", body_style),
     Spacer(1, 1.5),
-    Paragraph("<b>SCENE 2 (Cine & Series):</b> Entrada: <code>AV4 (TV ARC)</code> &bull; Modo: <code>Standard (Cinema DSP)</code> &bull; Dialogue Lift: <code>+1</code> &bull; Dialogue Level: <code>+1</code> &bull; Adaptive DRC: <code>Off</code> &bull; <i>Diálogos centrados en la LG C5 y máxima dinámica</i>.", body_style),
+    Paragraph("<b>SCENE 2 (Cine Estándar):</b> Entrada: <code>AV4 (TV ARC)</code> &bull; Modo: <code>Standard (Cinema DSP)</code> &bull; Dialogue Lift: <code>+1</code> &bull; Dialogue Level: <code>+1</code> &bull; Adaptive DRC: <code>Off</code> &bull; <i>Diálogos centrados en la LG C5 y máxima dinámica</i>.", body_style),
     Spacer(1, 1.5),
-    Paragraph("<b>SCENE 3 (Música Sala Completa):</b> Entrada: <code>AV4 (TV ARC)</code> &bull; Modo: <code>7ch Stereo</code> &bull; Adaptive DRC: <code>Off</code> &bull; PEQ: <code>Manual</code> &bull; <i>Difusión acústica amplia y homogénea hacia la zona de vida</i>.", body_style),
+    Paragraph("<b>SCENE 3 (Noche y Voces):</b> Entrada: <code>AV4 (TV ARC)</code> &bull; Modo: <code>Standard</code> &bull; Adaptive DRC: <code>Auto</code> &bull; Dialogue Lift: <code>+2</code> &bull; <i>Compresión de picos sonoros y realce vocal para noche</i>.", body_style),
     Spacer(1, 1.5),
-    Paragraph("<b>SCENE 4 (Modo Noche):</b> Entrada: <code>AV4 (TV ARC)</code> &bull; Modo: <code>Standard</code> &bull; Adaptive DRC: <code>Auto</code> &bull; Dialogue Lift: <code>+2</code> &bull; <i>Compresión de picos sonoros y realce vocal nocturno</i>.", body_style),
+    Paragraph("<b>SCENE 4 (Conciertos/Live):</b> Entrada: <code>AV4 (TV ARC)</code> &bull; Modo: <code>7ch Stereo</code> &bull; Adaptive DRC: <code>Off</code> &bull; PEQ: <code>Manual</code> &bull; <i>Difusión acústica amplia y envolvente en toda la sala</i>.", body_style),
     Spacer(1, 3),
 
     Paragraph(f"Certificado y firmado digitalmente por el Motor de Calibración Acústica. Actualizado en tiempo real el {now_str}.", callout_style)
