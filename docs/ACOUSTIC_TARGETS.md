@@ -1,47 +1,57 @@
-# Fundamentos Acústicos y Perfiles de Calibración (*Target Curves*)
+# Fundamentos Psicoacústicos y Perfiles de Calibración
 
-Este documento detalla los principios psicoacústicos, investigaciones académicas de referencia y las directrices para seleccionar la curva objetivo adecuada según el tipo de contenido y preferencias de audición.
-
----
-
-## 1. Fundamentos Psicoacústicos: ¿Por qué una sala NO debe ser plana?
-
-Uno de los errores más comunes en la corrección de sala es intentar forzar una respuesta en frecuencia 100% plana en el punto de escucha mediante ecualización. Las investigaciones del **Dr. Floyd Toole** (*Sound Reproduction: The Acoustics and Psychoacoustics of Loudspeakers and Rooms*) y el equipo de investigación de **Harman International (Sean Olive et al.)** demuestran lo siguiente:
-
-1. **Directividad y Campo Difuso**: Un altavoz anecoicamente neutro (como los Q Acoustics 3020i) irradia sonido de manera uniforme. Sin embargo, las altas frecuencias son absorbidas por cortinas, alfombras y aire mucho más rápido que las bajas frecuencias.
-2. **Respuesta en Sala Natural (*In-Room Target*)**: Cuando un altavoz de calidad reproduce en una sala doméstica, la energía acumulada resultante en la posición de escucha debe presentar una **pendiente descendente suave** de entre **$-0.8	ext{ dB}$ y $-1.2	ext{ dB}$ por octava** desde los 1 kHz hasta los 20 kHz.
-3. **El Mito de la Respuesta Plana en Agudos**: Forzar agudos planos por ecualización (como intentan algunos modos automáticos) provoca un sonido estridente, metálico y con fatiga auditiva severa a los 20 minutos de escucha.
+Este documento detalla las bases científicas, investigaciones académicas de referencia y la justificación psicoacústica detrás de las curvas objetivo implementadas en el sistema de calibración para la combinación de la **LG C5 OLED**, el **Yamaha RX-V673** y los **Q Acoustics 3020i**.
 
 ---
 
-## 2. La Frecuencia de Transición de Schroeder ($f_s$)
+## 1. El Mito de la «Respuesta Plana en Sala»
 
-En cualquier sala doméstica existe una frontera acústica denominada **Frecuencia de Schroeder**:
+Una creencia común pero errónea en la ingeniería de sonido es que una respuesta en frecuencia estrictamente plana ($0\text{ dB}$ en todo el espectro medido en el punto de escucha) produce el sonido más fiel.
 
-$$f_s pprox 2000 \sqrt{rac{T_{60}}{V}}$$
-
-* **Por debajo de $f_s$ (~250 - 300 Hz)**: El comportamiento acústico está dominado por las dimensiones de la sala y los **modos estacionarios (ondas estacionarias/resonancias axiales)**. En esta región, la ecualización paramétrica (PEQ) es **imprescindible y altamente efectiva** para recortar picos de presión.
-* **Por encima de $f_s$ (>300 Hz)**: El oído humano discrimina el sonido directo del altavoz frente a las reflexiones tardías. Por encima de 500 Hz solo se debe ecualizar para corregir anomalías intrínsecas del altavoz (como el escalón de cruce del crossover) o aplicar una curva de caída suave general (*House Curve*).
+Las investigaciones del **Dr. Floyd Toole** y el **Dr. Sean Olive** (*Audio Engineering Society* - AES) demuestran lo contrario:
+1. **Directividad y Absorción Natural**: Un altavoz anecoicamente plano proyecta más energía en bajas frecuencias que en altas debido a que los graves son omnidireccionales ($4\pi$) mientras que los agudos son direccionales ($2\pi$).
+2. **Absorción de la Sala**: Los materiales domésticos (alfombras, sofás, cortinas, aire) absorben más energía acústica a altas frecuencias.
+3. **Conclusión**: Una curva percibida como natural y equilibrada en una sala doméstica **debe tener una pendiente descendente constante (Roll-off)** desde los graves hasta los agudos (típicamente de $-0.8\text{ dB}$ a $-1.2\text{ dB}$ por octava por encima de 2 kHz).
 
 ---
 
-## 3. Catálogo de Perfiles Objetivo y Guía de Elección
+## 2. Contornos de Igual Sonoridad (ISO 226 / Fletcher-Munson)
 
-El sistema incluye **5 perfiles objetivo precalculados** seleccionables mediante el parámetro `--target`:
+La sensibilidad del oído humano no es lineal:
+* A volúmenes moderados de escucha doméstica (65 dB a 75 dB SPL), el oído es notablemente menos sensible a las frecuencias por debajo de 100 Hz.
+* Para percibir los bombos, el bajo eléctrico y las explosiones con el mismo impacto que en un concierto o una sala de cine comercial calibrada a 85 dB SPL, la curva debe incorporar un **realce de graves controlado (+4 dB a +6 dB por debajo de 90 Hz)** que corte limpiamente antes de los 200 Hz para no enturbiar las frecuencias vocales.
 
-| Perfil (`--target`) | Filosofía Acústica | Características Típicas | Contenido Ideal / Uso Recomendado |
+---
+
+## 3. Frecuencia de Transición o Límite de Schroeder ($f_s$)
+
+En cualquier sala de escucha existen dos dominios acústicos diferenciados:
+$$\text{Frecuencia de Schroeder } (f_s) \approx 2000 \sqrt{\frac{T_{60}}{V}}$$
+En salas residenciales estándar, $f_s$ se sitúa entre **200 Hz y 250 Hz**.
+
+| Dominio | Rango de Frecuencias | Comportamiento Físico | Regla de Ecualización (PEQ) |
 | :--- | :--- | :--- | :--- |
-| **`harman_neutral`** *(Por Defecto)* | **Harman Reference Target** | Realce de graves $+2.0	ext{ dB}$ (<120 Hz) + Caída suave de $-0.8	ext{ dB}$/oct (>6 kHz). | **Todo uso (Hi-Fi, Pop, Rock, Cine estándar, Series)**. El perfil más polivalente y equilibrado. |
-| **`audiophile_flat`** | **Diffuse-Field Linear** | Graves neutros $+0.0	ext{ dB}$ + Respuesta lineal estricta hasta 10 kHz. | **Música Clásica Orquestal, Jazz acústico, Mastering, Salas tratadas**. Máxima pureza timbral. |
-| **`cinema_impact`** | **Blockbuster Home Cinema** | Realce de subgraves $+3.5	ext{ dB}$ (<100 Hz) + Atenuación de agudos $-1.2	ext{ dB}$/oct (>5 kHz). | **Cine de Acción, Ciencia Ficción, Videojuegos, Pistas DTS/Atmos**. Graves profundos y cero aspereza a alto SPL. |
-| **`vocal_clarity`** | **Speech & Dialogue Focus** | Graves secos recortados + Realce de inteligibilidad $+1.5	ext{ dB}$ en 2.8 kHz. | **Podcasts, YouTube hablado, Vlogs, Documentales, Cine nocturno**. Diálogos nítidos a bajo volumen. |
-| **`warm_music`** | **British Warmth / Analogue** | Graves redondos $+2.5	ext{ dB}$ (<150 Hz) + Caída relajada $-1.5	ext{ dB}$/oct (>4 kHz). | **Vinilos, Rock de los 70/80, Soul, Jazz de club, Sesiones de fondo prolongadas**. |
+| **Bajo Schroeder** ($< f_s$) | $20\text{ Hz} - 250\text{ Hz}$ | **Ondas Estacionarias y Modos de Sala**: La sala domina el sonido creando picos y valles de resonancia. | **Corrección Obligatoria**: Se deben aplicar filtros paramétricos estrechos (Q alto) para recortar resonancias. |
+| **Alto Schroeder** ($> f_s$) | $> 250\text{ Hz}$ | **Sonido Directo y Reflexiones Tempranas**: El altavoz domina la percepción tímbrica. | **No Sobre-ecualizar**: No corregir valles estrechos; solo aplicar compensaciones suaves de ancho de banda amplio (Q bajo). |
 
 ---
 
-## 4. Fuentes y Bibliografía Técnica
+## 4. Catálogo de Curvas Objetivo en el Repositorio
 
-1. **Toole, Floyd E.** (2017). *Sound Reproduction: The Acoustics and Psychoacoustics of Loudspeakers and Rooms (3rd Edition)*. Routledge.
-2. **Olive, Sean E., Welti, Todd, & McMullin, Elisabeth** (2013). *Listener Preferences for In-Room Loudspeaker and Headphone Target Responses*. Audio Engineering Society (AES) Convention Paper 8994.
-3. **Klippel, Wolfgang** (2006). *Tutorial: Loudspeaker Nonlinearities—Causes, Characteristics, Symptoms*. Journal of the Audio Engineering Society.
-4. **Farina, Angelo** (2000). *Simultaneous Measurement of Impulse Response and Distortion with a Swept-Sine Technique*. Audio Engineering Society (AES) Convention 108.
+### A. `harman_impact` (Harman Impact Reference — 🏆 Recomendado Definitivo)
+* **Graves**: $+3.0\text{ dB}$ en 62.5 Hz y $-4.0\text{ dB}$ en 99.2 Hz (Front R) para eliminar el retumbo de esquina y ganar pegada física.
+* **Medios**: $+1.5\text{ dB}$ en 2.52 kHz (Q=1.260) compensando el escalón anecoico del filtro divisor de los 3020i (efecto holográfico de voces).
+* **Agudos**: Caída suave de $-1.0\text{ dB}$ en 10.1 kHz (*Harman House Curve*).
+* **Uso**: Todo tipo de música y películas con máxima pegada y cero fatiga.
+
+### B. `harman_neutral` (Harman Reference Analítica)
+* Curva clásica balanceada con menor ganancia en el extremo grave (+1.5 dB en 62.5 Hz). Ideal para música acústica y audiciones críticas.
+
+### C. `cinema_impact` (Blockbuster Cine de Acción)
+* Máxima presión en subgraves (+3.0 dB) y caída pronunciada en agudos (-1.2 dB/octava >5 kHz) para explosiones espectaculares sin dureza.
+
+### D. `vocal_clarity` (Podcasts, YouTube, Noche)
+* Enfoque de energía en el rango de 300 Hz a 4 kHz; combina con `Drama DSP` y `Adaptive DRC: Auto` para entender cada susurro de madrugada.
+
+### E. `warm_music` (Calidez Analógica Británica / Vinilos)
+* Graves redondos en 100-150 Hz y agudos atenuados para discos antiguos o grabaciones brillantes de los 70/80.

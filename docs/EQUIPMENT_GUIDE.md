@@ -1,102 +1,60 @@
-# Guía Técnica de Equipamiento y Extensibilidad del Sistema
+# Guía Técnica de Equipamiento y Procesamiento
 
-Este documento recopila las especificaciones de ingeniería de los componentes actuales, el mapeo de las 4 escenas programadas en el receptor y las instrucciones para dar de alta nuevos equipos en la arquitectura de calibración.
+Este documento recopila las especificaciones de ingeniería de los componentes actuales del sistema, el análisis del hardware de audio y la justificación de los ajustes configurados.
 
 ---
 
-## 1. Mapeo y Programación de las 4 Escenas (Yamaha RX-V673)
-
-Todas las escenas están enlazadas a la entrada **`AV4` (HDMI ARC desde la LG C5 OLED)**, manteniendo el ecualizador paramétrico manual (`PEQ Manual`) activo y optimizado para cada tipo de contenido:
+## 1. Receptor Audiovisual: Yamaha RX-V673
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       YAMAHA RX-V673 - MAPA DE ESCENAS                      │
-├─────────┬──────────────────────┬──────────────┬──────────────┬──────────────┤
-│ ESCENA  │ NOMBRE               │ MODO DSP     │ ADAPTIVE DRC │ DIALOGUE     │
-├─────────┼──────────────────────┼──────────────┼──────────────┼──────────────┤
-│ SCENE 1 │ Música Hi-Fi         │ Straight     │ Off          │ Inactivo (0) │
-│ SCENE 2 │ Cine Estándar        │ Standard DSP │ Off / MAX    │ +1 (Realce)  │
-│ SCENE 3 │ Noche y Voces        │ Drama DSP    │ Auto         │ +2 (Máximo)  │
-│ SCENE 4 │ Conciertos / Live    │ Music Video  │ Off / MAX    │ 0 (Inmersión)│
-└─────────┴──────────────────────┴──────────────┴──────────────┴──────────────┘
+│                           YAMAHA RX-V673 (ARQUITECTURA)                     │
+│  • Etapa de Potencia: Discreta de alta corriente (90 W/canal @ 8 Ω, 0.09%)  │
+│  • DAC Interno: Burr-Brown PCM1681 (192 kHz / 24-bit, 105 dB SNR)           │
+│  • Motor DSP: Cinema DSP 3D con Virtual Presence Speaker (VPS)              │
+│  • Ecualizador: PEQ Paramétrico 7 bandas IIR Biquad por canal               │
+│  • Interfaz de Red: Protocolo YNC (XML over HTTP en puerto 80)              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+### A. Gestión de Impedancia: ¿Por qué 8 $\Omega$ MIN y no 6 $\Omega$?
+En el menú avanzado (`ADVANCED SETUP` $\rightarrow$ `SP IMP.`), Yamaha permite seleccionar entre `8 \Omega MIN` y `6 \Omega MIN`.
+* **Explicación Técnica**: El ajuste de 6 $\Omega$ no añade capacidad de corriente; activa un limitador de tensión en el secundario del transformador para superar homologaciones térmicas en laboratorio.
+* **Impacto en el Audio**: Limitar la tensión recorta el *headroom* dinámico en los picos transitorios de música y cine.
+* **Configuración Aplicada**: Se mantiene en **`8 \Omega MIN`** para que los transistores entreguen toda la dinámica a los altavoces de 6 $\Omega$, asegurando al menos 10 cm de ventilación sobre el chasis.
 
-### Detalle Acústico de Cada Escena:
-
-#### 🎵 SCENE 1: Música Hi-Fi (Audición Estéreo Pura / Lossless)
-* **Entrada**: `AV4` (HDMI ARC).
-* **Modo de Sonido**: **`Straight`**.
-* **Comportamiento**: Apaga todo el motor de simulación espacial Cinema DSP. El audio se reproduce canal por canal con máxima pureza tímbrica y fidelidad a la mezcla de estudio.
-* **Dinámica**: `Adaptive DRC: Off` (entrega el 100% de la dinámica original sin comprimir).
-* **Uso**: Spotify, Amazon Music HD, YouTube Music, vinilos, sesiones acústicas.
-
----
-
-#### 🎬 SCENE 2: Cine Estándar (Blockbusters / Series / Inmersión)
-* **Entrada**: `AV4` (HDMI ARC).
-* **Modo de Sonido**: **`Standard` (Cinema DSP)**.
-* **Comportamiento**: Activa el procesamiento espacial optimizado para bandas sonoras cinematográficas (Dolby Digital / DTS) con `3D Cinema DSP: Auto`.
-* **Diálogos**: **`Dialogue Level: +1`** (adelanta las voces del canal central virtual para que no queden tapadas por la música y efectos de fondo).
-* **Dinámica**: `Dynamic Range: MAX` (explosiones con pegada y graves contundentes).
-* **Uso**: Películas en Stremio, Prime Video, Netflix, Disney+, cine de acción y ciencia ficción.
+### B. Motor Cinema DSP 3D y Virtual Presence Speaker (VPS)
+* El procesador Yamaha RX-V673 incluye algoritmos propietarios de función de transferencia relacionada con la cabeza (HRTF).
+* Con `Cinema DSP 3D Mode: Auto` activo, al detectar que no hay altavoces de presencia físicos conectados en la pared, el receptor **habilita automáticamente el Virtual Presence Speaker (VPS)**, proyectando las fuentes sonoras hacia la altura del panel LG C5 OLED.
 
 ---
 
-#### 🌙 SCENE 3: Noche y Voces (Podcasts / YouTube Hablado / Audición Nocturna)
-* **Entrada**: `AV4` (HDMI ARC).
-* **Modo de Sonido**: **`Drama` (Cinema DSP)**.
-* **Comportamiento**: El algoritmo `Drama` enfoca la energía acústica en el espectro de la voz humana (300 Hz a 4 kHz).
-* **Nivelación Dinámica**: **`Adaptive DRC: Auto`** (comprime inteligentemente los picos repentinos de anuncios o explosiones para no despertar a nadie por la noche).
-* **Diálogos**: **`Dialogue Level: +2`** (máxima inteligibilidad vocal a volumen bajo: -40 dB a -30 dB).
-* **Uso**: Podcasts, vídeos hablados de YouTube, documentales, noticias y películas de madrugada.
+## 2. Altavoces de Estantería: Q Acoustics 3020i
 
----
-
-#### 🏟️ SCENE 4: Conciertos / Live & Deportes (Atmósfera de Estadio / Acústica de Recinto)
-* **Entrada**: `AV4` (HDMI ARC).
-* **Modo de Sonido**: **`Music Video` (Cinema DSP)**.
-* **Comportamiento**: Simula la reverberación temprana y el campo sonoro envolvente de un auditorio / estadio en directo, expandiendo la escena estéreo más allá de los altavoces físicos.
-* **Dinámica**: `Adaptive DRC: Off` (rango dinámico libre).
-* **Uso**: Festivales en directo (Tomorrowland, Glastonbury), videoclips de directos, retransmisiones deportivas y partidos de fútbol/baloncesto.
-
----
-
-## 2. Análisis Técnico del Yamaha RX-V673
-
-* **Conversores Digital/Analógico (DAC)**: **Burr-Brown PCM5101 / DSD1791 (192 kHz / 24-bit)** con SNR > 105 dB.
-* **Arquitectura PEQ**: 7 filtros paramétricos IIR Biquad por canal con pasos de 0.5 dB y factores Q `1.000`, `1.260`, `1.587`.
-* **Impedancia (`ADVANCED SETUP > SP IMP.`)**: Mantener en **`8 Ω MIN`** para que los transistores entreguen el voltaje completo (~45V) a los 6 $\Omega$ de los Q Acoustics 3020i.
-* **ECO Mode**: Mantener en **`Off`** para preservar la entrega instantánea de corriente en bombos y transitorios.
-
----
-
-## 3. Análisis Electroacústico de los Q Acoustics 3020i
-
-* **Recinto**: MDF con refuerzos internos *Point-to-Point (P2P) Bracing* que eliminan coloraciones en los 400–800 Hz.
-* **Woofer**: 125 mm (5") con fibras de aramida. Corte natural anecoico $F_3$ en **64 Hz**.
-* **Tweeter**: 22 mm desacoplado mecánicamente del bafle frontal mediante junta viscoelástica para evitar modulación cruzada.
-* **Crossover**: Cruce en **2.400 Hz** compensado digitalmente por nuestro filtro `2520 Hz (+1.5 dB, Q=1.260)`.
-
----
-
-## 4. Cómo Dar de Alta Nuevos Equipos en `config/equipment.json`
-
-Para incorporar nuevos altavoces o receptores, basta con añadir una nueva entrada en `config/equipment.json`:
-
-```json
-"speakers": {
-    "kef_q350": {
-        "brand": "KEF",
-        "model": "Q350",
-        "type": "2-way Uni-Q Coaxial",
-        "woofer_size_inch": 6.5,
-        "crossover_frequency_hz": 2500.0,
-        "spinorama_notch_compensation": null,
-        "f3_extension_hz": 51.0,
-        "nominal_impedance_ohm": 8.0,
-        "minimum_impedance_ohm": 3.7
-    }
-}
 ```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Q ACOUSTICS 3020i (ESPECIFICACIONES)                │
+│  • Configuración: 2 vías Bass-Reflex con puerto trasero afinado             │
+│  • Woofer: 125 mm (5 pulgadas) de papel recubierto con suspensión de goma   │
+│  • Tweeter: 22 mm cúpula suave desacoplada del deflector frontal            │
+│  • Frecuencia de Cruce (Crossover): 2.4 kHz (Filtro divisor orden acústico)  │
+│  • Respuesta Anecoica: 64 Hz – 30 kHz (-3 dB)                               │
+│  • Sensibilidad / Impedancia: 88 dB/W/m · 6 Ω nominal (mínimo 4.0 Ω)        │
+│  • Construcción: Refuerzos internos punto a punto (P2P Bracing)             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Compensación de Cruce en PEQ:
+* En la zona de cruce anecoico (~2.4 kHz – 2.5 kHz), existe una ligera pérdida de energía por la directividad fuera de eje del cono de 5 pulgadas.
+* El filtro de **`Band 6: 2.52 kHz (+1.5 dB, Q=1.260)`** en el ecualizador compensa este escalón, solidificando la presencia vocal.
+
+---
+
+## 3. Pantalla: LG C5 OLED
+
+* **Conexión**: HDMI 2 (eARC/ARC) $\rightarrow$ HDMI OUT (ARC) del Yamaha.
+* **Ajustes Óptimos en webOS**:
+  * *Salida de sonido*: **Dispositivo HDMI(ARC)**.
+  * *Salida de sonido digital*: **Paso a través (Pass Through)** (evita remuestreos y latencia).
+  * *Formato de entrada HDMI*: **Bitstream**.
+  * *Compatibilidad eARC*: Desactivar si se experimentan cortes con HDMI 1.4 legado.
