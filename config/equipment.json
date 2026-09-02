@@ -1,0 +1,95 @@
+{
+    "av_receivers": {
+        "yamaha_rx_v673": {
+            "brand": "Yamaha",
+            "model": "RX-V673",
+            "dac": "Burr-Brown PCM5101 / DSD1791 192kHz/24-bit",
+            "peq_bands": 7,
+            "discrete_frequencies_hz": [
+                62.5,
+                99.2,
+                157.5,
+                250.0,
+                500.0,
+                1000.0,
+                1260.0,
+                1590.0,
+                2000.0,
+                2520.0,
+                3170.0,
+                4000.0,
+                5040.0,
+                6350.0,
+                8000.0,
+                10080.0,
+                12700.0,
+                16000.0
+            ],
+            "default_user_bands_hz": [
+                62.5,
+                99.2,
+                157.5,
+                250.0,
+                500.0,
+                2520.0,
+                10080.0
+            ],
+            "allowed_q_values": [
+                1.0,
+                1.26,
+                1.587
+            ],
+            "gain_step_db": 0.5,
+            "max_boost_db": 3.0,
+            "max_cut_db": -12.0,
+            "ip_control_available": true,
+            "default_ip": "192.168.1.39"
+        },
+        "generic_parametric": {
+            "brand": "Generic / MiniDSP / REW",
+            "model": "Standard Parametric EQ",
+            "peq_bands": 10,
+            "discrete_frequencies_hz": null,
+            "allowed_q_values": null,
+            "gain_step_db": 0.1,
+            "max_boost_db": 6.0,
+            "max_cut_db": -20.0,
+            "ip_control_available": false
+        }
+    },
+    "speakers": {
+        "q_acoustics_3020i": {
+            "brand": "Q Acoustics",
+            "model": "3020i",
+            "type": "2-way Bass-Reflex",
+            "woofer_size_inch": 5.0,
+            "tweeter_size_mm": 22.0,
+            "tweeter_decoupled": true,
+            "crossover_frequency_hz": 2400.0,
+            "spinorama_notch_compensation": {
+                "center_hz": 2520.0,
+                "recommended_q": 1.26,
+                "recommended_boost_db": 1.5
+            },
+            "f3_extension_hz": 64.0,
+            "nominal_impedance_ohm": 6.0,
+            "minimum_impedance_ohm": 4.0,
+            "sensitivity_db": 88.0,
+            "recommended_crossover_subwoofer_hz": 80.0
+        },
+        "generic_bookshelf": {
+            "brand": "Generic",
+            "model": "Bookshelf 2-way",
+            "type": "Bass-Reflex",
+            "woofer_size_inch": 5.25,
+            "tweeter_size_mm": 25.0,
+            "crossover_frequency_hz": 2500.0,
+            "spinorama_notch_compensation": null,
+            "f3_extension_hz": 55.0,
+            "nominal_impedance_ohm": 8.0,
+            "minimum_impedance_ohm": 4.5,
+            "sensitivity_db": 87.0,
+            "recommended_crossover_subwoofer_hz": 80.0
+        }
+    }
+}
