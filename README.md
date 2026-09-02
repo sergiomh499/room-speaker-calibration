@@ -19,7 +19,7 @@ yamaha-qacoustics-calibration/
 ├── docs/
 │   ├── PROCEDURE.md                   # Protocolo y guía paso a paso de medición
 │   ├── ACOUSTIC_TARGETS.md            # Fundamentos acústicos (Toole, Olive, Schroeder, Curvas)
-│   └── EQUIPMENT_GUIDE.md             # Guía técnica de hardware y cómo añadir nuevos equipos
+│   └── EQUIPMENT_GUIDE.md             # Guía técnica de hardware, escenas y extensibilidad
 ├── figures/
 │   ├── respuesta_acustica_real.png    # Gráficas acústicas reales (Front L, Front R, Simetría)
 │   └── respuesta_impulso_real.png     # Respuesta al impulso por deconvolución temporal
@@ -30,53 +30,44 @@ yamaha-qacoustics-calibration/
 │   ├── 01_measure_sweep.py            # Motor de medición y captura por barrido Farina
 │   ├── 02_plot_responses.py          # Generador de gráficas acústicas reales
 │   ├── 03_generate_pdf_report.py      # Compilador del informe PDF de ingeniería
-│   └── 04_yamaha_control.py          # Utilidad de control y consulta en red del receptor
+│   └── 04_yamaha_control.py          # Control en red y conmutación de escenas
 └── README.md                          # Documentación técnica maestra
 ```
 
 ---
 
+## 🎬 Mapeo y Programación de las 4 Escenas (Yamaha RX-V673)
+
+Todas las escenas utilizan la entrada **`AV4` (HDMI ARC desde LG C5)** con el **PEQ Manual activo**:
+
+| Escena (Mando) | Nombre en Pantalla | Modo de Sonido | Adaptive DRC | Dialogue | Uso Óptimo Recomendado |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| **SCENE 1** | **`Música Hi-Fi`** | **`Straight`** | **`Off`** | `0` *(Bypass)* | **Música Lossless, Spotify, Amazon Music, Vinilos**. Sonido puro sin procesado espacial. |
+| **SCENE 2** | **`Cine Estándar`** | **`Standard DSP`** | **`Off / MAX`** | **`+1`** | **Películas y Series en Stremio, Prime, Netflix**. Máxima dinámica y diálogos claros. |
+| **SCENE 3** | **`Noche y Voces`** | **`Drama DSP`** | **`Auto`** | **`+2`** | **YouTube hablado, Podcasts, Cine de noche**. Nivelación de volumen contra sobresaltos. |
+| **SCENE 4** | **`Conciertos/Live`**| **`Music Video`** | **`Off / MAX`** | `0` | **Festivales en directo, Deportes, Conciertos**. Inmersión acústica de estadio/recinto. |
+
+---
+
 ## 🚀 Uso Rápido: Motor de Calibración Automática (`auto_calibrate.py`)
 
-El script `auto_calibrate.py` calcula automáticamente las 7 bandas PEQ óptimas para el Yamaha respetando sus restricciones de hardware (frecuencias discretas, factores Q permitidos y pasos de 0.5 dB):
+Calcula al instante las 7 bandas PEQ óptimas según el perfil deseado:
 
 ```bash
 cd /home/sergio/yamaha-qacoustics-calibration
 
-# 1. Calibración de Referencia Equilibrada (Harman House Curve - Música y Cine):
+# 1. Calibración de Referencia Equilibrada (Harman Target):
 python3 scripts/auto_calibrate.py --target harman_neutral --export-pdf
 
-# 2. Perfil Cine de Acción e Impacto (Graves contundentes y agudos suaves):
+# 2. Perfil Cine de Acción e Impacto:
 python3 scripts/auto_calibrate.py --target cinema_impact --export-pdf
 
-# 3. Perfil Claridad Vocal (Podcasts, YouTube hablado, Diálogos de noche):
+# 3. Perfil Claridad Vocal (Podcasts / Diálogos):
 python3 scripts/auto_calibrate.py --target vocal_clarity --export-pdf
 
-# 4. Perfil Calidez Analógica / Vinilo (Graves redondos y agudos relajados):
-python3 scripts/auto_calibrate.py --target warm_music --export-pdf
-
-# 5. Perfil Audiófilo Neutro / Difuso (Respuesta estrictamente plana):
-python3 scripts/auto_calibrate.py --target audiophile_flat --export-pdf
+# 4. Conmutar Escenas del Receptor por Red:
+python3 scripts/04_yamaha_control.py scene 1   # Activa SCENE 1 (Música Hi-Fi)
+python3 scripts/04_yamaha_control.py scene 2   # Activa SCENE 2 (Cine Estándar)
+python3 scripts/04_yamaha_control.py scene 3   # Activa SCENE 3 (Noche y Voces)
+python3 scripts/04_yamaha_control.py scene 4   # Activa SCENE 4 (Conciertos/Live)
 ```
-
----
-
-## 📚 Documentación Técnica Detallada (`docs/`)
-
-* 📖 **[`docs/PROCEDURE.md`](docs/PROCEDURE.md)**: Guía paso a paso de preparación de sala, colocación del micrófono a 90°, cableado HDMI/ALSA y captura sin ruido.
-* 📖 **[`docs/ACOUSTIC_TARGETS.md`](docs/ACOUSTIC_TARGETS.md)**: Fundamentos psicoacústicos (investigaciones de Floyd Toole y Sean Olive / Harman), Frecuencia de Schroeder ($f_s$), y guía completa de curvas según géneros musicales y cine.
-* 📖 **[`docs/EQUIPMENT_GUIDE.md`](docs/EQUIPMENT_GUIDE.md)**: Desglose técnico de la arquitectura del Yamaha RX-V673 (Burr-Brown DAC, DSP, impedancia) y Q Acoustics 3020i (crossover, P2P bracing), junto a la guía para añadir nuevos altavoces y receptores a `config/equipment.json`.
-
----
-
-## 📊 Coeficientes PEQ de Referencia Grabados (Perfil `harman_neutral`)
-
-| Banda | Frecuencia ($f_0$) | Factor Q (L / R) | Ganancia Front L | Ganancia Front R | Función Acústica |
-| :---: | :---: | :---: | :---: | :---: | :--- |
-| **Band 1** | **62.5 Hz** | `1.260` | **-1.0 dB** | **-1.5 dB** | Atenuación de ganancia de límite en subgrave |
-| **Band 2** | **99.2 Hz** | `1.587` / `1.260` | **-1.5 dB** | **-1.5 dB** | Supresión del modo resonante axial de la sala |
-| **Band 3** | **157.5 Hz** | `1.260` / `1.000` | **-1.0 dB** | **0.0 dB** | Limpieza de resonancia en la voz masculina |
-| **Band 4** | **250.0 Hz** | `1.000` | **0.0 dB** | **0.0 dB** | Paso neutro transparente |
-| **Band 5** | **500.0 Hz** | `1.000` | **0.0 dB** | **0.0 dB** | Paso neutro transparente |
-| **Band 6** | **2.52 kHz** | `1.260` | **+1.5 dB** | **+1.5 dB** | Compensación del escalón del filtro divisor de los 3020i |
-| **Band 7** | **10.1 kHz** | `1.000` | **-1.0 dB** | **-1.0 dB** | Caída suave *Harman House Curve* contra fatiga auditiva |

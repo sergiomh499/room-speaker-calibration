@@ -1,50 +1,90 @@
 # Guía Técnica de Equipamiento y Extensibilidad del Sistema
 
-Este documento recopila las especificaciones de ingeniería de los componentes actuales y detalla el procedimiento para dar de alta nuevos altavoces y receptores en la arquitectura de calibración.
+Este documento recopila las especificaciones de ingeniería de los componentes actuales, el mapeo de las 4 escenas programadas en el receptor y las instrucciones para dar de alta nuevos equipos en la arquitectura de calibración.
 
 ---
 
-## 1. Análisis Técnico del Yamaha RX-V673
+## 1. Mapeo y Programación de las 4 Escenas (Yamaha RX-V673)
 
-### A. Procesamiento Digital de Señal (DSP) y DAC
-* **Conversores Digital/Analógico (DAC)**: Utiliza convertidores **Burr-Brown PCM5101 / DSD1791 (192 kHz / 24-bit)** en todos los canales principales, con una relación señal-ruido (SNR) de más de 105 dB.
-* **Arquitectura PEQ**:
-  * 7 filtros paramétricos IIR de 2º orden (*Biquad*) por canal.
-  * Pasos de frecuencia discretos (18 frecuencias disponibles entre 62.5 Hz y 16 kHz).
-  * Factores Q seleccionables: `1.000`, `1.260`, `1.587`.
-  * Ganancia: de `-12.0 dB` a `+3.0 dB` en pasos de `0.5 dB`.
-* **Motor CINEMA DSP**:
-  * Funciones de realce como `Dialogue Level` y `Dialogue Lift` operan sobre el canal central virtual calculando desfases y sumas vectoriales en los transistores frontales.
-  * En modo `Straight`, el procesador DSP espacial se apaga por completo, entregando una señal pura canal por canal.
+Todas las escenas están enlazadas a la entrada **`AV4` (HDMI ARC desde la LG C5 OLED)**, manteniendo el ecualizador paramétrico manual (`PEQ Manual`) activo y optimizado para cada tipo de contenido:
 
-### B. Gestión Eléctrica e Impedancia
-* **Conmutador de Impedancia (`ADVANCED SETUP > SP IMP.`)**:
-  * **Ajuste 8 Ω MIN (Recomendado)**: Mantiene los raíles de tensión del transformador a plena capacidad (~45V), garantizando el rango dinámico completo y transitorios rápidos para altavoces de 6 Ω como los 3020i.
-  * **Ajuste 6 Ω MIN**: Limita la tensión de alimentación mediante derivación de bobinado para superar pruebas térmicas continuas de laboratorio, pero comprime el *headroom* en picos musicales.
-
----
-
-## 2. Análisis Electroacústico de los Q Acoustics 3020i
-
-* **Estructura del Recinto (*Point-to-Point P2P Bracing*)**:
-  * Paneles de MDF de 20 mm con refuerzos internos dirigidos por interferometría láser para eliminar resonancias de caja en los 400–800 Hz.
-* **Transductor de Graves/Medios (Woofer)**:
-  * Cono de 125 mm (5") de papel tratado con fibras de aramida.
-  * Frecuencia de corte anecoico natural ($F_3$): **64 Hz** (pendiente de 24 dB/octava en modo Bass-Reflex).
-* **Transductor de Agudos (Tweeter)**:
-  * Cúpula suave de microfibra de 22 mm (0.9").
-  * **Desacoplo Mecánico**: La placa frontal del tweeter está aislada físicamente del chasis del bafle mediante una junta viscoelástica, evitando que las vibraciones del woofer se transmitan a los agudos.
-* **Comportamiento del Crossover**:
-  * Cruce de 2º orden en **2.400 Hz**.
-  * En mediciones anecoicas (Spinorama), presenta un ligero escalón/valle de $-2.0	ext{ dB}$ en la zona de transición que nuestro ecualizador compensa mediante el filtro `2520 Hz (+1.5 dB, Q=1.260)`.
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       YAMAHA RX-V673 - MAPA DE ESCENAS                      │
+├─────────┬──────────────────────┬──────────────┬──────────────┬──────────────┤
+│ ESCENA  │ NOMBRE               │ MODO DSP     │ ADAPTIVE DRC │ DIALOGUE     │
+├─────────┼──────────────────────┼──────────────┼──────────────┼──────────────┤
+│ SCENE 1 │ Música Hi-Fi         │ Straight     │ Off          │ Inactivo (0) │
+│ SCENE 2 │ Cine Estándar        │ Standard DSP │ Off / MAX    │ +1 (Realce)  │
+│ SCENE 3 │ Noche y Voces        │ Drama DSP    │ Auto         │ +2 (Máximo)  │
+│ SCENE 4 │ Conciertos / Live    │ Music Video  │ Off / MAX    │ 0 (Inmersión)│
+└─────────┴──────────────────────┴──────────────┴──────────────┴──────────────┘
+```
 
 ---
 
-## 3. Cómo Dar de Alta Nuevos Equipos en `config/equipment.json`
+### Detalle Acústico de Cada Escena:
 
-El motor de calibración `auto_calibrate.py` es **100% modular**. Para incorporar nuevos altavoces o receptores, basta con añadir una nueva entrada en `config/equipment.json`:
+#### 🎵 SCENE 1: Música Hi-Fi (Audición Estéreo Pura / Lossless)
+* **Entrada**: `AV4` (HDMI ARC).
+* **Modo de Sonido**: **`Straight`**.
+* **Comportamiento**: Apaga todo el motor de simulación espacial Cinema DSP. El audio se reproduce canal por canal con máxima pureza tímbrica y fidelidad a la mezcla de estudio.
+* **Dinámica**: `Adaptive DRC: Off` (entrega el 100% de la dinámica original sin comprimir).
+* **Uso**: Spotify, Amazon Music HD, YouTube Music, vinilos, sesiones acústicas.
 
-### Ejemplo 1: Añadir un Nuevo Altavoz (ej. KEF Q350)
+---
+
+#### 🎬 SCENE 2: Cine Estándar (Blockbusters / Series / Inmersión)
+* **Entrada**: `AV4` (HDMI ARC).
+* **Modo de Sonido**: **`Standard` (Cinema DSP)**.
+* **Comportamiento**: Activa el procesamiento espacial optimizado para bandas sonoras cinematográficas (Dolby Digital / DTS) con `3D Cinema DSP: Auto`.
+* **Diálogos**: **`Dialogue Level: +1`** (adelanta las voces del canal central virtual para que no queden tapadas por la música y efectos de fondo).
+* **Dinámica**: `Dynamic Range: MAX` (explosiones con pegada y graves contundentes).
+* **Uso**: Películas en Stremio, Prime Video, Netflix, Disney+, cine de acción y ciencia ficción.
+
+---
+
+#### 🌙 SCENE 3: Noche y Voces (Podcasts / YouTube Hablado / Audición Nocturna)
+* **Entrada**: `AV4` (HDMI ARC).
+* **Modo de Sonido**: **`Drama` (Cinema DSP)**.
+* **Comportamiento**: El algoritmo `Drama` enfoca la energía acústica en el espectro de la voz humana (300 Hz a 4 kHz).
+* **Nivelación Dinámica**: **`Adaptive DRC: Auto`** (comprime inteligentemente los picos repentinos de anuncios o explosiones para no despertar a nadie por la noche).
+* **Diálogos**: **`Dialogue Level: +2`** (máxima inteligibilidad vocal a volumen bajo: -40 dB a -30 dB).
+* **Uso**: Podcasts, vídeos hablados de YouTube, documentales, noticias y películas de madrugada.
+
+---
+
+#### 🏟️ SCENE 4: Conciertos / Live & Deportes (Atmósfera de Estadio / Acústica de Recinto)
+* **Entrada**: `AV4` (HDMI ARC).
+* **Modo de Sonido**: **`Music Video` (Cinema DSP)**.
+* **Comportamiento**: Simula la reverberación temprana y el campo sonoro envolvente de un auditorio / estadio en directo, expandiendo la escena estéreo más allá de los altavoces físicos.
+* **Dinámica**: `Adaptive DRC: Off` (rango dinámico libre).
+* **Uso**: Festivales en directo (Tomorrowland, Glastonbury), videoclips de directos, retransmisiones deportivas y partidos de fútbol/baloncesto.
+
+---
+
+## 2. Análisis Técnico del Yamaha RX-V673
+
+* **Conversores Digital/Analógico (DAC)**: **Burr-Brown PCM5101 / DSD1791 (192 kHz / 24-bit)** con SNR > 105 dB.
+* **Arquitectura PEQ**: 7 filtros paramétricos IIR Biquad por canal con pasos de 0.5 dB y factores Q `1.000`, `1.260`, `1.587`.
+* **Impedancia (`ADVANCED SETUP > SP IMP.`)**: Mantener en **`8 Ω MIN`** para que los transistores entreguen el voltaje completo (~45V) a los 6 $\Omega$ de los Q Acoustics 3020i.
+* **ECO Mode**: Mantener en **`Off`** para preservar la entrega instantánea de corriente en bombos y transitorios.
+
+---
+
+## 3. Análisis Electroacústico de los Q Acoustics 3020i
+
+* **Recinto**: MDF con refuerzos internos *Point-to-Point (P2P) Bracing* que eliminan coloraciones en los 400–800 Hz.
+* **Woofer**: 125 mm (5") con fibras de aramida. Corte natural anecoico $F_3$ en **64 Hz**.
+* **Tweeter**: 22 mm desacoplado mecánicamente del bafle frontal mediante junta viscoelástica para evitar modulación cruzada.
+* **Crossover**: Cruce en **2.400 Hz** compensado digitalmente por nuestro filtro `2520 Hz (+1.5 dB, Q=1.260)`.
+
+---
+
+## 4. Cómo Dar de Alta Nuevos Equipos en `config/equipment.json`
+
+Para incorporar nuevos altavoces o receptores, basta con añadir una nueva entrada en `config/equipment.json`:
+
 ```json
 "speakers": {
     "kef_q350": {
@@ -52,35 +92,11 @@ El motor de calibración `auto_calibrate.py` es **100% modular**. Para incorpora
         "model": "Q350",
         "type": "2-way Uni-Q Coaxial",
         "woofer_size_inch": 6.5,
-        "tweeter_size_mm": 25.0,
-        "tweeter_decoupled": false,
         "crossover_frequency_hz": 2500.0,
         "spinorama_notch_compensation": null,
         "f3_extension_hz": 51.0,
         "nominal_impedance_ohm": 8.0,
-        "minimum_impedance_ohm": 3.7,
-        "sensitivity_db": 87.0,
-        "recommended_crossover_subwoofer_hz": 70.0
+        "minimum_impedance_ohm": 3.7
     }
 }
 ```
-
-### Ejemplo 2: Añadir un Nuevo Receptor o DSP (ej. Denon con Audyssey / MiniDSP)
-```json
-"av_receivers": {
-    "minidsp_2x4hd": {
-        "brand": "MiniDSP",
-        "model": "2x4 HD",
-        "dac": "AKM AK4456 192kHz/32-bit",
-        "peq_bands": 10,
-        "discrete_frequencies_hz": null,
-        "allowed_q_values": null,
-        "gain_step_db": 0.1,
-        "max_boost_db": 6.0,
-        "max_cut_db": -20.0,
-        "ip_control_available": false
-    }
-}
-```
-
-Al ejecutar `python3 scripts/auto_calibrate.py --speaker kef_q350 --avr minidsp_2x4hd`, el motor optimizará automáticamente los filtros adaptándose a los límites de resolución del nuevo hardware.
