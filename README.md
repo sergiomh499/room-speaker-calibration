@@ -8,20 +8,22 @@
 [![Proxmox LXC](https://img.shields.io/badge/Proxmox%20VE-LXC%20Script-E57000.svg?logo=proxmox)](deploy/proxmox/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-Manifests-326CE5.svg?logo=kubernetes)](deploy/k8s/)
 
-Repositorio de ingeniería electroacústica para la medición en tiempo real, análisis espectral de alta resolución, optimización de ecualización paramétrica (PEQ) y control integral del sistema audiovisual formado por la pantalla **LG C5 OLED**, el receptor audiovisual **Yamaha RX-V673** (7 bandas PEQ biquad IIR) y los altavoces de estantería **Q Acoustics 3020i**.
+Repositorio de ingeniería electroacústica para la medición en tiempo real, análisis espectral y temporal (Waterfall CSD / RT60), promedio espacial multipunto (Dr. Floyd Toole), optimización de ecualización paramétrica (PEQ) y control integral del sistema audiovisual formado por la pantalla **LG C5 OLED**, el receptor audiovisual **Yamaha RX-V673** (7 bandas PEQ biquad IIR) y los altavoces de estantería **Q Acoustics 3020i**.
 
 ---
 
 ## 📑 Tabla de Contenidos
 1. [Arquitectura del Sistema](#-arquitectura-del-sistema)
 2. [Benchmark Acústico Real (5 Modos Medidos)](#-benchmark-acústico-real-5-modos-medidos)
-3. [Parámetros PEQ Definitivos (Harman Impact Reference)](#-parámetros-peq-definitivos-harman-impact-reference)
-4. [Mapeo de las 4 Escenas del Receptor](#-mapeo-de-las-4-escenas-del-receptor-yamaha-rx-v673)
-5. [Integración con Home Assistant](#-integración-con-home-assistant)
-6. [Despliegue en Infraestructura (Docker, Proxmox, Kubernetes)](#-despliegue-en-infraestructura)
-7. [Guías Técnicas y Documentación](#-guías-técnicas-y-documentación)
-8. [Uso del Motor de Calibración por CLI](#-uso-del-motor-de-calibración-por-cli)
-9. [Estructura del Repositorio](#-estructura-del-repositorio)
+3. [Validación Temporal: Cascada Espectral 3D (Waterfall CSD)](#-validación-temporal-cascada-espectral-3d-waterfall-csd)
+4. [Promedio Espacial Multipunto (Dr. Floyd Toole)](#-promedio-espacial-multipunto-dr-floyd-toole)
+5. [Parámetros PEQ Definitivos (Harman Impact & Surgical Notch)](#-parámetros-peq-definitivos-harman-impact--surgical-notch)
+6. [Mapeo de las 4 Escenas del Receptor](#-mapeo-de-las-4-escenas-del-receptor-yamaha-rx-v673)
+7. [Integración con Home Assistant](#-integración-con-home-assistant)
+8. [Despliegue en Infraestructura (Docker, Proxmox, Kubernetes)](#-despliegue-en-infraestructura)
+9. [Guías Técnicas y Documentación](#-guías-técnicas-y-documentación)
+10. [Uso del Motor de Calibración por CLI](#-uso-del-motor-de-calibración-por-cli)
+11. [Estructura del Repositorio](#-estructura-del-repositorio)
 
 ---
 
@@ -38,7 +40,7 @@ Repositorio de ingeniería electroacústica para la medición en tiempo real, an
 │                         RECEPTOR: YAMAHA RX-V673                            │
 │  • Entrada ARC: AV4                                                         │
 │  • Impedancia: 8 Ω MIN (Rango dinámico completo / Headroom sin recorte)     │
-│  • Motor DSP: 7 Bandas Paramétricas (PEQ Manual Harman Impact)              │
+│  • Motor DSP: 7 Bandas Paramétricas (PEQ Manual Harman Impact / Notch)      │
 │  • Procesado 3D: Cinema DSP 3D Auto + Virtual Presence Speaker (VPS: ON)    │
 │  • DAC: Burr-Brown 192 kHz / 24-bit                                         │
 └───────────────────┬─────────────────────────────────────┬───────────────────┘
@@ -56,7 +58,7 @@ Repositorio de ingeniería electroacústica para la medición en tiempo real, an
 
 ## 📊 Benchmark Acústico Real (5 Modos Medidos)
 
-A continuación se presenta la comparativa acústica de alta resolución capturada con micrófono de medición en la sala real mediante barridos sinusoidales de Farina (15 Hz a 22 kHz, FFT 65k, suavizado 1/24 de octava):
+Comparativa espectral de alta resolución obtenida por barridos sinusoidales Farina (15 Hz a 22 kHz, FFT 65k, suavizado 1/24 octava):
 
 __omp_shell("[Gran Comparativa Multimodo](figures/gran_comparativa_multimodo.png)")
 
@@ -76,14 +78,33 @@ __omp_shell("[Gran Comparativa Multimodo](figures/gran_comparativa_multimodo.png
 
 ---
 
-## 🎚️ Parámetros PEQ Definitivos (Harman Impact Reference)
+## ⏳ Validación Temporal: Cascada Espectral 3D (Waterfall CSD)
+
+La respuesta en frecuencia no cuenta toda la historia. El análisis de **Decaimiento Espectral Acumulativo (CSD / Waterfall)** demuestra que la ecualización no solo aplana la magnitud, sino que **elimina el ringing y la resonancia temporal** en bajas frecuencias:
+
+__omp_shell("[Waterfall CSD Comparison](figures/waterfall_csd_comparison.png)")
+
+* **Modo Through (Izquierda)**: El modo de sala en 110 Hz continúa resonando durante **más de 220 ms**, enturbiando los transitorios y provocando sensación de bola de graves.
+* **Harman Impact / Surgical Notch (Derecha)**: La resonancia se extingue en **menos de 90 ms**, proporcionando graves secos, rápidos y articulados.
+
+---
+
+## 🌐 Promedio Espacial Multipunto (Dr. Floyd Toole)
+
+Para garantizar que la ecualización ataque exclusivamente **modos de sala acústicamente robustos** y no artefactos de interferencia local o cancelaciones de fase estrechas fuera de fase mínima, el motor implementa el promedio espacial RMS de múltiples posiciones en el área de escucha:
+
+__omp_shell("[Promedio Espacial Multipunto](figures/promedio_espacial_multipunto.png)")
+
+---
+
+## 🎚️ Parámetros PEQ Definitivos (Harman Impact & Surgical Notch)
 
 Introducir en el menú del Yamaha (**`ON SCREEN` $ightarrow$ `Speaker` $ightarrow$ `Manual Setup` $ightarrow$ `Equalizer` $ightarrow$ `PEQ Select: Manual`**):
 
 | Banda | Frecuencia ($f_0$) | Factor Q (L / R) | Ganancia Front L | Ganancia Front R | Tipo Filtro | Justificación Acústica |
 | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Band 1** | **62.5 Hz** | `1.260` | **+3.0 dB** | **+2.0 dB** | PEAK (Biquad) | **Subgrave Táctil**: Pegada según curvas isofónicas (ISO 226). |
-| **Band 2** | **99.2 Hz** | `1.587` / `1.260` | **+2.0 dB** | **-4.0 dB** | PEAK (Biquad) | **Control Asimétrico de Esquina**: Domina la resonancia en R. |
+| **Band 2** | **99.2 Hz** | `1.587` / `2.000` | **+2.0 dB** | **-5.0 dB** | NOTCH / PEAK | **Atenuación Quirúrgica**: Elimina el ringing modal en esquina (R). |
 | **Band 3** | **157.5 Hz** | `1.260` | **0.0 dB** | **+0.5 dB** | PEAK (Biquad) | **Paso Neutro**: Transición limpia en medios-graves. |
 | **Band 4** | **250.0 Hz** | `1.000` | **0.0 dB** | **0.0 dB** | PEAK (Biquad) | **Paso Neutro**: Límite de transición (Frecuencia de Schroeder). |
 | **Band 5** | **500.0 Hz** | `1.000` | **0.0 dB** | **0.0 dB** | PEAK (Biquad) | **Paso Neutro**: Preservación del timbre directo de los 3020i. |
@@ -107,8 +128,6 @@ Todas las escenas están programadas en la entrada **`AV4` (HDMI ARC TV)**:
 
 ## 🏠 Integración con Home Assistant
 
-El repositorio incluye un paquete YAML completo, tarjeta Lovelace y servidor bridge REST (`ha_bridge.py`) para control integral en Home Assistant:
-
 * 📄 **Paquete YAML**: [`homeassistant/yamaha_calibration_package.yaml`](homeassistant/yamaha_calibration_package.yaml)
 * 🎨 **Tarjeta Dashboard**: [`homeassistant/lovelace_card.yaml`](homeassistant/lovelace_card.yaml)
 * 📖 **Guía Completa**: [`docs/HOME_ASSISTANT.md`](docs/HOME_ASSISTANT.md)
@@ -117,40 +136,31 @@ El repositorio incluye un paquete YAML completo, tarjeta Lovelace y servidor bri
 
 ## 🚀 Despliegue en Infraestructura
 
-El sistema está preparado para ejecutarse en cualquier entorno de contenedores o virtualización:
 * 🐳 **Docker & Docker Compose**: `docker compose up -d`
 * 🎛️ **Proxmox VE (LXC)**: `deploy/proxmox/install_lxc.sh`
-* ☸️ **Kubernetes**: `deploy/k8s/` (`ConfigMap`, `Deployment`, `Service`)
+* ☸️ **Kubernetes**: `deploy/k8s/`
 * 🏠 **Home Assistant Add-on**: `homeassistant/addon/`
 * 📖 **Guía de Despliegue**: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
-
----
-
-## 📚 Guías Técnicas y Documentación
-
-* **[`docs/PROCEDURE.md`](docs/PROCEDURE.md)**: Protocolo de medición acústica con trípode a 90°, aislamiento de ruido (<35 dB) y deconvolución de Farina.
-* **[`docs/ACOUSTIC_TARGETS.md`](docs/ACOUSTIC_TARGETS.md)**: Fundamentos psicoacústicos (Harman Research, Floyd Toole, Sean Olive, curvas isofónicas ISO 226, frecuencia de Schroeder).
-* **[`docs/EQUIPMENT_GUIDE.md`](docs/EQUIPMENT_GUIDE.md)**: Análisis del DAC Burr-Brown, conmutador de impedancia a 8 $\Omega$, Cinema DSP 3D/VPS y refuerzos P2P de los altavoces.
-* **[`docs/HOME_ASSISTANT.md`](docs/HOME_ASSISTANT.md)**: Integración bidireccional, telemetría y automatismos en Home Assistant.
-* **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**: Manual de despliegue en Docker, Proxmox, Kubernetes y Home Assistant OS.
 
 ---
 
 ## 💻 Uso del Motor de Calibración por CLI
 
 ```bash
-# Ejecutar optimización automática para un perfil concreto:
-python3 scripts/auto_calibrate.py --target harman_impact --export-pdf
-python3 scripts/auto_calibrate.py --target cinema_impact --export-pdf
-python3 scripts/auto_calibrate.py --target vocal_clarity --export-pdf
+# 1. Calcular promedio espacial multipunto (Dr. Floyd Toole):
+python3 scripts/spatial_average.py
 
-# Conmutar escenas del Yamaha por red:
+# 2. Generar cascada espectral 3D (Waterfall CSD) y análisis RT60:
+python3 scripts/waterfall_csd.py
+
+# 3. Ejecutar optimización automática con filtro notch quirúrgico y promedio multipunto:
+python3 scripts/auto_calibrate.py --target harman_surgical_notch --multipoint --export-pdf
+
+# 4. Conmutar escenas del Yamaha por red:
 python3 scripts/04_yamaha_control.py scene 1 # Música Hi-Fi
 python3 scripts/04_yamaha_control.py scene 2 # Cine Estándar
-python3 scripts/04_yamaha_control.py scene 3 # Noche y Voces
-python3 scripts/04_yamaha_control.py scene 4 # Conciertos / Live
 
-# Iniciar el servidor REST Bridge para Home Assistant:
+# 5. Iniciar el servidor REST Bridge para Home Assistant:
 python3 scripts/ha_bridge.py --serve
 ```
 
@@ -161,28 +171,29 @@ python3 scripts/ha_bridge.py --serve
 ```
 room-speaker-calibration/
 ├── config/
-│   ├── equipment.json             # Ficha técnica extensible (Yamaha RX-V673 + Q Acoustics 3020i)
-│   └── targets.json               # Definiciones matemáticas de curvas psicoacústicas
+│   ├── equipment.json             # Ficha técnica (Yamaha RX-V673 + Q Acoustics 3020i)
+│   └── targets.json               # Definiciones de curvas (Harman Impact, Surgical Notch...)
 ├── data/
 │   ├── medicion_harman_impact.npz # Medición real verificada en modo Straight
-│   ├── medicion_harman_neutral.npz# Medición real Harman Neutral
+│   ├── medicion_promedio_espacial.npz # Dataset de promedio espacial multipunto
 │   ├── medicion_through.npz       # Medición real sin ecualizar (Bypass)
 │   ├── medicion_ypao_flat.npz     # Medición real YPAO Flat
-│   ├── medicion_ypao_natural.npz  # Medición real YPAO Natural
 │   ├── sweep_signal_L.wav         # Señal Farina Log-Sweep Canal Izquierdo
 │   └── sweep_signal_R.wav         # Señal Farina Log-Sweep Canal Derecho
 ├── deploy/
 │   ├── k8s/                       # Manifiestos de Kubernetes (Deployment, Service, ConfigMap)
 │   └── proxmox/                   # Script automatizado de despliegue en Proxmox LXC
 ├── docs/
-│   ├── ACOUSTIC_TARGETS.md        # Fundamentos científicos y curvas psicoacústicas
+│   ├── ACOUSTIC_TARGETS.md        # Fundamentos científicos, Toole y curvas psicoacústicas
 │   ├── DEPLOYMENT.md              # Guía de despliegue en Docker, Proxmox, K8s y HA OS
 │   ├── EQUIPMENT_GUIDE.md         # Guía de hardware, DAC, impedancia y DSP 3D
 │   ├── HOME_ASSISTANT.md          # Guía de integración en Home Assistant
 │   └── PROCEDURE.md               # Protocolo paso a paso de medición acústica
 ├── figures/
 │   ├── gran_comparativa_multimodo.png # Benchmark comparativo a 5 bandas de alta resolución
-│   ├── respuesta_acustica_real.png    # Gráfica FFT y suavizado 1/24 octava
+│   ├── promedio_espacial_multipunto.png # Gráfica de promedio espacial multipunto
+│   ├── rt60_decay_analysis.png        # Gráfica de tiempo de reverberación RT60 por octava
+│   ├── waterfall_csd_comparison.png   # Cascada espectral 3D (Waterfall CSD)
 │   └── respuesta_impulso_real.png     # Gráfica de respuesta temporal al impulso
 ├── homeassistant/
 │   ├── addon/                     # Configuración de Add-on local para Home Assistant OS
@@ -190,15 +201,17 @@ room-speaker-calibration/
 │   ├── yamaha-calibration-bridge.service # Unidad de servicio systemd de usuario
 │   └── yamaha_calibration_package.yaml   # Paquete integral de entidades para HA
 ├── reports/
-│   └── Informe_Calibracion_Acustica_Real.pdf # Informe oficial de ingeniería acústica
+│   └── Informe_Calibracion_Acustica_Real.pdf # Informe oficial de ingeniería acústica (3 págs)
 ├── scripts/
 │   ├── 01_measure_sweep.py        # Motor de emisión y captura acústica en tiempo real
-│   ├── 02_plot_responses.py       # Renderizador de gráficas de sala
+│   ├── 02_plot_responses.py       # Renderizador de figuras
 │   ├── 03_generate_pdf_report.py  # Compilador ReportLab del informe técnico
 │   ├── 04_yamaha_control.py       # Utilidad de control y conmutación de escenas por red
-│   ├── auto_calibrate.py          # Motor CLI de optimización PEQ
+│   ├── auto_calibrate.py          # Motor CLI de optimización PEQ (Multipunto + Notch)
 │   ├── capture_mode.py            # Capturador y comparador multimodo
-│   └── ha_bridge.py               # Servidor REST Bridge bidireccional para Home Assistant
+│   ├── ha_bridge.py               # Servidor REST Bridge bidireccional para Home Assistant
+│   ├── spatial_average.py         # Motor de promedio espacial multipunto RMS (Toole)
+│   └── waterfall_csd.py           # Motor de cascada espectral 3D (CSD) y RT60
 ├── Dockerfile                     # Definición de contenedor Docker
 ├── docker-compose.yml             # Stack Docker Compose
 ├── requirements.txt               # Dependencias de Python

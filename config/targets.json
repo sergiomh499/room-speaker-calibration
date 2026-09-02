@@ -1,49 +1,62 @@
 {
-    "harman_neutral": {
-        "name": "Harman Target / Floyd Toole (Equilibrado Referencia)",
-        "description": "Curva estándar de la industria psicoacústica. Ligero realce en graves para compensar absorción y caída suave en agudos para eliminar fatiga.",
-        "bass_boost_db": 2.0,
-        "bass_boost_cutoff_hz": 120.0,
-        "treble_rolloff_db_octave": -0.8,
-        "treble_start_hz": 6000.0,
-        "ideal_for": "Música Hi-Fi general, series, cine estándar, audición mixta diaria."
-    },
-    "audiophile_flat": {
-        "name": "Audiophile Diffuse-Field Flat (Respuesta Neutra Plana)",
-        "description": "Respuesta estrictamente plana en toda la banda media y alta. Máxima fidelidad y transparencia de producción.",
-        "bass_boost_db": 0.0,
-        "bass_boost_cutoff_hz": 80.0,
-        "treble_rolloff_db_octave": 0.0,
-        "treble_start_hz": 10000.0,
-        "ideal_for": "Música acústica, clásica orquestal, jazz íntimo, masterización y salas con tratamiento pasivo."
-    },
-    "cinema_impact": {
-        "name": "Cinema Blockbuster Impact (Cine Espectacular)",
-        "description": "Mayor presencia en el impacto del subgrave (40-90 Hz) y caída controlada de agudos para soportar bandas sonoras explosivas a alto volumen SPL.",
-        "bass_boost_db": 3.5,
-        "bass_boost_cutoff_hz": 100.0,
-        "treble_rolloff_db_octave": -1.2,
-        "treble_start_hz": 5000.0,
-        "ideal_for": "Películas de acción, ciencia ficción, videojuegos y pistas Dolby Atmos / DTS multicanal."
-    },
-    "vocal_clarity": {
-        "name": "Vocal Clarity & Dialogue Enhanced (Voces y Diálogos en Primer Plano)",
-        "description": "Atenuación estricta de cualquier resonancia grave que enmascare la voz humana y ligero realce en la zona de inteligibilidad (2 kHz - 4 kHz).",
-        "bass_boost_db": 0.0,
-        "bass_boost_cutoff_hz": 150.0,
-        "presence_boost_db": 1.5,
-        "presence_center_hz": 2800.0,
-        "treble_rolloff_db_octave": -0.5,
-        "treble_start_hz": 8000.0,
-        "ideal_for": "Podcasts, YouTube hablado, documentales, noticias, audición nocturna de series a bajo volumen."
-    },
-    "warm_music": {
-        "name": "Warm Vinyl & Acoustic (Calidez Analógica)",
-        "description": "Sonido dulce y aterciopelado. Graves redondos y agudos muy relajados, emulando la acústica de salas británicas clásicas.",
-        "bass_boost_db": 2.5,
-        "bass_boost_cutoff_hz": 150.0,
-        "treble_rolloff_db_octave": -1.5,
-        "treble_start_hz": 4000.0,
-        "ideal_for": "Música rock clásica, vinilos, sesiones de escucha largas de fondo, jazz de club."
-    }
+  "harman_neutral": {
+    "name": "Harman Target / Floyd Toole (Equilibrado Referencia)",
+    "description": "Curva estándar de la industria psicoacústica. Ligero realce en graves para compensar absorción y caída suave en agudos para eliminar fatiga.",
+    "bass_boost_db": 2.0,
+    "bass_boost_cutoff_hz": 120.0,
+    "treble_rolloff_db_octave": -0.8,
+    "treble_start_hz": 6000.0,
+    "ideal_for": "Música Hi-Fi general, series, cine estándar, audición mixta diaria."
+  },
+  "audiophile_flat": {
+    "name": "Audiophile Diffuse-Field Flat (Respuesta Neutra Plana)",
+    "description": "Respuesta estrictamente plana en toda la banda media y alta. Máxima fidelidad y transparencia de producción.",
+    "bass_boost_db": 0.0,
+    "bass_boost_cutoff_hz": 80.0,
+    "treble_rolloff_db_octave": 0.0,
+    "treble_start_hz": 10000.0,
+    "ideal_for": "Música acústica, clásica orquestal, jazz íntimo, masterización y salas con tratamiento pasivo."
+  },
+  "cinema_impact": {
+    "name": "Cinema Blockbuster Impact (Cine Espectacular)",
+    "description": "Mayor presencia en el impacto del subgrave (40-90 Hz) y caída controlada de agudos para soportar bandas sonoras explosivas a alto volumen SPL.",
+    "bass_boost_db": 3.5,
+    "bass_boost_cutoff_hz": 100.0,
+    "treble_rolloff_db_octave": -1.2,
+    "treble_start_hz": 5000.0,
+    "ideal_for": "Películas de acción, ciencia ficción, videojuegos y pistas Dolby Atmos / DTS multicanal."
+  },
+  "vocal_clarity": {
+    "name": "Vocal Clarity & Dialogue Enhanced (Voces y Diálogos en Primer Plano)",
+    "description": "Atenuación estricta de cualquier resonancia grave que enmascare la voz humana y ligero realce en la zona de inteligibilidad (2 kHz - 4 kHz).",
+    "bass_boost_db": 0.0,
+    "bass_boost_cutoff_hz": 150.0,
+    "presence_boost_db": 1.5,
+    "presence_center_hz": 2800.0,
+    "treble_rolloff_db_octave": -0.5,
+    "treble_start_hz": 8000.0,
+    "ideal_for": "Podcasts, YouTube hablado, documentales, noticias, audición nocturna de series a bajo volumen."
+  },
+  "warm_music": {
+    "name": "Warm Vinyl & Acoustic (Calidez Analógica)",
+    "description": "Sonido dulce y aterciopelado. Graves redondos y agudos muy relajados, emulando la acústica de salas británicas clásicas.",
+    "bass_boost_db": 2.5,
+    "bass_boost_cutoff_hz": 150.0,
+    "treble_rolloff_db_octave": -1.5,
+    "treble_start_hz": 4000.0,
+    "ideal_for": "Música rock clásica, vinilos, sesiones de escucha largas de fondo, jazz de club."
+  },
+  "harman_surgical_notch": {
+    "name": "Harman Impact + Surgical Notch (110 Hz Modal Damping)",
+    "description": "Filtro biquad de alto factor Q (Q=2.000) enfocado quirúrgicamente en la resonancia modal de esquina a 110 Hz, reduciendo el tiempo de decaimiento y el ringing sin comprometer la pegada en 60-80 Hz.",
+    "bass_boost_db": 4.5,
+    "bass_cutoff_hz": 85.0,
+    "treble_slope_db_per_oct": -0.8,
+    "treble_start_hz": 6000.0,
+    "vocal_presence_boost_db": 1.5,
+    "vocal_presence_freq_hz": 2520.0,
+    "modal_notch_q": 2.0,
+    "modal_notch_freq_hz": 99.2,
+    "modal_notch_cut_db": -5.5
+  }
 }
