@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-data_path = "/home/sergio/yamaha-qacoustics-calibration/data/medicion_real_calibracion.npz"
+data_path = "/home/sergio/room-speaker-calibration/data/medicion_real_calibracion.npz"
 data = np.load(data_path)
 
 freqs = data['freqs']
@@ -76,7 +76,7 @@ ax4.grid(True, which='both', ls=':', alpha=0.3)
 ax4.legend(loc='lower right', fontsize=9)
 
 plt.tight_layout()
-fig_path = "/home/sergio/yamaha-qacoustics-calibration/figures/respuesta_acustica_real.png"
+fig_path = "/home/sergio/room-speaker-calibration/figures/respuesta_acustica_real.png"
 plt.savefig(fig_path, dpi=140)
 plt.close()
 
@@ -98,11 +98,11 @@ axs_ir[1].set_ylabel("Amplitud Lineal")
 axs_ir[1].grid(True, ls=':', alpha=0.3)
 
 plt.tight_layout()
-fig_ir_path = "/home/sergio/yamaha-qacoustics-calibration/figures/respuesta_impulso_real.png"
+fig_ir_path = "/home/sergio/room-speaker-calibration/figures/respuesta_impulso_real.png"
 plt.savefig(fig_ir_path, dpi=130)
 plt.close()
 
-print(f"Figuras reales guardadas en /home/sergio/yamaha-qacoustics-calibration/figures/")
+print(f"Figuras reales guardadas en /home/sergio/room-speaker-calibration/figures/")
 print(f"Métricas reales calculadas:")
 print(f" - Desbalance Estéreo Medio (|L - R|): {mean_diff:.2f} dB")
 eval_mask = (freqs >= 60) & (freqs <= 15000)
