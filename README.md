@@ -99,7 +99,11 @@ __omp_shell("[Promedio Espacial Multipunto](figures/promedio_espacial_multipunto
 
 ## 🎚️ Parámetros PEQ Definitivos (Harman Impact & Surgical Notch)
 
-Introducir en el menú del Yamaha (**`ON SCREEN` $ightarrow$ `Speaker` $ightarrow$ `Manual Setup` $ightarrow$ `Equalizer` $ightarrow$ `PEQ Select: Manual`**):
+Introducir en el menú del Yamaha (**`ON SCREEN` $
+ightarrow$ `Speaker` $
+ightarrow$ `Manual Setup` $
+ightarrow$ `Equalizer` $
+ightarrow$ `PEQ Select: Manual`**):
 
 | Banda | Frecuencia ($f_0$) | Factor Q (L / R) | Ganancia Front L | Ganancia Front R | Tipo Filtro | Justificación Acústica |
 | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -113,16 +117,12 @@ Introducir en el menú del Yamaha (**`ON SCREEN` $ightarrow$ `Speaker` $ightar
 
 ---
 
-## 🎬 Mapeo de las 4 Escenas (Yamaha RX-V673)
-
-Todas las escenas están programadas en la entrada **`AV4` (HDMI ARC TV)**:
-
 | Escena | Nombre en Pantalla | Modo de Audio | Adaptive DRC | Dialogue Lift | Propósito Acústico |
 | :---: | :---: | :---: | :---: | :---: | :--- |
-| **SCENE 1** | **Música Hi-Fi** | `Straight` | `Off` | `0` | Pureza audiófila bit por bit sin procesamiento espacial. |
-| **SCENE 2** | **Cine Estándar** | `Standard DSP` | `Off / MAX` | `1` | Campo envolvente 3D y elevación de voces al panel OLED. |
-| **SCENE 3** | **Noche y Voces** | `Drama DSP` | `Auto` | `2` | Inteligibilidad vocal y nivelación dinámica nocturna. |
-| **SCENE 4** | **Conciertos / Live**| `Music Video` | `Off / MAX` | `0` | Inmersión acústica de auditorio/estadio para directos. |
+| **SCENE 1** | **Música Hi-Fi** | `Straight` | `Off` | `0` | Pureza audiófila bit por bit con corrección paramétrica activa. |
+| **SCENE 2** | **Cine y Series** | `Standard DSP` | `Off` | `1` | Campo envolvente cinematográfico y voces ancladas al panel OLED. |
+| **SCENE 3** | **TV y Series** | `Drama DSP` | `Off` | `1` | Claridad vocal optimizada para series, streaming y YouTube. |
+| **SCENE 4** | **Pure Direct** | `Pure Direct` | `Bypass` | `Off` | Desconexión digital total para audición pura y benchmark en crudo. |
 
 ---
 
@@ -215,5 +215,12 @@ room-speaker-calibration/
 ├── Dockerfile                     # Definición de contenedor Docker
 ├── docker-compose.yml             # Stack Docker Compose
 ├── requirements.txt               # Dependencias de Python
+├── LICENSE                        # Licencia MIT
 └── README.md                      # Documentación maestra del repositorio
 ```
+
+---
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia **MIT**. Consulta el archivo [`LICENSE`](LICENSE) para más detalles.
