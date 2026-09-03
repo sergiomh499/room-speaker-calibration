@@ -1,0 +1,15 @@
+{
+  "id": "sesion_20260903_225954",
+  "name": "Medición Calibrada 22:59",
+  "description": "Malla procesada para perfil harman_wide_room",
+  "timestamp": "2026-09-03 22:59:54",
+  "points_count": 5,
+  "points": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "has_average": true
+}
