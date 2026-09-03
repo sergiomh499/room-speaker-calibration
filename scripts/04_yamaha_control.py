@@ -8,7 +8,7 @@ import time
 import urllib.request
 import xml.etree.ElementTree as ET
 
-IP = "192.168.1.39"
+IP = "192.168.1.43"
 URL = f"http://{IP}/YamahaRemoteControl/ctrl"
 
 def send_cmd(xml_payload):
@@ -30,6 +30,9 @@ def get_parsed_status():
         if elem.text and elem.text.strip():
             status[elem.tag] = elem.text.strip()
             
+    v = root.find('.//Volume/Lvl/Val')
+    if v is not None and v.text:
+        status['Master_Volume'] = f"{float(v.text)/10:.1f}"
     # Pure direct
     for elem in root.iter('Pure_Direct'):
         for child in elem:
@@ -45,7 +48,7 @@ def print_status():
     print("=" * 65)
     print(f"  * Alimentación (Power):       {st.get('Power', 'N/A')}")
     print(f"  * Entrada Seleccionada:       {st.get('Input_Sel', 'N/A')} (LG C5 HDMI ARC)")
-    print(f"  * Volumen Actual:             {st.get('Val', 'N/A')} dB")
+    print(f"  * Volumen Actual:             {st.get('Master_Volume', 'N/A')} dB")
     print(f"  * Modo Straight:              {st.get('Straight', 'N/A')}")
     print(f"  * Programa DSP:               {st.get('Sound_Program', 'N/A')}")
     print(f"  * Pure Direct:                {st.get('Pure_Direct', 'Off')}")
@@ -127,12 +130,98 @@ def apply_preset(num):
 
     time.sleep(0.2)
     print_status()
+def select_scene(num):
+    if num not in [1, 2, 3, 4]:
+        print("Número de escena inválido (1-4)")
+        return
+    xml = f'<YAMAHA_AV cmd="PUT"><Main_Zone><Scene><Scene_Sel>Scene {num}</Scene_Sel></Scene></Main_Zone></YAMAHA_AV>'
+    res = send_cmd(xml)
+    print(f"[v] Escena {num} activada en el Yamaha RX-V673.")
+    time.sleep(0.3)
+def set_peq_mode(mode):
+    valid = ["Through", "Flat", "Front", "Natural", "Manual"]
+    mode_map = {m.lower(): m for m in valid}
+    target_mode = mode_map.get(str(mode).lower())
+    if not target_mode:
+        print(f"Modo PEQ inválido: {mode}. Opciones: {', '.join(valid)}")
+        return False
+    xml = f'<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Sel>{target_mode}</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
+    res = send_cmd(xml)
+    print(f"[✓] PEQ Mode configurado en '{target_mode}': {res.strip()}")
+    return True
+
+    print_status()
+
+def program_all_scenes():
+    print("[*] Programando nombres y parámetros de las 4 escenas en NVRAM...")
+    # 1. Nombres
+    rename_xml = """<YAMAHA_AV cmd="PUT">
+  <Main_Zone>
+    <Scene>
+      <Scene_1><Name>Música Hi-Fi</Name></Scene_1>
+      <Scene_2><Name>Cine y Pelis</Name></Scene_2>
+      <Scene_3><Name>TV y Series</Name></Scene_3>
+      <Scene_4><Name>Pure Direct</Name></Scene_4>
+    </Scene>
+  </Main_Zone>
+</YAMAHA_AV>"""
+    send_cmd(rename_xml)
+
+    # 2. Scene 1: Música Hi-Fi
+    s1 = """<YAMAHA_AV cmd="PUT"><Main_Zone><Scene><Scene_1>
+      <Input><Input_Sel>AV4</Input_Sel></Input>
+      <Sound_Video><Pure_Direct><Mode>Off</Mode></Pure_Direct><HDMI><Output><OUT_1>On</OUT_1></Output></HDMI><Adaptive_DRC>Off</Adaptive_DRC></Sound_Video>
+      <Surround><Program_Sel><Current><Straight>On</Straight><Enhancer>Off</Enhancer></Current></Program_Sel></Surround>
+    </Scene_1></Scene></Main_Zone></YAMAHA_AV>"""
+    send_cmd(s1)
+
+    # 3. Scene 2: Cine y Pelis
+    s2 = """<YAMAHA_AV cmd="PUT"><Main_Zone><Scene><Scene_2>
+      <Input><Input_Sel>AV4</Input_Sel></Input>
+      <Sound_Video><Pure_Direct><Mode>Off</Mode></Pure_Direct><HDMI><Output><OUT_1>On</OUT_1></Output></HDMI><Adaptive_DRC>Off</Adaptive_DRC>
+        <Dialogue_Adjust><Dialogue_Lift>1</Dialogue_Lift><Dialogue_Lvl>1</Dialogue_Lvl></Dialogue_Adjust>
+      </Sound_Video>
+      <Surround><Program_Sel><Current><Straight>Off</Straight><Enhancer>Off</Enhancer><Sound_Program>Standard</Sound_Program></Current></Program_Sel></Surround>
+    </Scene_2></Scene></Main_Zone></YAMAHA_AV>"""
+    send_cmd(s2)
+
+    # 4. Scene 3: TV y Series
+    s3 = """<YAMAHA_AV cmd="PUT"><Main_Zone><Scene><Scene_3>
+      <Input><Input_Sel>AV4</Input_Sel></Input>
+      <Sound_Video><Pure_Direct><Mode>Off</Mode></Pure_Direct><HDMI><Output><OUT_1>On</OUT_1></Output></HDMI><Adaptive_DRC>Off</Adaptive_DRC>
+        <Dialogue_Adjust><Dialogue_Lift>1</Dialogue_Lift><Dialogue_Lvl>2</Dialogue_Lvl></Dialogue_Adjust>
+      </Sound_Video>
+      <Surround><Program_Sel><Current><Straight>Off</Straight><Enhancer>Off</Enhancer><Sound_Program>Drama</Sound_Program></Current></Program_Sel></Surround>
+    </Scene_3></Scene></Main_Zone></YAMAHA_AV>"""
+    send_cmd(s3)
+
+    # 5. Scene 4: Pure Direct
+    s4 = """<YAMAHA_AV cmd="PUT"><Main_Zone><Scene><Scene_4>
+      <Input><Input_Sel>AV4</Input_Sel></Input>
+      <Sound_Video><Pure_Direct><Mode>On</Mode></Pure_Direct><HDMI><Output><OUT_1>On</OUT_1></Output></HDMI></Sound_Video>
+      <Surround><Program_Sel><Current><Straight>On</Straight><Enhancer>Off</Enhancer></Current></Program_Sel></Surround>
+    </Scene_4></Scene></Main_Zone></YAMAHA_AV>"""
+    send_cmd(s4)
+    print("[v] Las 4 escenas han sido configuradas y grabadas con éxito en el Yamaha RX-V673.")
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         arg = sys.argv[1].lower()
         if arg in ["status", "estado", "-s"]:
             print_status()
+        elif arg in ["program_scenes", "scenes", "program", "setup_scenes"]:
+            program_all_scenes()
+        elif arg in ["scene", "escena"]:
+            if len(sys.argv) > 2 and sys.argv[2].isdigit():
+                select_scene(int(sys.argv[2]))
+            else:
+                print("Especifica número de escena (1-4): python3 04_yamaha_control.py scene 1")
+        elif arg in ["peq", "mode", "peq_mode"]:
+            if len(sys.argv) > 2:
+                set_peq_mode(sys.argv[2])
+            else:
+                print("Especifica modo PEQ (Through, Flat, Front, Natural, Manual)")
         elif arg.isdigit() and int(arg) in [1, 2, 3, 4]:
             apply_preset(int(arg))
         elif arg in ["musica", "music", "hifi", "1"]:

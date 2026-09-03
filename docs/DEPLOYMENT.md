@@ -12,7 +12,7 @@ Para arrancar el stack en 1 comando:
 docker compose up -d --build
 ```
 * **Variables de entorno configurables en `docker-compose.yml`**:
-  * `YAMAHA_IP`: IP de tu receptor (por defecto `192.168.1.39`).
+  * `YAMAHA_IP`: IP de tu receptor (por defecto `192.168.1.43`).
   * `BRIDGE_PORT`: Puerto de escucha del servicio (por defecto `8899`).
 
 ---
@@ -50,5 +50,8 @@ kubectl get pods -n home-automation -l app=yamaha-calibration-bridge
 
 Si utilizas **Home Assistant OS / Supervised**:
 1. Copia la carpeta `homeassistant/addon` dentro de la carpeta `/addons/local/yamaha_calibration_bridge` de tu Home Assistant.
-2. Ve a **Ajustes $ightarrow$ Complementos $ightarrow$ Tienda de complementos $ightarrow$ Comprobar actualizaciones**.
+2. Ve a **Ajustes $
+ightarrow$ Complementos $
+ightarrow$ Tienda de complementos $
+ightarrow$ Comprobar actualizaciones**.
 3. Instala el complemento **Room Speaker Calibration Bridge** y pulsa **Iniciar**.

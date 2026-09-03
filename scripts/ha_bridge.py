@@ -16,7 +16,7 @@ from urllib.parse import urlparse, parse_qs
 
 BRIDGE_PORT = 8899
 REPO_DIR = "/home/sergio/room-speaker-calibration"
-YAMAHA_IP = "192.168.1.39"
+YAMAHA_IP = "192.168.1.43"
 YAMAHA_URL = f"http://{YAMAHA_IP}/YamahaRemoteControl/ctrl"
 
 def send_yamaha_cmd(xml_payload):

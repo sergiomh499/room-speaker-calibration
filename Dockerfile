@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Environment Defaults
-ENV YAMAHA_IP="192.168.1.39"
+ENV YAMAHA_IP="192.168.1.43"
 ENV BRIDGE_PORT=8899
 ENV PYTHONUNBUFFERED=1
 

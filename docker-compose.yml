@@ -8,7 +8,7 @@ services:
     container_name: yamaha-calibration-bridge
     restart: unless-stopped
     environment:
-      - YAMAHA_IP=192.168.1.39
+      - YAMAHA_IP=192.168.1.43
       - BRIDGE_PORT=8899
     ports:
       - "8899:8899"

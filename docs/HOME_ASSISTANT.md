@@ -20,7 +20,7 @@ Esta integración convierte a **Home Assistant** en el centro de mando integral 
 │                  BRIDGE ACÚSTICO LOCAL (ha_bridge.py :8899)                  │
 │       Motor de Calibración CLI + Comunicación Bidireccional con el AVR      │
 └──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ YNC Protocol (192.168.1.39:80)
+                                       │ YNC Protocol (192.168.1.43:80)
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                     RECEPTOR AV YAMAHA RX-V673                              │

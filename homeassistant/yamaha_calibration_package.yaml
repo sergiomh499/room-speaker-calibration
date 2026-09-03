@@ -7,7 +7,7 @@
 # ------------------------------------------------------------------------------
 media_player:
   - platform: yamaha
-    host: 192.168.1.39
+    host: 192.168.1.43
     name: "Yamaha RX-V673"
     zone_names:
       Main_Zone: "Salón Principal"

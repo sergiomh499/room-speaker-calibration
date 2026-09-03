@@ -1,0 +1,15 @@
+{
+  "id": "sesion_20260903_191601",
+  "name": "Medición 19:15 - General Salon y cocina",
+  "description": "Captura multipunto 5 posiciones con Pixel 9 Pro a 90°",
+  "timestamp": "2026-09-03 19:16:01",
+  "points_count": 5,
+  "points": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "has_average": true
+}

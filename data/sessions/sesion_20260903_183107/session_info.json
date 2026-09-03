@@ -1,0 +1,15 @@
+{
+  "id": "sesion_20260903_183107",
+  "name": "Medición #3 - Sweet Spot y Cobertura Harman Completa",
+  "description": "Malla completa de 5 puntos capturada a las 18:31 (Sweet Spot + Izquierda + Derecha + Delante + Elevada)",
+  "timestamp": "2026-09-03 18:31:07",
+  "points_count": 5,
+  "points": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "has_average": true
+}

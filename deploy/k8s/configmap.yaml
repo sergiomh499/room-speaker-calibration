@@ -4,5 +4,5 @@ metadata:
   name: yamaha-calibration-config
   namespace: home-automation
 data:
-  YAMAHA_IP: "192.168.1.39"
+  YAMAHA_IP: "192.168.1.43"
   BRIDGE_PORT: "8899"

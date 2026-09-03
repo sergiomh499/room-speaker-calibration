@@ -43,7 +43,7 @@
       "max_boost_db": 3.0,
       "max_cut_db": -12.0,
       "ip_control_available": true,
-      "default_ip": "192.168.1.39"
+      "default_ip": "192.168.1.43"
     },
     "generic_parametric": {
       "brand": "Generic / MiniDSP / REW",

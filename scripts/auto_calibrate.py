@@ -10,8 +10,9 @@ import sys
 import json
 import argparse
 import subprocess
+import urllib.request
+import xml.etree.ElementTree as ET
 import numpy as np
-
 REPO_DIR = "/home/sergio/room-speaker-calibration"
 CONFIG_DIR = f"{REPO_DIR}/config"
 DATA_DIR = f"{REPO_DIR}/data"
@@ -22,7 +23,43 @@ def load_json(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def run_calibration(target_key="harman_wide_room", use_spatial_avg=True, export_pdf=False):
+def push_peq_to_yamaha(peq_table, host="192.168.1.43"):
+    url = f"http://{host}/YamahaRemoteControl/ctrl"
+    headers = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+    
+    # 1. Asegurar modo Manual activo
+    cmd_sel = '<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Sel>Manual</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
+    req = urllib.request.Request(url, data=cmd_sel.encode('utf-8'), headers=headers)
+    with urllib.request.urlopen(req, timeout=3.0) as r:
+        pass
+        
+    freq_map = {
+        62.5: "62.5 Hz",
+        99.2: "99.2 Hz",
+        125.0: "125.0 Hz",
+        157.5: "157.5 Hz",
+        250.0: "250.0 Hz",
+        500.0: "500.0 Hz",
+        2520.0: "2.52 kHz",
+        10100.0: "10.1 kHz"
+    }
+    
+    for ch_tag, gain_key, q_key in [("Front_L", "gain_l", "q_l"), ("Front_R", "gain_r", "q_r")]:
+        bands_xml = ""
+        for row in peq_table:
+            b_idx = row["band"]
+            f_str = freq_map.get(row["freq"], f"{row['freq']:.1f} Hz")
+            gain_val = int(round(row[gain_key] * 10))
+            q_str = f"{row[q_key]:.3f}"
+            bands_xml += f"<Band_{b_idx}><Freq>{f_str}</Freq><Gain><Val>{gain_val}</Val><Exp>1</Exp><Unit>dB</Unit></Gain><Q>{q_str}</Q></Band_{b_idx}>"
+            
+        xml_ch = f'<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data><{ch_tag}>{bands_xml}</{ch_tag}></Manual_Data></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
+        req_ch = urllib.request.Request(url, data=xml_ch.encode('utf-8'), headers=headers)
+        with urllib.request.urlopen(req_ch, timeout=3.0) as r:
+            pass
+    print(f"[v] Parámetros PEQ grabados con éxito en la memoria NVRAM del Yamaha ({host}).")
+
+def run_calibration(target_key="harman_wide_room", use_spatial_avg=True, export_pdf=False, push_yamaha=False):
     equip = load_json(f"{CONFIG_DIR}/equipment.json")
     targets = load_json(f"{CONFIG_DIR}/targets.json")
     
@@ -86,16 +123,20 @@ def run_calibration(target_key="harman_wide_room", use_spatial_avg=True, export_
         print(f"Band {row['band']} | {row['freq']:>7.1f} Hz | {str(row['q_l']):>5} / {str(row['q_r']):<5} | {row['gain_l']:>+6.1f} dB    | {row['gain_r']:>+6.1f} dB    | {row['func']}")
     print("="*80)
     
+    if push_yamaha:
+        print("[*] Escribiendo ecualizador PEQ directamente en el Yamaha RX-V673...")
+        push_peq_to_yamaha(peq_table)
+        
     if export_pdf:
         print("[*] Regenerando gráficas temporales y compilando informe PDF...")
         subprocess.run(["python3", f"{REPO_DIR}/scripts/waterfall_csd.py"], check=True)
         subprocess.run(["python3", f"{REPO_DIR}/scripts/03_generate_pdf_report.py"], check=True)
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automated PEQ Optimization Engine")
     parser.add_argument("--target", type=str, default="harman_wide_room", help="Target curve name")
-    parser.add_argument("--multipoint", action="store_true", default=True, help="Use spatial average dataset (Dr. Floyd Toole)")
+    parser.add_argument("--multipoint", "--use-spatial-avg", dest="multipoint", action="store_true", default=True, help="Use spatial average dataset (Dr. Floyd Toole)")
+    parser.add_argument("--push", action="store_true", default=False, help="Push PEQ parameters directly to Yamaha AVR via network")
     parser.add_argument("--export-pdf", action="store_true", help="Export updated PDF technical report")
     args = parser.parse_args()
     
-    run_calibration(args.target, use_spatial_avg=args.multipoint, export_pdf=args.export_pdf)
+    run_calibration(args.target, use_spatial_avg=args.multipoint, export_pdf=args.export_pdf, push_yamaha=args.push)

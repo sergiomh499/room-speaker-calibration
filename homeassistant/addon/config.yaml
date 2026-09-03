@@ -13,6 +13,6 @@ arch:
 ports:
   8899/tcp: 8899
 options:
-  yamaha_ip: "192.168.1.39"
+  yamaha_ip: "192.168.1.43"
 schema:
   yamaha_ip: "str"

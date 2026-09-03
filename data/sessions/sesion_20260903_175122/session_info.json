@@ -1,0 +1,15 @@
+{
+  "id": "sesion_20260903_175122",
+  "name": "Medición #1 - Malla Inicial 5 Puntos",
+  "description": "Primera captura de calibración multipunto a las 17:51",
+  "timestamp": "2026-09-03 17:51:22",
+  "points_count": 5,
+  "points": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "has_average": true
+}
