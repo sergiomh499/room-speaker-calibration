@@ -9,6 +9,15 @@
 **Input**: User description: "sigue teniendo front l unos valores extraños en el peq, hagamos calibracion multipunto alrededor del sweet spot solo , permite ademas que pueda seleccionarse el micro, el amplificador, los altavoces"
 
 ---
+## Clarifications
+
+### Session 2026-09-04
+
+- Q: How should microphone calibration data be loaded and managed when a specific measurement microphone is selected? → A: Built-in standard curves for supported models (Pixel 9 Pro, UMIK-1 90°, Dayton UMM-6) + optional .cal/.txt upload for individual mic serial calibration.
+- Q: How should the 5 measurement points within the tight sweet-spot cluster be mathematically weighted for the optimization target? → A: 70% Center Sweet Spot (Point 1) + 30% Spatial Average of satellite points 2–5.
+- Q: How should inter-channel level normalization and modal peak detection thresholds be calibrated between Front L and Front R before computing PEQ filters? → A: Broadband 300 Hz – 3 kHz average normalization with adaptive +1.0 dB modal peak threshold.
+
+---
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -39,11 +48,11 @@ As a home theater and Hi-Fi enthusiast, I want to explicitly select and configur
 **Acceptance Scenarios**:
 
 1. **Given** the dashboard settings, **When** the user opens the Hardware Configuration panel, **Then** three dropdown selectors are presented:
-   - **Microphone**: e.g., Smartphone (Pixel 9 Pro Calibrated), miniDSP UMIK-1 (90° Ceiling File), Dayton UMM-6, Generic Flat Mic.
+   - **Microphone**: e.g., Smartphone (Pixel 9 Pro Calibrated), miniDSP UMIK-1 (90° Ceiling File), Dayton UMM-6, Generic Flat Mic, with an optional file upload button for custom `.cal` / `.txt` sensitivity curves.
    - **Amplifier / Receiver**: e.g., Yamaha RX-V673 (7 PEQ bands, YNC XML over LAN), Generic AVR (Manual PEQ).
    - **Loudspeakers**: e.g., Q Acoustics 3020i (64 Hz bass extension, 2.52 kHz crossover dip compensation), Generic Bookshelf (80 Hz high-pass), Floorstanding / Tower (40 Hz extension).
-2. **Given** a change in hardware selection (e.g. selecting different speakers or mic), **When** the user saves the configuration, **Then** the hardware state is persisted in `config/hardware.json` and active optimizer constraints immediately reflect the chosen profile.
-3. **Given** the active hardware selection, **When** generating technical PDF reports and calibration summaries, **Then** the exact selected hardware models are clearly documented in the system specifications table.
+2. **Given** a change in hardware selection (e.g. selecting different speakers or mic, or uploading a mic calibration file), **When** the user saves the configuration, **Then** the hardware state is persisted in `config/hardware.json` and active optimizer constraints immediately reflect the chosen profile.
+3. **Given** the active hardware selection, **When** generating technical PDF reports and calibration summaries, **Then** the exact selected hardware models (and active calibration file name if custom) are clearly documented in the system specifications table.
 
 ---
 
@@ -67,16 +76,17 @@ As an audio calibrator, I want an interactive diagnostic visualizer comparing Fr
 ### Functional Requirements
 
 - **FR-001**: The calibration measurement workflow MUST provide dedicated guidance for a "Tight Sweet-Spot Cluster" (maximum radius 20 cm around listener ear center), replacing wide-room measurement positioning.
-- **FR-002**: The PEQ optimization engine MUST balance Front L and Front R level normalization and peak detection sensitivity to ensure genuine Front L room modes (such as ~115–125 Hz) receive active corrective notch filters.
-- **FR-003**: The system MUST implement a persistent hardware configuration schema (`config/hardware.json`) storing selected microphone, amplifier, and speaker profiles.
-- **FR-004**: The web calibration dashboard MUST provide an intuitive UI panel allowing users to view and switch the active:
-  - Microphone profile (with associated frequency calibration offsets).
+- **FR-002**: The spatial averaging algorithm MUST compute the optimization baseline using a 70% weighting for the center sweet-spot capture (Point 1) and 30% for the spatial average of the 4 surrounding points (15 cm left, right, forward, and elevated).
+- **FR-003**: The PEQ optimization engine MUST use broadband energy averaging across 300 Hz – 3 kHz for baseline reference normalization (rather than a single 1 kHz bin), with an adaptive peak detection threshold of +1.0 dB above target, ensuring real room modes on both Front L and Front R are reliably identified and corrected.
+- **FR-004**: The system MUST implement a persistent hardware configuration schema (`config/hardware.json`) storing selected microphone, amplifier, and speaker profiles.
+- **FR-005**: The web calibration dashboard MUST provide an intuitive UI panel allowing users to view and switch the active:
+  - Microphone profile (with pre-loaded standard calibration curves for Pixel 9 Pro, miniDSP UMIK-1 90°, and Dayton UMM-6, plus an optional `.cal`/`.txt` upload endpoint for user-specific serial calibration files).
   - Amplifier profile (with associated PEQ band counts and discrete parameter matrices).
   - Loudspeaker profile (with low-frequency cutoffs, crossover frequencies, and voicing compensation).
-- **FR-005**: The optimization engine MUST ingest the active hardware profile from `config/hardware.json` and dynamically bind optimization limits (such as speaker low-frequency extension and crossover compensation) to the selected hardware.
-- **FR-006**: Default hardware configuration MUST be initialized to: Microphone: `Google Pixel 9 Pro (Calibrated Mic)`; Amplifier: `Yamaha RX-V673 (YNC XML Lan)`; Speakers: `Q Acoustics 3020i (Bookshelf)`.
-- **FR-007**: Generated technical PDF reports MUST dynamically reflect the selected hardware profile components in Table 1 (System Configuration).
-- **FR-008**: Hardware selection changes MUST NOT issue destructive writes to the amplifier until an explicit calibration deployment or test action is triggered.
+- **FR-006**: The optimization engine MUST ingest the active hardware profile from `config/hardware.json` and dynamically bind optimization limits (such as speaker low-frequency extension and crossover compensation) to the selected hardware.
+- **FR-007**: Default hardware configuration MUST be initialized to: Microphone: `Google Pixel 9 Pro (Calibrated Mic)`; Amplifier: `Yamaha RX-V673 (YNC XML Lan)`; Speakers: `Q Acoustics 3020i (Bookshelf)`.
+- **FR-008**: Generated technical PDF reports MUST dynamically reflect the selected hardware profile components in Table 1 (System Configuration).
+- **FR-009**: Hardware selection changes MUST NOT issue destructive writes to the amplifier until an explicit calibration deployment or test action is triggered.
 
 ---
 
@@ -104,7 +114,7 @@ As an audio calibrator, I want an interactive diagnostic visualizer comparing Fr
 
 - **Assumptions**:
   - The primary physical hardware remains Yamaha RX-V673 and Q Acoustics 3020i, but the system must accommodate alternative hardware options cleanly without hardcoded strings.
-  - Tight sweet-spot spatial averaging (80% sweet spot / 20% spatial average of points 2-5 within 15 cm) yields superior phase coherence for stereo imaging.
+  - Tight sweet-spot spatial averaging (70% sweet spot / 30% spatial average of points 2-5 within 15-20 cm) anchors ear-level tonality while preventing narrow comb-filter overcorrection.
 - **Edge Cases**:
   - Selection of a speaker profile with low bass capability (e.g. 40 Hz towers): optimizer must avoid cutting naturally extended low bass unless acoustic room resonance is detected.
   - Missing calibration file for a third-party microphone: system falls back gracefully to flat response with an informational warning.
