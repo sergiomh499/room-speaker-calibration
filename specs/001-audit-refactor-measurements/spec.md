@@ -8,6 +8,14 @@
 
 **Input**: User description: "tengo sospechas de que actualmente el repositorio esta falseando muchas medidas, calculos estan mal y hay que hacer un gran refactor del repositorio, se intensivo y ponte con todo, cueste lo que cueste"
 
+## Clarifications
+
+### Session 2026-09-03
+
+- Q: Should the 7-band PEQ optimization engine calculate independent center frequencies for each channel (Front L vs Front R) or enforce identical center frequencies with channel-independent Q and gain? → A: Option A - Independent center frequencies, Q factors, and gains per channel to precisely address room acoustic asymmetry (e.g. corner-loaded right speaker vs open-space left speaker).
+- Q: When multi-point measurements exist, how should the optimization objective weigh the primary listening position (Sweet Spot) versus the spatial average of all surrounding points? → A: Option C - Strict Sweet Spot priority (80% Sweet Spot / 20% spatial average): Optimizes primarily for the main listening seat to maximize central stereo imaging and tonal accuracy, using secondary positions to prevent equalizing narrow localized phase cancellations.
+- Q: What objective physical criteria must a live post-calibration sweep meet to be awarded the official "S-TIER (Certified)" rating? → A: Option A - Strict Multi-Metric: Peak modal resonance reduction >= 6.0 dB, modal RMS deviation from target < 2.5 dB (60-500 Hz), and inter-channel stereo level delta < 2.0 dB.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Honest & Verifiable Acoustic Measurement Audit (Priority: P1)
@@ -90,12 +98,12 @@ So that sweeps play through the intended analog/auxiliary channel without uncomm
 
 ### Functional Requirements
 
-- **FR-001**: System MUST calculate all parametric equalization filter parameters dynamically from empirical room acoustic measurements (single-point or multi-point spatial averages), prohibiting any reliance on static hardcoded filter parameter tables.
-- **FR-002**: System MUST constrain all optimized parametric filter center frequencies, Q factors, and gains strictly to the discrete hardware parameter values supported by the Yamaha RX-V673 receiver architecture.
+- **FR-001**: System MUST calculate all parametric equalization filter parameters dynamically from empirical room acoustic measurements; when multi-point datasets exist, the optimization cost function MUST weight the primary Sweet Spot (Point 1) at 80% and the secondary spatial average at 20%, strictly prohibiting any reliance on static hardcoded filter parameter tables.
+- **FR-002**: System MUST constrain all optimized parametric filter center frequencies, Q factors, and gains strictly to the discrete hardware parameter values supported by the Yamaha RX-V673 receiver architecture, computing independent center frequencies ($f_{0,L} \neq f_{0,R}$), Q factors, and gains for Front Left and Front Right channels to resolve room boundary asymmetry.
 - **FR-003**: System MUST enforce an asymmetric acoustic gain policy for room-mode correction: maximum positive gain boost MUST NOT exceed +3.0 dB, maximum attenuation MUST reach down to -12.0 dB, and room-correction boosts above 500 Hz MUST be clamped to 0.0 dB.
 - **FR-004**: System MUST eliminate all synthetic fallback calculations that construct simulated curves via arithmetic addition (`measurement + filter_curve`) and present them as verified room responses.
 - **FR-005**: System MUST distinctly label every displayed frequency response curve with its verifiable provenance: `REAL_MEASUREMENT` (with source file, timestamp, and SNR) or `THEORETICAL_TARGET`.
-- **FR-006**: System MUST withhold any "Certified", "S-Tier", or "Passed" quality rating unless an authentic post-calibration acoustic sweep has been captured and validated through the physical receiver hardware.
+- **FR-006**: System MUST withhold any "Certified" or "S-Tier" quality rating unless an authentic post-calibration acoustic sweep has been captured through the physical receiver hardware and strictly satisfies all three objective physical criteria: (1) peak modal resonance reduction $\ge 6.0\text{ dB}$, (2) residual RMS deviation from target $< 2.5\text{ dB}$ across the equalized modal band (60 Hz to 500 Hz), and (3) average inter-channel stereo level imbalance $< 2.0\text{ dB}$.
 - **FR-007**: System MUST calculate acoustic quality and compliance metrics using standard, reproducible scientific formulations (unweighted and psychoacoustically smoothed RMS deviation in dB from target curve, inter-channel stereo level delta, and modal peak attenuation in dB) without arbitrary marketing multipliers or fixed offset baselines.
 - **FR-008**: System MUST store raw impulse response and frequency response datasets in timestamped, immutable archive files, prohibiting unversioned overwrites of historical calibration records.
 - **FR-009**: System MUST enforce consistent audio routing during measurement sweeps, verifying the active receiver input and output level before playback and validating that recorded signal levels do not exhibit digital clipping or inadequate signal-to-noise ratio.
@@ -104,7 +112,7 @@ So that sweeps play through the intended analog/auxiliary channel without uncomm
 ### Key Entities
 
 - **Acoustic Transfer Function**: The complex frequency response derived from logarithmic sweep deconvolution, comprising frequency grid (Hz), magnitude response (dB SPL normalized), phase, impulse response array, and signal quality metrics (peak level dBFS, SNR dB, timestamp).
-- **Hardware Parameter Space**: The discrete matrix of permissible values for the Yamaha RX-V673 DSP engine: 28 discrete center frequencies (62.5 Hz to 16.0 kHz), 14 discrete Q factors (0.500 to 10.080), and discrete gain steps (-12.0 dB to +6.0 dB in 0.5 dB increments) across 7 biquad bands per channel.
+- **Hardware Parameter Space**: The discrete matrix of permissible values for the Yamaha RX-V673 DSP engine: 28 discrete center frequencies (62.5 Hz to 16.0 kHz), 14 discrete Q factors (0.500 to 10.080), and discrete gain steps (-12.0 dB to +6.0 dB in 0.5 dB increments) across 7 biquad bands, independently allocatable per channel (Front L and Front R).
 - **Acoustic Target Curve**: Mathematical reference curve defining target in-room steady-state sound pressure as a function of frequency (e.g. Harman In-Room Loudspeaker Target Curve with bass rise and high-frequency roll-off).
 - **Optimization Result**: The calculated set of 7 discrete biquad filters per channel, including expected residual variance, predicted peak resonance reduction, and mathematical convergence metrics.
 - **Verification Audit**: Comparative evaluation comparing measured baseline (Through bypass) against verified post-calibration physical sweep, detailing real modal resonance reduction, residual RMS error, and certification status.
@@ -116,7 +124,7 @@ So that sweeps play through the intended analog/auxiliary channel without uncomm
 - **SC-001**: 100% of generated PEQ filter configurations are computed algorithmically from acoustic measurement data, with zero reliance on hardcoded filter parameters in the execution path.
 - **SC-002**: Measured modal resonance peaks in the sub-200 Hz band are attenuated by at least 6.0 dB in real physical post-calibration sweeps, verified without exceeding +3.0 dB gain boost at any frequency.
 - **SC-003**: 0% of unmeasured or simulated curves receive "Certified", "Live Measured", or "S-Tier" designations across all reports, logs, and user interfaces.
-- **SC-004**: Residual RMS error between measured acoustic response and the target curve in the equalized modal band (60 Hz to 500 Hz) improves by at least 20% compared to the uncalibrated baseline in physical verification tests.
+- **SC-004**: Residual RMS error between measured acoustic response and the target curve in the equalized modal band (60 Hz to 500 Hz) achieves $< 2.5\text{ dB}$ (improving by at least 20% compared to uncalibrated baseline) and stereo imbalance $< 2.0\text{ dB}$ in physical verification tests.
 - **SC-005**: Complete automated audit test suite verifies mathematical optimization convergence and discrete hardware boundary compliance in under 10 seconds.
 
 ## Assumptions

@@ -31,6 +31,6 @@
 
 ## Notes
 
-- All validation checks passed on first review iteration.
-- Zero `[NEEDS CLARIFICATION]` markers required; physical domain rules, discrete Yamaha DSP constraints, and constitution principles provide full requirement clarity.
-- Spec is ready for `/speckit.clarify` or `/speckit.plan`.
+- All validation checks passed (16/16 items passing).
+- Clarification session 2026-09-03 completed: 3 architectural questions clarified and integrated into spec.md.
+- Spec is fully validated and ready for `/speckit.plan`.
