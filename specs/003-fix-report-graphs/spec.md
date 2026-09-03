@@ -9,6 +9,7 @@
 
 ### Session 2026-09-03
 - Q: ¿De qué fuente acústica debe calcularse la Cascada Espectral 3D (Waterfall CSD) para que refleje el decaimiento temporal real sin ceros? → A: Usar la respuesta al impulso medida real del Punto 1 (Sweet Spot / Posición Principal de Escucha) ya que preserva la fase física real y las colas de resonancia acústica sin cancelaciones por promediado.
+- Q: ¿Cómo debe resolverse el error al aplicar el PEQ al receptor para asegurar tanto la compatibilidad de argumentos como la verificación de escritura en el hardware? → A: Aceptar `--target` y `--profile` como alias en `auto_calibrate.py`, capturar y devolver `stderr` detallado en la API y validar la escritura en el Yamaha RX-V673 con confirmación de lectura.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -60,6 +61,7 @@ As a system operator validating acoustic correction, I want the multi-mode verif
 - **Missing or incomplete sweeps**: If only a subset of measurement points is recorded, the pipeline must clearly indicate which points are missing and prevent generating a misleading 5-point report.
 - **Microphone disconnection or clipping during sweep**: If SNR is insufficient, the system must abort figure generation with an informative error rather than overwriting valid previous figures with corrupted artifacts.
 - **Offline AVR during hardware readback**: If the Yamaha receiver is powered off or unreachable, the report must display "Hardware unreachable (Offline)" in the register section without failing the acoustic analysis.
+- **Subprocess CLI execution errors**: If a calibration or control subprocess exits with a non-zero status code, the API MUST capture and return the complete `stderr` stream to the user interface instead of returning an opaque exit status code.
 
 ### Functional Requirements
 
@@ -71,6 +73,7 @@ As a system operator validating acoustic correction, I want the multi-mode verif
 - **FR-006**: System MUST ensure narrative text in reports dynamically reflects computed metrics (such as detected modal peak frequencies and attenuation values) rather than fixed hardcoded phrases.
 - **FR-007**: System MUST render the verification comparison results immediately upon loading if valid verification data exists on disk for the selected profile.
 - **FR-008**: System MUST provide an automated verification script or command to check that all generated figures and reports match the timestamp of the latest acoustic data.
+- **FR-009**: Calibration and PEQ optimization CLI scripts (`auto_calibrate.py`, etc.) MUST accept both `--target` and `--profile` as interchangeable parameter aliases, and the server MUST capture `stderr` to display diagnostic errors and perform atomic readback verification on the Yamaha RX-V673.
 
 ---
 

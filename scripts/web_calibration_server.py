@@ -919,7 +919,7 @@ async function applyFinalCalibration() {
   log("Ejecutando algoritmo de promedio espacial Toole/AES, cálculo de respuesta acústica y generación de PDF...");
   
   try {
-    const res = await fetch('/api/finalize_calibration', { method: 'POST' });
+    const res = await fetch('/api/finalize_calibration?profile=' + encodeURIComponent(currentSelectedProfile || 'harman_wide_room'), { method: 'POST' });
     const json = await res.json();
     if (json.ok) {
       btn.textContent = "✅ ¡Calibración y Documentos Listos!";
@@ -1137,6 +1137,11 @@ function selectProfile(key) {
     applyBtn.style.background = "#0284c7";
     applyBtn.textContent = `🎛️ Enviar y Aplicar Perfil '${p.name.split('(')[0].trim()}' al Yamaha (NVRAM)`;
   }
+  const pdfBtns = document.querySelectorAll(".btn-download-pdf");
+  pdfBtns.forEach(btn => {
+    btn.href = `/api/download_pdf?profile=${encodeURIComponent(key)}&t=${Date.now()}`;
+    btn.textContent = `📄 Descargar Informe Técnico PDF (${(p.name || key).split('(')[0].trim()})`;
+  });
 
   if (tableContainer && p.bands) {
     let rows = "";
@@ -1270,6 +1275,9 @@ async function checkVerificationStatusOnLoad(profile) {
     if (d.ok && d.status) {
       verifStatus = d.status;
       updateVerifStatusBadges();
+      if (verifStatus.through && verifStatus.manual) {
+        processVerificationComparison();
+      }
     }
   } catch (e) {}
 }
@@ -2026,6 +2034,9 @@ class CalibrationHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         print(f"[{self.client_address[0]}] {format % args}")
 
+    def do_HEAD(self):
+        self.do_GET()
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
@@ -2102,6 +2113,9 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", f"{ctype}; charset=utf-8")
                 self.send_header("Content-Length", str(len(content_bytes)))
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("Expires", "0")
                 self.end_headers()
                 self.wfile.write(content_bytes)
                 return
@@ -2110,21 +2124,49 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 return
 
-
         if path == "/api/download_pdf":
-            if os.path.exists(PDF_FILE):
-                with open(PDF_FILE, "rb") as f:
+            prof = params.get("profile", ["harman_wide_room"])[0]
+            candidate_files = [
+                f"{REPORT_DIR}/Informe_Calibracion_Acustica_{prof}.pdf",
+                PDF_FILE,
+                f"{REPORT_DIR}/Informe_Calibracion_Acustica_Real.pdf",
+                "/home/sergio/Informe_Calibracion_Acustica_Yamaha_Q_Acoustics.pdf"
+            ]
+            pdf_to_serve = None
+            for cand in candidate_files:
+                if os.path.exists(cand):
+                    pdf_to_serve = cand
+                    break
+
+            if not pdf_to_serve:
+                try:
+                    import importlib
+                    gr = importlib.import_module("scripts.03_generate_pdf_report")
+                    pdf_to_serve = gr.generate_pdf_report(profile=prof)
+                except Exception as ex_pdf:
+                    print(f"[Server Error] No se pudo compilar PDF dinámico para {prof}: {ex_pdf}")
+
+            if pdf_to_serve and os.path.exists(pdf_to_serve):
+                with open(pdf_to_serve, "rb") as f:
                     pdf_bytes = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/pdf")
-                self.send_header("Content-Disposition", 'attachment; filename="Informe_Calibracion_Acustica_Yamaha.pdf"')
+                self.send_header("Content-Disposition", f'attachment; filename="Informe_Calibracion_Acustica_{prof}.pdf"')
                 self.send_header("Content-Length", str(len(pdf_bytes)))
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("Expires", "0")
                 self.end_headers()
                 self.wfile.write(pdf_bytes)
                 return
             else:
                 self.send_response(404)
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": False,
+                    "msg": f"El informe técnico PDF para el perfil '{prof}' aún no ha sido generado."
+                }).encode("utf-8"))
                 return
 
         if path.startswith("/figures/"):
@@ -2136,7 +2178,9 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", "image/png")
                 self.send_header("Content-Disposition", f'inline; filename="{fname}"')
-                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("Expires", "0")
                 self.send_header("Content-Length", str(len(img_bytes)))
                 self.end_headers()
                 self.wfile.write(img_bytes)
@@ -2272,7 +2316,8 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/finalize_calibration":
-            print("[Server] Ejecutando promediado espacial y pipeline de análisis acústico...")
+            prof = params.get("profile", ["harman_wide_room"])[0]
+            print(f"[Server] Ejecutando promediado espacial y pipeline de análisis acústico para perfil '{prof}'...")
             try:
                 # 1. Spatial average
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/spatial_average.py", "--average"], check=True)
@@ -2280,23 +2325,25 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/02_plot_responses.py"], check=True)
                 # 3. Waterfall CSD
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/csd_waterfall.py"], check=True)
-                # 4. Generate dynamic 100% mathematical PDF
-                subprocess.run(["python3", f"{REPO_DIR}/scripts/03_generate_pdf_report.py"], check=True)
+                # 4. Generate dynamic 100% mathematical PDF for selected profile
+                subprocess.run(["python3", f"{REPO_DIR}/scripts/03_generate_pdf_report.py", "--profile", prof], check=True)
                 # 5. Guardar automáticamente sesión de calibración en historial
                 try:
-                    save_current_session_to_disk(name=f"Medición Calibrada {time.strftime('%H:%M')}", desc="Malla completa procesada con modelado acústico e informe PDF")
+                    save_current_session_to_disk(name=f"Medición Calibrada {time.strftime('%H:%M')}", desc=f"Malla procesada para perfil {prof}")
                 except Exception as ex_save:
                     print(f"[Aviso] No se pudo auto-guardar sesión: {ex_save}")
 
                 bands = get_peq_bands_info()
+                now_ts = int(time.time())
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     "ok": True,
-                    "pdf_url": "/api/download_pdf",
+                    "profile": prof,
+                    "pdf_url": f"/api/download_pdf?profile={prof}&t={now_ts}",
                     "bands": bands,
-                    "msg": "Modelado acústico, gráficas de alta definición e informe PDF generados con éxito."
+                    "msg": f"Modelado acústico, gráficas e informe PDF para '{prof}' generados con éxito."
                 }).encode("utf-8"))
             except Exception as e:
                 self.send_response(200)
@@ -2353,17 +2400,35 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             prof = params.get("profile", ["harman_wide_room"])[0]
             print(f"[Server] Aplicando perfil comunitario '{prof}' al Yamaha RX-V673...")
             try:
-                subprocess.run([
+                res = subprocess.run([
                     "python3",
                     f"{REPO_DIR}/scripts/auto_calibrate.py",
-                    "--target", prof,
+                    "--profile", prof,
                     "--push"
                 ], check=True, capture_output=True, text=True)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": True, "msg": f"Perfil '{prof}' aplicado en NVRAM del receptor."}).encode("utf-8"))
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "msg": f"Perfil '{prof}' aplicado y verificado en la memoria NVRAM del receptor.",
+                    "profile": prof,
+                    "verified": True
+                }).encode("utf-8"))
+            except subprocess.CalledProcessError as e:
+                err_msg = (e.stderr or e.stdout or str(e)).strip()
+                print(f"[Server Error] Fallo al aplicar perfil '{prof}': {err_msg}")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": False,
+                    "msg": f"Error al aplicar perfil: {err_msg}",
+                    "stderr": err_msg,
+                    "exit_code": e.returncode
+                }).encode("utf-8"))
             except Exception as e:
+                print(f"[Server Error] Excepción inesperada en apply_profile: {e}")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()

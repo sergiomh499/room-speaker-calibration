@@ -154,18 +154,54 @@ def calculate_ringing_decay_time_ms(
         return float(times_ms[below_idx[0]])
     return float(times_ms[-1])
 
-if __name__ == "__main__":
+def generate_waterfall_csd(
+    output_path: Optional[Path | str] = None,
+    data_file: Optional[Path | str] = None
+) -> Path:
     repo_dir = Path(__file__).resolve().parent.parent
-    data_file = repo_dir / "data" / "medicion_promedio_espacial.npz"
-    if not data_file.exists():
-        data_file = repo_dir / "data" / "medicion_real_calibracion.npz"
-    out_fig = repo_dir / "figures" / "waterfall_csd_comparison.png"
-    if data_file.exists():
-        d = np.load(data_file)
-        ir_l = d["ir_l"] if "ir_l" in d else None
-        render_csd_waterfall_plot(
-            impulse_response=ir_l if ir_l is not None else np.zeros(4800),
-            output_path=str(out_fig),
-            title="Cascada Espectral 3D (Waterfall CSD) - Decaimiento Modal"
-        )
-        print(f"[v] Waterfall CSD guardado en: {out_fig}")
+    if output_path is None:
+        out_fig = repo_dir / "figures" / "waterfall_csd_comparison.png"
+    else:
+        out_fig = Path(output_path)
+        
+    candidate_files = []
+    if data_file:
+        candidate_files.append(Path(data_file))
+    candidate_files.extend([
+        repo_dir / "data" / "medicion_punto_1.npz",
+        repo_dir / "data" / "medicion_real_calibracion.npz",
+        repo_dir / "data" / "medicion_promedio_espacial.npz"
+    ])
+    
+    ir_l = None
+    for cand in candidate_files:
+        if cand.exists():
+            d = np.load(cand)
+            if "ir_l" in d and len(d["ir_l"]) > 0 and float(np.max(np.abs(d["ir_l"]))) > 1e-4:
+                ir_l = d["ir_l"]
+                print(f"[v] Cascada CSD extrayendo respuesta al impulso física de: {cand.name}")
+                break
+                
+    if ir_l is None:
+        for cand in candidate_files:
+            if cand.exists():
+                d = np.load(cand)
+                if "smooth_l" in d:
+                    mag = 10.0 ** (d["smooth_l"] / 20.0)
+                    ir_l = np.fft.irfft(mag)
+                    print(f"[*] CSD sintetizando fase mínima desde magnitud de: {cand.name}")
+                    break
+                    
+    if ir_l is None:
+        ir_l = np.zeros(4800)
+        
+    render_csd_waterfall_plot(
+        impulse_response=ir_l,
+        output_path=str(out_fig),
+        title="Cascada Espectral 3D (Waterfall CSD) - Decaimiento Modal en Sweet Spot"
+    )
+    print(f"[v] Waterfall CSD guardado en: {out_fig}")
+    return out_fig
+
+if __name__ == "__main__":
+    generate_waterfall_csd()

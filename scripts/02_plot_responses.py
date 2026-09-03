@@ -285,6 +285,79 @@ if len(ir_l) > 0 and len(ir_r) > 0 and np.max(np.abs(ir_l)) > 0:
     plt.savefig(fig_ir_path, dpi=130)
     plt.close()
 
+# 6. Dynamic RT60 Reverberation & Decay Analysis
+def compute_and_plot_rt60_decay(ir, fs=48000.0, output_path=f"{FIG_DIR}/rt60_decay_analysis.png"):
+    from scipy.signal import butter, sosfilt
+    bands = [63, 125, 250, 500, 1000, 2000, 4000, 8000]
+    rt60_values = []
+    peak_idx = int(np.argmax(np.abs(ir)))
+    ir_tail = ir[peak_idx:]
+    if len(ir_tail) < int(0.5 * fs):
+        ir_tail = np.pad(ir_tail, (0, int(0.5 * fs) - len(ir_tail)))
+    t = np.arange(len(ir_tail)) / fs
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), dpi=130)
+    fig.patch.set_facecolor('#1e1e2f')
+    ax1.set_facecolor('#12121c')
+    ax2.set_facecolor('#12121c')
+    c_list = ['#f87171', '#fb923c', '#fbbf24', '#a3e635', '#34d399', '#22d3ee', '#818cf8', '#c084fc']
+    
+    for idx, fc in enumerate(bands):
+        f_low = max(20.0, fc / np.sqrt(2.0))
+        f_high = min(fs * 0.48, fc * np.sqrt(2.0))
+        sos = butter(4, [f_low, f_high], btype='bandpass', fs=fs, output='sos')
+        filtered = sosfilt(sos, ir_tail)
+        energy = filtered ** 2
+        edc = np.flip(np.cumsum(np.flip(energy)))
+        edc = edc / max(1e-12, edc[0])
+        edc_db = 10.0 * np.log10(np.maximum(edc, 1e-6))
+        idx_5 = np.where(edc_db <= -5.0)[0]
+        idx_25 = np.where(edc_db <= -25.0)[0]
+        if len(idx_5) > 0 and len(idx_25) > 0 and idx_25[0] > idx_5[0]:
+            t5 = t[idx_5[0]]
+            t25 = t[idx_25[0]]
+            rt60 = (t25 - t5) * 3.0
+        else:
+            idx_10 = np.where(edc_db <= -10.0)[0]
+            rt60 = (t[idx_10[0]] * 6.0) if len(idx_10) > 0 else 0.35
+        rt60 = float(np.clip(rt60, 0.1, 1.5))
+        rt60_values.append(rt60)
+        plot_len = min(len(t), int(0.35 * fs))
+        ax1.plot(t[:plot_len] * 1000.0, edc_db[:plot_len], label=f"{fc} Hz ({rt60:.2f}s)", color=c_list[idx], lw=1.5)
+        
+    ax1.axhline(-5, color='gray', linestyle=':', alpha=0.5)
+    ax1.axhline(-25, color='gray', linestyle=':', alpha=0.5)
+    ax1.set_title("Curvas de Decaimiento Energético Schroeder (EDC)", fontsize=11, fontweight='bold', color='#38bdf8')
+    ax1.set_xlabel("Tiempo (ms)", fontsize=9, color='#9ca3af')
+    ax1.set_ylabel("Energía Relativa (dB)", fontsize=9, color='#9ca3af')
+    ax1.set_ylim(-40, 2)
+    ax1.grid(True, ls=':', alpha=0.3)
+    ax1.legend(loc='upper right', fontsize=7.5, framealpha=0.85)
+    
+    x_pos = np.arange(len(bands))
+    bars = ax2.bar(x_pos, rt60_values, color='#38bdf8', width=0.55, edgecolor='black', alpha=0.85)
+    ax2.axhspan(0.2, 0.45, color='#10b981', alpha=0.15, label='Rango Óptimo Sala Doméstica (0.2 - 0.45s)')
+    ax2.set_xticks(x_pos)
+    ax2.set_xticklabels([f"{b}Hz" if b < 1000 else f"{b//1000}kHz" for b in bands], fontsize=8.5, color='#e0e0e0')
+    ax2.set_title("Tiempo de Reverberación RT60 por Octavas (T20)", fontsize=11, fontweight='bold', color='#38bdf8')
+    ax2.set_xlabel("Banda de Octava", fontsize=9, color='#9ca3af')
+    ax2.set_ylabel("RT60 (segundos)", fontsize=9, color='#9ca3af')
+    ax2.set_ylim(0, max(0.8, max(rt60_values) * 1.3))
+    ax2.grid(True, axis='y', ls=':', alpha=0.3)
+    ax2.legend(loc='upper right', fontsize=8, framealpha=0.85)
+    for bar in bars:
+        h = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width()/2.0, h + 0.02, f"{h:.2f}s", ha='center', va='bottom', fontsize=7.5, color='#e0e0e0')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=130, facecolor=fig.get_facecolor(), edgecolor='none')
+    plt.close()
+    print(f"[v] Análisis RT60 dinámico guardado en: {output_path}")
+
+if len(ir_l) > 0 and float(np.max(np.abs(ir_l))) > 1e-4:
+    compute_and_plot_rt60_decay(ir_l)
+elif len(ir_r) > 0 and float(np.max(np.abs(ir_r))) > 1e-4:
+    compute_and_plot_rt60_decay(ir_r)
+
 print(f"[v] Figuras acústicas generadas dinámicamente en {FIG_DIR}")
 print(f"Métricas instantáneas calculadas:")
 print(f" - Desbalance Estéreo Medio (|L - R|): {mean_diff:.2f} dB")

@@ -164,7 +164,14 @@ def run_calibration(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Real Dynamic Room Calibration Optimizer")
-    parser.add_argument("--profile", type=str, default="harman_wide_room", help="Target profile key")
+    parser.add_argument(
+        "--profile", "--target",
+        dest="profile",
+        type=str,
+        default="harman_wide_room",
+        help="Target profile key (e.g. harman_wide_room, bk_1974, dirac_live)"
+    )
+    parser.add_argument("--multipoint", action="store_true", default=True, help="Enable multipoint spatial averaging (default: True)")
     parser.add_argument("--no-spatial", action="store_true", help="Disable spatial averaging")
     parser.add_argument("--push", action="store_true", help="Push to Yamaha AVR via YNC")
     args = parser.parse_args()
