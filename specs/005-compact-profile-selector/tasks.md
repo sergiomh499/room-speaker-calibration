@@ -10,8 +10,8 @@
 
 **Purpose**: Verify existing DOM structure and create automated testing harness.
 
-- [ ] T001 Verify existing community profiles container and JavaScript functions in `scripts/web_calibration_server.py`
-- [ ] T002 [P] Create automated DOM contract and regression test suite in `tests/test_compact_profile_selector.py`
+- [X] T001 Verify existing community profiles container and JavaScript functions in `scripts/web_calibration_server.py`
+- [X] T002 [P] Create automated DOM contract and regression test suite in `tests/test_compact_profile_selector.py`
 
 ---
 
@@ -19,8 +19,8 @@
 
 **Purpose**: Establish base CSS classes and HTML component structure for the compact grid and inspector.
 
-- [ ] T003 Implement CSS rules for `.compact-profiles-grid`, `.compact-profile-chip`, and `.profile-inspector` in `scripts/web_calibration_server.py`
-- [ ] T004 Update HTML markup of `#community-profiles-panel` to include `#profiles-container` and `#profile-inspector-panel` in `scripts/web_calibration_server.py`
+- [X] T003 Implement CSS rules for `.compact-profiles-grid`, `.compact-profile-chip`, and `.profile-inspector` in `scripts/web_calibration_server.py`
+- [X] T004 Update HTML markup of `#community-profiles-panel` to include `#profiles-container` and `#profile-inspector-panel` in `scripts/web_calibration_server.py`
 
 ---
 
@@ -30,9 +30,9 @@
 
 **Independent Test**: Load the dashboard, verify all 9 profiles are rendered as compact chips with badge, rank, and title, and clicking any chip immediately highlights it and updates Section 3 PEQ parameters in < 150ms without AVR writes.
 
-- [ ] T005 [US1] Refactor `loadCommunityProfiles()` to dynamically render 9 `.compact-profile-chip` elements in `scripts/web_calibration_server.py`
-- [ ] T006 [US1] Refactor `selectProfile(key)` to handle 1-click selection and `.active-target` class switching in `scripts/web_calibration_server.py`
-- [ ] T007 [US1] Update `selectProfile(key)` to synchronize Section 3 PEQ table and PDF download link without sending hardware writes in `scripts/web_calibration_server.py`
+- [X] T005 [US1] Refactor `loadCommunityProfiles()` to dynamically render 9 `.compact-profile-chip` elements in `scripts/web_calibration_server.py`
+- [X] T006 [US1] Refactor `selectProfile(key)` to handle 1-click selection and `.active-target` class switching in `scripts/web_calibration_server.py`
+- [X] T007 [US1] Update `selectProfile(key)` to synchronize Section 3 PEQ table and PDF download link without sending hardware writes in `scripts/web_calibration_server.py`
 
 ---
 
@@ -42,8 +42,8 @@
 
 **Independent Test**: Select any profile chip and verify `#profile-inspector-panel` displays that profile's scientific backing, description, and pros/cons tags; verify collapsing minimizes vertical height.
 
-- [ ] T008 [US2] Implement `updateProfileInspector(key)` to render active profile research, description, pros, and cons in `scripts/web_calibration_server.py`
-- [ ] T009 [US2] Add collapsible toggle button and slide styling for `#profile-inspector-panel` in `scripts/web_calibration_server.py`
+- [X] T008 [US2] Implement `updateProfileInspector(key)` to render active profile research, description, pros, and cons in `scripts/web_calibration_server.py`
+- [X] T009 [US2] Add collapsible toggle button and slide styling for `#profile-inspector-panel` in `scripts/web_calibration_server.py`
 
 ---
 
@@ -53,8 +53,8 @@
 
 **Independent Test**: Validate viewport reflow using automated assertions and browser device emulation at 1200px, 768px, and 375px with zero horizontal scroll.
 
-- [ ] T010 [US3] Implement responsive CSS media queries for desktop, tablet, and mobile grid reflow in `scripts/web_calibration_server.py`
-- [ ] T011 [US3] Enforce minimum touch target heights (>= 44px) and robust text wrapping for variable profile title lengths in `scripts/web_calibration_server.py`
+- [X] T010 [US3] Implement responsive CSS media queries for desktop, tablet, and mobile grid reflow in `scripts/web_calibration_server.py`
+- [X] T011 [US3] Enforce minimum touch target heights (>= 44px) and robust text wrapping for variable profile title lengths in `scripts/web_calibration_server.py`
 
 ---
 
@@ -62,8 +62,8 @@
 
 **Purpose**: Complete regression test suite execution, server restart, and live verification.
 
-- [ ] T012 Execute automated test suite in `tests/test_compact_profile_selector.py` and `tests/test_report_graphs_sync.py`
-- [ ] T013 Restart calibration background server `scripts/web_calibration_server.py` and perform live smoke test on port 53317
+- [X] T012 Execute automated test suite in `tests/test_compact_profile_selector.py` and `tests/test_report_graphs_sync.py`
+- [X] T013 Restart calibration background server `scripts/web_calibration_server.py` and perform live smoke test on port 53317
 
 ---
 

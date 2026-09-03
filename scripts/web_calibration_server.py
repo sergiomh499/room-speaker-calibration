@@ -328,13 +328,103 @@ HTML_CONTENT = """<!DOCTYPE html>
     border-color: #38bdf8;
     background: rgba(14, 116, 144, 0.12);
   }
+  .compact-profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+    margin-bottom: 12px;
+  }
+  .compact-profile-chip {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 74px;
+  }
+  .compact-profile-chip:hover {
+    border-color: #64748b;
+    background: #1e293b;
+  }
+  .compact-profile-chip.active-target {
+    border-color: #38bdf8 !important;
+    background: rgba(14, 116, 144, 0.22) !important;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+  }
+  .chip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .chip-category {
+    font-size: 0.68rem;
+    color: #38bdf8;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+  }
+  .chip-title {
+    font-weight: bold;
+    font-size: 0.84rem;
+    color: #f8fafc;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .profile-inspector {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 10px;
+    transition: all 0.3s ease;
+  }
+  .inspector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+  .inspector-toggle-btn {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 0.70rem;
+    cursor: pointer;
+  }
+  @media (max-width: 900px) {
+    .compact-profiles-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (max-width: 600px) {
+    .compact-profiles-grid {
+      grid-template-columns: 1fr;
+    }
+    .compact-profile-chip {
+      min-height: 60px;
+    }
+  }
   .profile-badge {
     display: inline-block;
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     font-weight: bold;
-    padding: 3px 8px;
+    padding: 2px 7px;
     border-radius: 4px;
-    margin-bottom: 6px;
     background: #1e293b;
     color: #f59e0b;
     border: 1px solid #475569;
@@ -564,7 +654,8 @@ HTML_CONTENT = """<!DOCTYPE html>
   <div class="card-desc">
     Curvas objetivo evaluadas por la comunidad audiófila, ingeniería acústica (AES / Floyd Toole / Sean Olive / Brüel & Kjær) y foros especializados (Audio Science Review, AVSForum). Al tocar cualquier perfil, <b>los filtros PEQ calculados se actualizarán automáticamente</b> en la sección siguiente:
   </div>
-  <div id="profiles-container" style="margin-top: 10px;"></div>
+  <div id="profiles-container" class="compact-profiles-grid"></div>
+  <div id="profile-inspector-panel" class="profile-inspector"></div>
 </div>
 
 <!-- 3. FILTROS PEQ CALCULADOS PARA EL PERFIL SELECCIONADO -->
@@ -1113,10 +1204,13 @@ function selectProfile(key) {
   currentSelectedProfile = key;
   const p = cachedProfiles[key];
 
-  // Highlight selected card
-  document.querySelectorAll(".profile-card").forEach(c => c.classList.remove("active-target"));
-  const activeCard = document.getElementById(`profile-card-${key}`);
-  if (activeCard) activeCard.classList.add("active-target");
+  // Highlight selected compact chip
+  document.querySelectorAll(".compact-profile-chip").forEach(c => c.classList.remove("active-target"));
+  const activeChip = document.getElementById(`profile-chip-${key}`);
+  if (activeChip) activeChip.classList.add("active-target");
+
+  // Update Shared Active Profile Inspector (User Story 2)
+  updateProfileInspector(key);
 
   // Update Section 3: Filtros PEQ Calculados
   const titleEl = document.getElementById("selected-profile-title");
@@ -1206,6 +1300,62 @@ async function applySelectedProfile() {
   }
 }
 
+let isInspectorCollapsed = false;
+
+function toggleInspector() {
+  isInspectorCollapsed = !isInspectorCollapsed;
+  const body = document.getElementById("inspector-body");
+  const btn = document.getElementById("btn-toggle-inspector");
+  if (body) body.style.display = isInspectorCollapsed ? "none" : "block";
+  if (btn) btn.textContent = isInspectorCollapsed ? "👁️ Mostrar Detalles" : "▲ Ocultar Detalles";
+}
+
+function updateProfileInspector(key) {
+  const panel = document.getElementById("profile-inspector-panel");
+  if (!panel || !cachedProfiles[key]) return;
+  const p = cachedProfiles[key];
+
+  let prosHtml = "";
+  if (p.pros && p.pros.length) {
+    prosHtml = p.pros.map(pr => `<div class="pro-tag"><span>✓</span><span>${pr}</span></div>`).join("");
+  }
+  let consHtml = "";
+  if (p.cons && p.cons.length) {
+    consHtml = p.cons.map(cn => `<div class="con-tag"><span>✗</span><span>${cn}</span></div>`).join("");
+  }
+
+  panel.innerHTML = `
+    <div class="inspector-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="profile-badge">${p.badge || ('#' + p.rank)}</span>
+        <span style="font-weight:bold; font-size:0.88rem; color:#f8fafc;">${p.name}</span>
+        <span style="font-size:0.72rem; color:#38bdf8; font-weight:600;">[${p.category || ''}]</span>
+      </div>
+      <button id="btn-toggle-inspector" class="inspector-toggle-btn" onclick="toggleInspector()">
+        ${isInspectorCollapsed ? '👁️ Mostrar Detalles' : '▲ Ocultar Detalles'}
+      </button>
+    </div>
+    <div id="inspector-body" style="display:${isInspectorCollapsed ? 'none' : 'block'};">
+      <div style="font-size:0.74rem; color:#94a3b8; margin-bottom:6px; line-height:1.4;">
+        <b style="color:#38bdf8;">Respaldo Científico / Comunitario:</b> ${p.community_backing || 'Estándar de calibración acústica de sala.'}
+      </div>
+      <div style="font-size:0.75rem; color:#cbd5e1; margin-bottom:8px; line-height:1.4;">
+        ${p.description}
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:6px;">
+        <div>
+          <div style="font-size:0.70rem; font-weight:bold; color:#86efac; margin-bottom:3px;">VENTAJAS:</div>
+          ${prosHtml}
+        </div>
+        <div>
+          <div style="font-size:0.70rem; font-weight:bold; color:#fca5a5; margin-bottom:3px;">INCONVENIENTES:</div>
+          ${consHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 async function loadCommunityProfiles() {
   try {
     const res = await fetch('/api/community_profiles');
@@ -1218,47 +1368,22 @@ async function loadCommunityProfiles() {
 
     sortedKeys.forEach(key => {
       const p = cachedProfiles[key];
-      const card = document.createElement("div");
-      card.className = "profile-card" + (key === currentSelectedProfile ? " active-target" : "");
-      card.id = `profile-card-${key}`;
-      
-      let prosHtml = "";
-      if (p.pros && p.pros.length) {
-        prosHtml = p.pros.map(pr => `<div class="pro-tag"><span>✓</span><span>${pr}</span></div>`).join("");
-      }
-      let consHtml = "";
-      if (p.cons && p.cons.length) {
-        consHtml = p.cons.map(cn => `<div class="con-tag"><span>✗</span><span>${cn}</span></div>`).join("");
-      }
+      const chip = document.createElement("div");
+      chip.className = "compact-profile-chip" + (key === currentSelectedProfile ? " active-target" : "");
+      chip.id = `profile-chip-${key}`;
+      chip.onclick = () => selectProfile(key);
 
-      card.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
-          <span class="profile-badge">${p.badge || ('#' + p.rank)}</span>
-          <span style="font-size:0.72rem; color:#38bdf8; font-weight:bold;">${p.category || ''}</span>
+      chip.innerHTML = `
+        <div class="chip-header">
+          <span class="profile-badge">${p.badge ? p.badge.split(' ')[0] + ' #' + (p.rank || '') : '#' + (p.rank || '')}</span>
+          <span class="chip-category">${p.category || ''}</span>
         </div>
-        <div style="font-weight:bold; font-size:0.92rem; color:#f8fafc; margin-bottom:4px;">${p.name}</div>
-        <div style="font-size:0.73rem; color:#94a3b8; margin-bottom:6px; line-height:1.4;">
-          <b>Respaldo Comunitario / Papers:</b> ${p.community_backing || ''}
-        </div>
-        <div style="font-size:0.74rem; color:#cbd5e1; margin-bottom:6px; line-height:1.4;">
-          ${p.description}
-        </div>
-        <div style="margin-bottom:6px;">
-          <div style="font-size:0.72rem; font-weight:bold; color:#86efac; margin-bottom:2px;">VENTAJAS:</div>
-          ${prosHtml}
-        </div>
-        <div style="margin-bottom:8px;">
-          <div style="font-size:0.72rem; font-weight:bold; color:#fca5a5; margin-bottom:2px;">INCONVENIENTES:</div>
-          ${consHtml}
-        </div>
-        <button class="btn-apply-profile" style="background:#0284c7;" onclick="selectProfile('${key}')">
-          🎯 Seleccionar este Perfil y Cargar Filtros PEQ
-        </button>
+        <div class="chip-title">${p.name}</div>
       `;
-      container.appendChild(card);
+      container.appendChild(chip);
     });
 
-    // Populate Section 3 with active profile
+    // Populate Section 3 & Inspector with active profile
     selectProfile(currentSelectedProfile);
   } catch (err) {
     console.error("Error al cargar perfiles comunitarios:", err);
