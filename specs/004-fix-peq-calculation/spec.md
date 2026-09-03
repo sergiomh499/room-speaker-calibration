@@ -8,6 +8,13 @@
 
 **Input**: User description: "los calculos de los parametros del peq para el front l son muy extraños y las repuestas en la validación lo estan mostrando, no se esta consiguiendo acercase a la respuesta objetivo ni a los resultados esperados"
 
+## Clarifications
+
+### Session 2026-09-03
+
+- Q: ¿Cómo debe estructurar el motor de optimización PEQ la corrección entre el canal izquierdo y derecho en la zona modal (< 300 Hz)? → A: Coordinada: corrige modos comunes de sala con filtros simétricos L/R y limita ajustes asimétricos independientes a asimetría acústica comprobada (Q <= 3.5, corte máximo -5 dB).
+- Q: ¿Cómo resolver la visualización de 0.0% en los scores de todas las validaciones? → A: Unificar la denominación de métricas entre el motor de verificación en Python (`target_alignment_pct`) y el frontend web (`fidelity_score_pct`), garantizando interoperabilidad y renderizado fiel de puntuaciones.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Acoustically Sound PEQ Optimization Engine (Priority: P1)
@@ -74,10 +81,11 @@ As a user running the verification sweep after deploying the PEQ filters to the 
 - **FR-003**: The PEQ optimizer MUST limit the maximum attenuation of any single filter to -12.0 dB and the maximum boost below 500 Hz to +3.0 dB, with 0.0 dB boost permitted above 500 Hz.
 - **FR-004**: The PEQ optimizer MUST calculate the combined multi-filter biquad response at each optimization step, ensuring that adjacent filters do not compound into an excessive cumulative cut deeper than -12.0 dB at any frequency point.
 - **FR-005**: The calibration workflow MUST source the baseline reference from `medicion_punto_1.npz` (Sweet Spot) and the spatial average from `medicion_promedio_espacial.npz`, ensuring both are aligned to a 0.0 dB reference at 1.0 kHz.
-- **FR-006**: The PEQ optimizer MUST support channel-independent center frequencies and Q factors for Front L and Front R to properly address room acoustic boundary asymmetry.
+- **FR-006**: The PEQ optimizer MUST implement a coordinated stereo optimization strategy below 300 Hz: common room resonance modes present in both channels (e.g. within ±5% frequency) MUST be corrected with coordinated/symmetrical filters to preserve stereo phase coherence; channel-independent filters are permitted only when genuine acoustic boundary asymmetry is detected and MUST be constrained to moderate Q factors ($Q \le 3.5$) and maximum attenuation of -5.0 dB.
 - **FR-007**: High-frequency filter bands (> 500 Hz) defined in `config/targets.json` (such as the 2.52 kHz vocal clarity crossover compensation) MUST be preserved in the final filter set unless overridden by an explicit acoustic constraint.
 - **FR-008**: The verification module (`scripts/verify_calibration.py`) MUST evaluate target convergence using residual RMS error in the modal band (30 Hz – 500 Hz) and reject/flag any calibration that introduces an artificial dip deeper than 4.0 dB below the target curve in the 60 Hz – 200 Hz region.
 - **FR-009**: The web calibration server and automated calibration scripts MUST produce synchronized, identical filter tables across the CLI, web API, and generated PDF reports.
+- **FR-010**: Verification and calibration reporting modules MUST maintain strict metric identifier consistency across Python analysis routines and the web dashboard interface (unifying `target_alignment_pct` and `fidelity_score_pct` to prevent 0.0% score rendering errors).
 
 ### Key Entities
 
@@ -95,6 +103,7 @@ As a user running the verification sweep after deploying the PEQ filters to the 
 - **SC-003**: The peak room resonance in Front L (around 119 Hz – 125 Hz) is attenuated by at least 6.0 dB, resolving the corner-boundary boom without reducing adjacent sub-bass (60 Hz – 90 Hz) output by more than 1.5 dB.
 - **SC-004**: Execution time for the 7-band stereo optimization remains under 500 milliseconds on the host system.
 - **SC-005**: All calculated filter parameters match the exact discrete constraints of the Yamaha RX-V673 DSP, successfully deploying to hardware and passing readback verification via HTTP XML API without syntax or out-of-bounds errors.
+- **SC-006**: The web dashboard and PDF reports accurately display non-zero fidelity scores and target alignment percentages (10% to 100%) for all verified calibration curves, resolving the UI score rendering discrepancy.
 
 ## Assumptions
 
