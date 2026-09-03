@@ -1,0 +1,15 @@
+{
+  "id": "sesion_20260903_212553",
+  "name": "Medición Calibrada 21:25",
+  "description": "Malla completa procesada con modelado acústico e informe PDF",
+  "timestamp": "2026-09-03 21:25:53",
+  "points_count": 5,
+  "points": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "has_average": true
+}
