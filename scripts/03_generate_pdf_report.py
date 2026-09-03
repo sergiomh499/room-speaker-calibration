@@ -48,8 +48,22 @@ def peq_transfer(f_grid: np.ndarray, f0: float, q: float, gain_db: float) -> np.
 
 def generate_pdf_report(
     profile: str = "harman_wide_room",
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
 ) -> str:
+    """Build PDF report dynamically reflecting the active hardware profile in Table 1."""
+    hw_path = Path(__file__).resolve().parent.parent / "config" / "hardware.json"
+    if hw_path.exists():
+        try:
+            with open(hw_path, "r", encoding="utf-8") as _f:
+                _hw = json.load(_f)
+            _act = _hw.get("active", {})
+            _mic = _hw.get("microphones", {}).get(_act.get("microphone", ""), {})
+            _amp = _hw.get("amplifiers", {}).get(_act.get("amplifier", ""), {})
+            _spk = _hw.get("speakers", {}).get(_act.get("speakers", ""), {})
+        except Exception:
+            _mic, _amp, _spk = {}, {}, {}
+    else:
+        _mic = _amp = _spk = {}
     """
     Generates a certified 3-page acoustic calibration PDF report dynamically
     tailored to the chosen acoustic target profile.
@@ -164,21 +178,23 @@ def generate_pdf_report(
         fontSize=6.2, leading=7.8, textColor=colors.HexColor("#212121")
     )
     body_bold = ParagraphStyle(
-        "DocBodyBold", parent=body_style, fontName="Helvetica-Bold"
-    )
+        "DocBodyBold", parent=body_style, fontName="Helvetica-Bold",
+        fontSize=6.2, leading=7.8, textColor=colors.HexColor("#0d47a1"),
+ )
     callout_style = ParagraphStyle(
-        "DocCallout", parent=styles["Normal"], fontName="Helvetica-Oblique",
-        fontSize=5.8, leading=7.2, textColor=colors.HexColor("#0d47a1"),
-        borderPadding=2.5, spaceBefore=1.5, spaceAfter=2.5
+        "Callout", parent=body_style, fontName="Helvetica-Oblique",
+        fontSize=6.0, leading=7.5, textColor=colors.HexColor("#37474f"),
+        spaceBefore=2, spaceAfter=2,
     )
+    fig_spatial = f"{FIG_DIR}/promedio_espacial.png"
+    fig_response = f"{FIG_DIR}/respuesta_acustica_real.png"
+    fig_waterfall = f"{FIG_DIR}/waterfall_csd_comparison.png"
+    _amp_name = f"{_amp.get('brand', 'Yamaha')} {_amp.get('model', 'RX-V673')} (YNC XML API)" if _amp else "Yamaha RX-V673 (HDMI 1.4a / YPAO R.S.C. / YNC XML API)"
+    _amp_extra = "SP IMP: 8 Ω MIN (Headroom dinámico preservado)" if not _amp or _amp.get("id", "").startswith("yamaha") else f"Configuración: {_amp.get('peq_bands', 7)} bandas PEQ"
 
-    # Images
-    fig_spatial = str(FIG_DIR / "promedio_espacial_multipunto.png")
-    fig_response = str(FIG_DIR / "respuesta_acustica_real.png")
-    fig_waterfall = str(FIG_DIR / "waterfall_csd_comparison.png")
-
-    # Build Tables
-    # TABLE 1: Physical System Architecture
+    _spk_name = f"{_spk.get('brand', 'Q Acoustics')} {_spk.get('model', '3020i')} (F3: {_spk.get('f3_cutoff_hz', 64)} Hz, {(_spk.get('type', '2-way Bass-Reflex'))})" if _spk else "Q Acoustics 3020i (6 Ω Nom, Min 4 Ω, Sens. 88 dB/W/m)"
+    _spk_extra = "Config: Front Large (Sin Subwoofer) / Puerto Reflex Abierto"
+    _mic_name = f"{_mic.get('name', 'Micrófono de Medición Calibrada')} (90° Vertical al Techo)" if _mic else "Cápsula de Medición Calibrada (Ángulo de 90° al Techo)"
     system_data = [
         [
             Paragraph("<b>Componente</b>", body_bold),
@@ -187,13 +203,13 @@ def generate_pdf_report(
         ],
         [
             "Receptor AV",
-            "Yamaha RX-V673 (HDMI 1.4a / YPAO R.S.C. / YNC XML API)",
-            "SP IMP: 8 Ω MIN (Headroom dinámico preservado)"
+            _amp_name,
+            _amp_extra
         ],
         [
             "Altavoces",
-            "Q Acoustics 3020i (6 Ω Nom, Min 4 Ω, Sens. 88 dB/W/m)",
-            "Config: Front Large (Sin Subwoofer) / Puerto Reflex Abierto"
+            _spk_name,
+            _spk_extra
         ],
         [
             "Pantalla",
@@ -202,14 +218,14 @@ def generate_pdf_report(
         ],
         [
             "Micrófono",
-            "Cápsula de Medición Calibrada (Ángulo de 90° al Techo)",
+            _mic_name,
             "Muestreo: 48 kHz / 24-bit PCM &bull; Rango: 20 Hz - 20 kHz"
         ],
         [
             "Perfil Objetivo",
             f"<b>{prof_badge}</b> - {prof_name}",
             f"{prof_desc[:90]}..."
-        ]
+        ],
     ]
     t_sys = Table(system_data, colWidths=[3.0*cm, 7.5*cm, 7.5*cm])
     t_sys.setStyle(TableStyle([

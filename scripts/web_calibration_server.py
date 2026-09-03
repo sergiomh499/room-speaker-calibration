@@ -519,6 +519,19 @@ HTML_CONTENT = """<!DOCTYPE html>
     white-space: nowrap;
     transition: background 0.15s;
   }
+.input-select {
+  width: 100%;
+  padding: 8px 10px;
+  background: #1e293b;
+  color: #f1f5f9;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  margin-top: 4px;
+  cursor: pointer;
+}
+.input-select:focus { outline: none; border-color: #38bdf8; }
+
   .btn-test-curve:hover {
     background: #0284c7;
   }
@@ -544,7 +557,72 @@ HTML_CONTENT = """<!DOCTYPE html>
 <div class="subtitle">Yamaha RX-V673 + Q Acoustics 3020i</div>
 <div class="device-badge">🎤 Sonda: Google Pixel 9 Pro (MEMS Uncompressed)</div>
 
+<div class="card" id="tight-cluster-card" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); margin-bottom: 14px;">
+  <div class="card-title" style="color: #fbbf24; font-size: 0.85rem; margin-bottom: 4px;">
+    <span>🎯 Cluster Estrecho de Sweet Spot (Calibración Multipunto 2026 Pro)</span>
+    <span class="status-badge ok" id="tight-cluster-badge">15-20 cm</span>
+  </div>
+  <div class="card-desc" style="font-size: 0.75rem; margin-bottom: 6px;">
+    5 puntos de medición confinados a una esfera de <b>15-20 cm</b> alrededor del oído del oyente (Punto 1: Sweet Spot central, 70% de peso). Ponderación espacial 70% central / 30% promedio satélites. Micrófono OBLIGATORIO a <b>90° vertical (apuntando al techo)</b>.
+  </div>
+  <pre style="font-family: monospace; font-size: 0.65rem; color: #fcd34d; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin: 0;">
+       [ Punto 5: +15 cm Arriba (Cenital) ]
+                         |
+  [ Punto 2: -15 cm Izq ] -- [ Punto 1: SWEET SPOT (MLP) ] -- [ Punto 3: +15 cm Der ]
+                         |
+       [ Punto 4: +15 cm Delante (Hacia TV) ]
+  </pre>
+</div>
+
 <div class="card" id="avr-status-card" style="border-color: #22c55e; background: rgba(6, 78, 59, 0.25); margin-bottom: 14px;">
+<div class="card" id="hardware-config-panel" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); margin-bottom: 14px;">
+  <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 4px;">
+    <span>🔧 Configuración de Hardware & Cadena Electroacústica (2026 Pro)</span>
+    <span class="status-badge ok" id="hardware-status-badge">ACTIVO</span>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 10px;">
+    <div>
+      <label style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">🎤 MICRÓFONO DE MEDICIÓN (90° VERTICAL)</label>
+      <select id="select-mic" class="input-select" onchange="onHardwareChange()">
+        <option value="pixel_9_pro_calibrated">Google Pixel 9 Pro (Tethered Acoustic)</option>
+        <option value="minidsp_umik1">miniDSP UMIK-1 (USB Calibrado 90°)</option>
+        <option value="dayton_umm6">Dayton Audio UMM-6 (USB Calibrado 90°)</option>
+        <option value="generic_flat">Micrófono Genérico Plano</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">🎛️ AMPLIFICADOR / RECEPTOR AV</label>
+      <select id="select-amp" class="input-select" onchange="onHardwareChange()">
+        <option value="yamaha_rx_v673">Yamaha RX-V673 (7 Bandas PEQ / YNC LAN)</option>
+        <option value="generic_avr">Receptor AV Genérico (Exportación Manual)</option>
+
+<div class="card" id="modal-symmetry-card" style="border-color: #a78bfa; background: rgba(167, 139, 250, 0.05); margin-bottom: 14px;">
+  <div class="card-title" style="color: #c4b5fd; font-size: 0.85rem; margin-bottom: 4px;">
+    <span>📊 Diagnóstico de Simetría Modal L vs R (Verificación 2026 Pro)</span>
+    <span class="status-badge ok" id="modal-symmetry-badge">SUAVIZADO VAR</span>
+  </div>
+  <div id="modal-symmetry-content" style="font-size: 0.72rem; color: #cbd5e1;">
+    Cargando picos modales detectados por canal...
+  </div>
+  <button class="btn-apply-profile" style="background:#7c3aed;" onclick="refreshModalDiagnostics()">
+    🔄 Actualizar Diagnóstico Modal
+  </button>
+</div>
+      </select>
+    </div>
+    <div>
+      <label style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">🔊 ALTAVOCES PRINCIPALES (FRONT L / R)</label>
+      <select id="select-speakers" class="input-select" onchange="onHardwareChange()">
+        <option value="q_acoustics_3020i">Q Acoustics 3020i (F3: 64Hz, Dip Crossover: 2.52kHz)</option>
+        <option value="generic_bookshelf">Altavoces de Estantería Genéricos (F3: 80Hz)</option>
+        <option value="generic_tower">Altavoces de Columna / Torre (F3: 40Hz)</option>
+      </select>
+    </div>
+  </div>
+  <div style="font-size: 0.7rem; color: #64748b; margin-top: 8px; font-style: italic;">
+    Los cambios NO escriben en el receptor. Se reflejan en la Tabla 1 del informe PDF y en los límites del optimizador.
+  </div>
+</div>
   <div class="card-title" style="color: #4ade80; font-size: 0.85rem; margin-bottom: 2px;">
     <span>🛡️ Telemetría AVR Protegida</span>
     <span class="status-badge ok" id="avr-peq-badge">COMPROBANDO...</span>
@@ -1919,8 +1997,78 @@ async function saveCurrentSessionPrompt() {
       if (sel) sel.value = json.session.id;
       onSessionSelectChange();
     } else {
-      throw new Error(json.msg);
-    }
+async function loadHardwareConfig() {
+ try {
+ const res = await fetch('/api/hardware/config');
+ const hw = await res.json();
+ if (hw && hw.active) {
+ const selMic = document.getElementById('select-mic');
+ const selAmp = document.getElementById('select-amp');
+ const selSp = document.getElementById('select-speakers');
+ if (selMic) selMic.value = hw.active.microphone;
+ if (selAmp) selAmp.value = hw.active.amplifier;
+ if (selSp) selSp.value = hw.active.speakers;
+ }
+ } catch (err) {
+ console.warn('No se pudo cargar hardware.json:', err);
+ }
+}
+
+async function refreshModalDiagnostics() {
+ const content = document.getElementById('modal-symmetry-content');
+ const badge = document.getElementById('modal-symmetry-badge');
+ if (badge) { badge.className = 'status-badge active'; badge.textContent = 'CALCULANDO...'; }
+ if (content) content.textContent = '⏳ Ejecutando detección modal con suavizado Variable Smoothing (Var)...';
+ try {
+ const res = await fetch('/api/calibration/modal_diagnostics');
+ const json = await res.json();
+ if (!json.ok) throw new Error(json.msg || 'Error desconocido');
+ const renderPeaks = (peaks) => {
+ if (!peaks || peaks.length === 0) return '<div style="color:#94a3b8;">Sin picos modales detectados</div>';
+ return peaks.map(p => `<div>↳ <b>${p.freq_hz} Hz</b> | +${p.elevation_db} dB | Q: ${p.q} | BW: ${p.bandwidth_hz} Hz</div>`).join('');
+ };
+ content.innerHTML = `
+ <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+ <div><b style="color:#f87171;">Front L — Picos modales (${json.channels.L.active_notches_count} activos)</b><br>${renderPeaks(json.channels.L.peaks)}</div>
+ <div><b style="color:#60a5fa;">Front R — Picos modales (${json.channels.R.active_notches_count} activos)</b><br>${renderPeaks(json.channels.R.peaks)}</div>
+ </div>
+ <div style="margin-top: 6px; font-size: 0.65rem; color: #64748b;">Smoothing: ${json.smoothing} | Normalización: ${json.normalization}</div>
+ `;
+ if (badge) { badge.className = 'status-badge ok'; badge.textContent = 'COMPLETADO'; }
+ } catch (err) {
+ if (content) content.innerHTML = `<div style="color:#f87171;">❌ Error: ${err.message}</div>`;
+ if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
+ }
+}
+
+
+async function onHardwareChange() {
+ const mic = document.getElementById('select-mic').value;
+ const amp = document.getElementById('select-amp').value;
+ const sp = document.getElementById('select-speakers').value;
+ const badge = document.getElementById('hardware-status-badge');
+ if (badge) { badge.className = 'status-badge active'; badge.textContent = 'GUARDANDO...'; }
+ try {
+ const res = await fetch('/api/hardware/select', {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({ microphone: mic, amplifier: amp, speakers: sp })
+ });
+ const json = await res.json();
+ if (json.ok) {
+ if (badge) { badge.className = 'status-badge ok'; badge.textContent = 'ACTIVO'; }
+ } else {
+ if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
+ alert('Error: ' + json.msg);
+ }
+ } catch (err) {
+ if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
+ console.error(err);
+ }
+
+initSessionState();
+loadHardwareConfig();
+checkVerificationStatusOnLoad();
   } catch (err) {
     alert("Error al guardar sesión: " + err.message);
     st.style.color = "#f87171";
@@ -2199,7 +2347,63 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 "calibration_ready": cal_ready,
                 "bands": bands
             }).encode("utf-8"))
+        if path == "/api/hardware/config":
+            with open(f"{CONFIG_DIR}/hardware.json", "r", encoding="utf-8") as f:
+                hw = json.load(f)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(json.dumps(hw, ensure_ascii=False).encode("utf-8"))
             return
+
+        if path == "/api/calibration/modal_diagnostics":
+            try:
+                import sys
+                if REPO_DIR not in sys.path:
+                    sys.path.insert(0, REPO_DIR)
+                from scripts.peq_optimizer import detect_modal_resonances, load_hardware_profile
+                data_file = f"{DATA_DIR}/medicion_promedio_espacial.npz"
+                if not os.path.exists(data_file):
+                    data_file = f"{DATA_DIR}/medicion_real_calibracion.npz"
+                if not os.path.exists(data_file):
+                    raise FileNotFoundError("Sin datos de medición empírica.")
+                d = np.load(data_file)
+                freqs = d["freqs"]
+                resp_l = d["smooth_l"] if "smooth_l" in d else d["raw_l"]
+                resp_r = d["smooth_r"] if "smooth_r" in d else d["raw_r"]
+                target = np.zeros_like(freqs)
+                for i, f in enumerate(freqs):
+                    if f < 100.0:
+                        target[i] = 4.5
+                    elif f < 200.0:
+                        target[i] = 4.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 100.0) / 100.0))
+                    elif f <= 1000.0:
+                        target[i] = 0.0
+                    else:
+                        target[i] = -0.8 * np.log2(f / 1000.0)
+                peaks_l = detect_modal_resonances(freqs, resp_l, target, min_elevation_db=1.0, max_peaks=7, max_freq=500.0)
+                peaks_r = detect_modal_resonances(freqs, resp_r, target, min_elevation_db=1.0, max_peaks=7, max_freq=500.0)
+                hw = load_hardware_profile()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "smoothing": "variable",
+                    "normalization": "broadband_300_3000_hz",
+                    "active_hardware": hw.get("active", {}),
+                    "channels": {
+                        "L": {"peaks": peaks_l, "active_notches_count": sum(1 for p in peaks_l if p.get("elevation_db", 0.0) > 1.5)},
+                        "R": {"peaks": peaks_r, "active_notches_count": sum(1 for p in peaks_r if p.get("elevation_db", 0.0) > 1.5)},
+                    }
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
         if path == "/api/community_profiles":
             with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as f:
                 targets_cfg = json.load(f)
@@ -2439,6 +2643,61 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 "ir": ir_win,
                 "freqs": freqs
             }
+
+        if path == "/api/hardware/select":
+            content_length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": f"JSON inválido: {e}"}).encode("utf-8"))
+                return
+            with open(f"{CONFIG_DIR}/hardware.json", "r", encoding="utf-8") as f:
+                hw = json.load(f)
+            active = hw.get("active", {})
+            for key in ("microphone", "amplifier", "speakers"):
+                if key in payload:
+                    section = "speakers" if key == "speakers" else f"{key}s"
+                    if section not in hw or payload[key] not in hw[section]:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json; charset=utf-8")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"ok": False, "msg": f"ID de {key} desconocido: {payload[key]}"}).encode("utf-8"))
+                        return
+                    active[key] = payload[key]
+            hw["active"] = active
+            with open(f"{CONFIG_DIR}/hardware.json", "w", encoding="utf-8") as f:
+                json.dump(hw, f, indent=2, ensure_ascii=False)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "msg": "Configuración de hardware actualizada.", "active": active}).encode("utf-8"))
+            return
+
+        if path == "/api/hardware/upload_mic_cal":
+            content_length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(content_length) if content_length > 0 else b""
+            mic_id = params.get("mic_id", ["custom_mic"])[0]
+            cal_dir = f"{REPO_DIR}/config/calibrations"
+            os.makedirs(cal_dir, exist_ok=True)
+            ts = time.strftime("%Y%m%d_%H%M%S")
+            cal_path = f"{cal_dir}/custom_{mic_id}_{ts}.cal"
+            with open(cal_path, "wb") as f:
+                f.write(raw)
+            points_parsed = sum(1 for line in raw.decode("utf-8", errors="ignore").splitlines() if line.strip() and not line.startswith("#"))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "msg": f"Calibración guardada y vinculada a '{mic_id}'.",
+                "cal_file_path": cal_path,
+                "points_parsed": points_parsed,
+            }).encode("utf-8"))
+            return
 
             if "L" in point_buffers[point_id] and "R" in point_buffers[point_id]:
                 out_data = {
@@ -2709,6 +2968,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
+
 
         if path == "/api/process_verification":
             profile = params.get("profile", ["harman_wide_room"])[0]

@@ -1,0 +1,10 @@
+# Calibration: miniDSP UMIK-1 (90° Diffuse-Field)
+# Format: Frequency(Hz) Magnitude(dB)
+20.0	0.00
+50.0	0.00
+100.0	0.00
+500.0	0.00
+1000.0	0.00
+5000.0	0.00
+10000.0	0.00
+20000.0	0.00
