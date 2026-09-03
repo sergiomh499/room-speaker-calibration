@@ -15,6 +15,8 @@
 - Q: Should the 7-band PEQ optimization engine calculate independent center frequencies for each channel (Front L vs Front R) or enforce identical center frequencies with channel-independent Q and gain? → A: Option A - Independent center frequencies, Q factors, and gains per channel to precisely address room acoustic asymmetry (e.g. corner-loaded right speaker vs open-space left speaker).
 - Q: When multi-point measurements exist, how should the optimization objective weigh the primary listening position (Sweet Spot) versus the spatial average of all surrounding points? → A: Option C - Strict Sweet Spot priority (80% Sweet Spot / 20% spatial average): Optimizes primarily for the main listening seat to maximize central stereo imaging and tonal accuracy, using secondary positions to prevent equalizing narrow localized phase cancellations.
 - Q: What objective physical criteria must a live post-calibration sweep meet to be awarded the official "S-TIER (Certified)" rating? → A: Option A - Strict Multi-Metric: Peak modal resonance reduction >= 6.0 dB, modal RMS deviation from target < 2.5 dB (60-500 Hz), and inter-channel stereo level delta < 2.0 dB.
+- Q: How should the iterative calibration workflow track, version, and compare sequential adjustment passes (e.g. Baseline Through → Initial PEQ → Refined Notch) in datasets and technical audit reports? → A: Option A - Structured Calibration Epochs (Iteration N): Numbered, immutable iteration snapshots (`iter_0_baseline`, `iter_1_peq`, `iter_2_refined`, etc.) with comparative convergence curves and delta tables in technical reports to validate adjustments a posteriori.
+- Q: What specific acoustic visualizations and numerical audit sections must the technical post-calibration report include to formally certify that adjustments were executed correctly? → A: Option A - Comprehensive Technical Audit Suite: Magnitude frequency curves (1/24-octave & psychoacoustic), 3D Waterfall CSD temporal decay, exact Yamaha NVRAM register/biquad dump, and iterative epoch convergence table.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -105,9 +107,11 @@ So that sweeps play through the intended analog/auxiliary channel without uncomm
 - **FR-005**: System MUST distinctly label every displayed frequency response curve with its verifiable provenance: `REAL_MEASUREMENT` (with source file, timestamp, and SNR) or `THEORETICAL_TARGET`.
 - **FR-006**: System MUST withhold any "Certified" or "S-Tier" quality rating unless an authentic post-calibration acoustic sweep has been captured through the physical receiver hardware and strictly satisfies all three objective physical criteria: (1) peak modal resonance reduction $\ge 6.0\text{ dB}$, (2) residual RMS deviation from target $< 2.5\text{ dB}$ across the equalized modal band (60 Hz to 500 Hz), and (3) average inter-channel stereo level imbalance $< 2.0\text{ dB}$.
 - **FR-007**: System MUST calculate acoustic quality and compliance metrics using standard, reproducible scientific formulations (unweighted and psychoacoustically smoothed RMS deviation in dB from target curve, inter-channel stereo level delta, and modal peak attenuation in dB) without arbitrary marketing multipliers or fixed offset baselines.
-- **FR-008**: System MUST store raw impulse response and frequency response datasets in timestamped, immutable archive files, prohibiting unversioned overwrites of historical calibration records.
+- **FR-008**: System MUST store raw impulse response and frequency response datasets in immutable, numbered epoch archive files (`iter_{N}_{stage}_{timestamp}.npz`), prohibiting unversioned overwrites of historical calibration records.
 - **FR-009**: System MUST enforce consistent audio routing during measurement sweeps, verifying the active receiver input and output level before playback and validating that recorded signal levels do not exhibit digital clipping or inadequate signal-to-noise ratio.
 - **FR-010**: System MUST provide an automated validation suite that executes the optimization and verification algorithms against reference benchmark datasets and asserts mathematical correctness, convergence, and parameter boundary compliance.
+- **FR-011**: System MUST implement a structured Calibration Epoch progression model (`iter_0_baseline`, `iter_1_initial`, ..., `iter_N_refined`), recording the complete active PEQ filter matrix, raw impulse datasets, and post-sweep responses for each pass to enable verifiable a posteriori regression and convergence analysis.
+- **FR-012**: System MUST generate an automated Technical Audit Report containing: (1) 1/24-octave and psychoacoustically smoothed magnitude response curves with target overlays, (2) cumulative spectral decay (CSD/waterfall) plots verifying time-domain modal ringing reduction below 300 Hz, (3) a complete hardware register dump of active Yamaha PEQ parameters (frequency, Q, gain) verified via YNC readback, and (4) an iterative epoch convergence table documenting step-by-step before/after acoustic deltas.
 
 ### Key Entities
 
@@ -116,6 +120,7 @@ So that sweeps play through the intended analog/auxiliary channel without uncomm
 - **Acoustic Target Curve**: Mathematical reference curve defining target in-room steady-state sound pressure as a function of frequency (e.g. Harman In-Room Loudspeaker Target Curve with bass rise and high-frequency roll-off).
 - **Optimization Result**: The calculated set of 7 discrete biquad filters per channel, including expected residual variance, predicted peak resonance reduction, and mathematical convergence metrics.
 - **Verification Audit**: Comparative evaluation comparing measured baseline (Through bypass) against verified post-calibration physical sweep, detailing real modal resonance reduction, residual RMS error, and certification status.
+- **Calibration Epoch**: A versioned snapshot of a complete tuning pass containing iteration index ($N$), timestamp, description, applied PEQ matrix (7 bands per channel), raw impulse responses, smoothed magnitude curves, and residual RMS error against the target curve.
 
 ## Success Criteria *(mandatory)*
 
@@ -126,6 +131,8 @@ So that sweeps play through the intended analog/auxiliary channel without uncomm
 - **SC-003**: 0% of unmeasured or simulated curves receive "Certified", "Live Measured", or "S-Tier" designations across all reports, logs, and user interfaces.
 - **SC-004**: Residual RMS error between measured acoustic response and the target curve in the equalized modal band (60 Hz to 500 Hz) achieves $< 2.5\text{ dB}$ (improving by at least 20% compared to uncalibrated baseline) and stereo imbalance $< 2.0\text{ dB}$ in physical verification tests.
 - **SC-005**: Complete automated audit test suite verifies mathematical optimization convergence and discrete hardware boundary compliance in under 10 seconds.
+- **SC-006**: 100% of calibration tuning iterations are traceable through numbered epoch manifests, generating step-by-step convergence graphs and delta tables that document measurable improvement across successive adjustment passes.
+- **SC-007**: 100% of generated verification audit reports include cumulative spectral decay (CSD) plots, hardware register dumps, and iterative epoch delta tables alongside frequency magnitude curves.
 
 ## Assumptions
 

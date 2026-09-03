@@ -32,5 +32,5 @@
 ## Notes
 
 - All validation checks passed (16/16 items passing).
-- Clarification session 2026-09-03 completed: 3 architectural questions clarified and integrated into spec.md.
-- Spec is fully validated and ready for `/speckit.plan`.
+- Clarification session 2026-09-03 completed: 5 architectural questions clarified and integrated into spec.md (channel independence, sweet spot weighting, S-TIER multi-metric criteria, epoch iteration versioning, and technical audit suite requirements).
+- Spec is fully validated, unambiguous, and ready for `/speckit.plan`.
