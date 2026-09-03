@@ -1,0 +1,15 @@
+{
+  "id": "sesion_20260903_234102",
+  "name": "Medición 23:40 - Sweet Spot, mesa y cocina",
+  "description": "Captura multipunto 5 posiciones con Pixel 9 Pro a 90°",
+  "timestamp": "2026-09-03 23:41:02",
+  "points_count": 5,
+  "points": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "has_average": true
+}
