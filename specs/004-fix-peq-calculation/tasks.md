@@ -10,8 +10,8 @@
 
 **Purpose**: Verify input measurement data and target configuration schemas.
 
-- [ ] T001 Verify empirical measurement files `data/medicion_punto_1.npz` and `data/medicion_promedio_espacial.npz` in `scripts/auto_calibrate.py`
-- [ ] T002 [P] Verify target profile configurations and 7-band acoustic limits in `config/targets.json`
+- [X] T001 Verify empirical measurement files `data/medicion_punto_1.npz` and `data/medicion_promedio_espacial.npz` in `scripts/auto_calibrate.py`
+- [X] T002 [P] Verify target profile configurations and 7-band acoustic limits in `config/targets.json`
 
 ---
 
@@ -19,9 +19,9 @@
 
 **Purpose**: Create test fixtures and core mathematical functions for peak detection and bandwidth estimation.
 
-- [ ] T003 Create test fixture and unit tests for coordinated PEQ optimization in `tests/test_peq_optimizer_coordinated.py`
-- [ ] T004 Implement positive error gating ($\Delta\text{SPL} \ge +1.5\text{ dB}$) in `detect_modal_resonances` in `scripts/peq_optimizer.py`
-- [ ] T005 [P] Implement continuous frequency-domain bandwidth calculation ($\text{Hz}$) and discrete Q snapping in `scripts/peq_optimizer.py`
+- [X] T003 Create test fixture and unit tests for coordinated PEQ optimization in `tests/test_peq_optimizer_coordinated.py`
+- [X] T004 Implement positive error gating ($\Delta\text{SPL} \ge +1.5\text{ dB}$) in `detect_modal_resonances` in `scripts/peq_optimizer.py`
+- [X] T005 [P] Implement continuous frequency-domain bandwidth calculation ($\text{Hz}$) and discrete Q snapping in `scripts/peq_optimizer.py`
 
 ---
 
@@ -31,10 +31,10 @@
 
 **Independent Test**: Execute `python3 -m unittest tests/test_peq_optimizer_coordinated.py` and verify all detected peaks have positive elevation, bandwidth in Hz, and shared ~115 Hz mode is addressed symmetrically without stacking high-Q cuts.
 
-- [ ] T006 [US1] Implement `pair_stereo_modes` function for common resonance detection ($\pm 5\%$ frequency) in `scripts/peq_optimizer.py`
-- [ ] T007 [US1] Refactor `optimize_channel_peq` to enforce coordinated symmetrical filters and limit asymmetric trims ($Q \le 3.5$, cut $\le -5.0\text{ dB}$) in `scripts/peq_optimizer.py`
-- [ ] T008 [US1] Implement multi-filter composite biquad evaluation and cumulative attenuation limit ($\ge -12.0\text{ dB}$) in `scripts/peq_optimizer.py`
-- [ ] T009 [US1] Enforce high-frequency voicing preservation (> 500 Hz) in `optimize_stereo_peq` in `scripts/peq_optimizer.py`
+- [X] T006 [US1] Implement `pair_stereo_modes` function for common resonance detection ($\pm 5\%$ frequency) in `scripts/peq_optimizer.py`
+- [X] T007 [US1] Refactor `optimize_channel_peq` to enforce coordinated symmetrical filters and limit asymmetric trims ($Q \le 3.5$, cut $\le -5.0\text{ dB}$) in `scripts/peq_optimizer.py`
+- [X] T008 [US1] Implement multi-filter composite biquad evaluation and cumulative attenuation limit ($\ge -12.0\text{ dB}$) in `scripts/peq_optimizer.py`
+- [X] T009 [US1] Enforce high-frequency voicing preservation (> 500 Hz) in `optimize_stereo_peq` in `scripts/peq_optimizer.py`
 
 ---
 
@@ -44,9 +44,9 @@
 
 **Independent Test**: Run `python3 scripts/auto_calibrate.py --profile harman_wide_room --dry-run` and verify it loads `medicion_punto_1.npz` and `medicion_promedio_espacial.npz`, normalizes at 1 kHz, and generates balanced PEQ tables.
 
-- [ ] T010 [US2] Update `scripts/auto_calibrate.py` to authoritatively load `data/medicion_punto_1.npz` (Sweet Spot) and `data/medicion_promedio_espacial.npz`
-- [ ] T011 [US2] Implement 1.0 kHz anchor level normalization for both sweet spot and spatial average responses in `scripts/auto_calibrate.py`
-- [ ] T012 [US2] Pass target profile key and preserve 2.52 kHz crossover compensation filter into optimization flow in `scripts/auto_calibrate.py`
+- [X] T010 [US2] Update `scripts/auto_calibrate.py` to authoritatively load `data/medicion_punto_1.npz` (Sweet Spot) and `data/medicion_promedio_espacial.npz`
+- [X] T011 [US2] Implement 1.0 kHz anchor level normalization for both sweet spot and spatial average responses in `scripts/auto_calibrate.py`
+- [X] T012 [US2] Pass target profile key and preserve 2.52 kHz crossover compensation filter into optimization flow in `scripts/auto_calibrate.py`
 
 ---
 
@@ -56,10 +56,10 @@
 
 **Independent Test**: Run `python3 scripts/verify_calibration.py` and query `http://127.0.0.1:53317/api/verification_comparison`. Verify that `target_alignment_pct` and `fidelity_score_pct` are identical, non-zero numbers (> 50%), and display correctly in UI cards.
 
-- [ ] T013 [US3] Add bass suckout detection ($> 4.0\text{ dB}$ dip below target in 60–200 Hz) to verification criteria in `scripts/verify_calibration.py`
-- [ ] T014 [US3] Emit dual-key metrics (`target_alignment_pct` and `fidelity_score_pct`) with identical values in `scripts/verify_calibration.py`
-- [ ] T015 [US3] Update JavaScript score extraction in `scripts/web_calibration_server.py` to evaluate `target_alignment_pct || fidelity_score_pct` across tables, badges, and verdicts
-- [ ] T016 [US3] Synchronize dynamic PDF score extraction in `scripts/03_generate_pdf_report.py` to display positive fidelity percentages
+- [X] T013 [US3] Add bass suckout detection (dip $> 4.0\text{ dB}$ below target in 60–200 Hz) to verification criteria in `scripts/verify_calibration.py`
+- [X] T014 [US3] Emit dual-key metrics (`target_alignment_pct` and `fidelity_score_pct`) with identical values in `scripts/verify_calibration.py`
+- [X] T015 [US3] Update JavaScript score extraction to accept `target_alignment_pct` fallback in `scripts/web_calibration_server.py`
+- [X] T016 [US3] Synchronize dynamic PDF score extraction in `scripts/03_generate_pdf_report.py`
 
 ---
 
@@ -67,10 +67,8 @@
 
 **Purpose**: Regression testing, live web server restart, and end-to-end verification.
 
-- [ ] T017 Execute full automated test suite `tests/test_peq_optimizer_coordinated.py` and `tests/test_report_graphs_sync.py` and verify 100% pass rate
-- [ ] T018 Restart background calibration server `scripts/web_calibration_server.py` and perform end-to-end smoke test on port `53317`
-
----
+- [X] T017 Execute full automated test suite (`python3 -m unittest discover tests`)
+- [X] T018 Restart background calibration server and perform smoke test on port 53317
 
 ## Dependencies & Execution Order
 

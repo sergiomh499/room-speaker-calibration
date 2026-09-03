@@ -55,8 +55,10 @@ def run_calibration(
         
     target_info = targets[target_key]
     
-    # 1. Load empirical measurements
-    sweet_spot_file = DATA_DIR / "medicion_real_calibracion.npz"
+    # 1. Load empirical measurements (Authoritative Sweet Spot Punto 1 + Spatial Average)
+    sweet_spot_file = DATA_DIR / "medicion_punto_1.npz"
+    if not sweet_spot_file.exists():
+        sweet_spot_file = DATA_DIR / "medicion_real_calibracion.npz"
     spatial_avg_file = DATA_DIR / "medicion_promedio_espacial.npz"
     
     if not sweet_spot_file.exists():
@@ -67,6 +69,11 @@ def run_calibration(
     sweet_l = d_sweet["smooth_l"] if "smooth_l" in d_sweet else d_sweet["raw_l"]
     sweet_r = d_sweet["smooth_r"] if "smooth_r" in d_sweet else d_sweet["raw_r"]
     
+    # FR-005: 1.0 kHz anchor level normalization relative to target
+    idx_1k = np.argmin(np.abs(freqs - 1000.0))
+    sweet_l = sweet_l - sweet_l[idx_1k]
+    sweet_r = sweet_r - sweet_r[idx_1k]
+    
     spatial_l = None
     spatial_r = None
     if use_spatial_avg and spatial_avg_file.exists():
@@ -74,9 +81,11 @@ def run_calibration(
         sp_f = d_spatial["freqs"]
         sp_l = d_spatial["smooth_l"] if "smooth_l" in d_spatial else d_spatial["raw_l"]
         sp_r = d_spatial["smooth_r"] if "smooth_r" in d_spatial else d_spatial["raw_r"]
+        idx_1k_sp = np.argmin(np.abs(sp_f - 1000.0))
+        sp_l = sp_l - sp_l[idx_1k_sp]
+        sp_r = sp_r - sp_r[idx_1k_sp]
         spatial_l = np.interp(freqs, sp_f, sp_l)
         spatial_r = np.interp(freqs, sp_f, sp_r)
-        
     # 2. Build mathematical target curve
     target_curve = np.zeros_like(freqs)
     # Acoustic high-pass filter representing Q Acoustics 3020i (64 Hz -3 dB)
@@ -131,6 +140,7 @@ def run_calibration(
         left_spatial_avg=spatial_l,
         right_spatial_avg=spatial_r,
         sweet_spot_weight=sweet_spot_weight,
+        target_key=target_key,
     )
 
     left_bands = opt_result["channels"]["left"]
@@ -174,6 +184,7 @@ if __name__ == "__main__":
     parser.add_argument("--multipoint", action="store_true", default=True, help="Enable multipoint spatial averaging (default: True)")
     parser.add_argument("--no-spatial", action="store_true", help="Disable spatial averaging")
     parser.add_argument("--push", action="store_true", help="Push to Yamaha AVR via YNC")
+    parser.add_argument("--dry-run", action="store_true", help="Simulate optimization without pushing to AVR")
     args = parser.parse_args()
 
     run_calibration(

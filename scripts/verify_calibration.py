@@ -345,6 +345,7 @@ def run_verification(profile="harman_wide_room", save_fig=True):
             "stereo_imbalance_db": imb_avg,
             "modal_peak_119hz_db": peak_modal,
             "target_alignment_pct": round(alignment_pct, 1),
+            "fidelity_score_pct": round(alignment_pct, 1),
             "color": c_data["color"],
             "is_live": bool(c_data.get("is_live", False)),
             "provenance": "Medición en Vivo (Sweet Spot)" if c_data.get("is_live", False) else "Referencia Base / Modelo",
@@ -417,17 +418,24 @@ def run_verification(profile="harman_wide_room", save_fig=True):
 
     std_before = float(np.std(norm_base_l[mask_eval]))
     std_after = float(np.std(norm_verif_l[mask_eval]))
+    # Bass suckout guardrail (FR-008, SC-003): no dip > 4.0 dB below target in 60-200 Hz
+    mask_bass = (freqs >= 60.0) & (freqs <= 200.0)
+    max_bass_dip_l = float(np.min(norm_verif_l[mask_bass] - target_curve[mask_bass]))
+    max_bass_dip_r = float(np.min(norm_verif_r[mask_bass] - target_curve[mask_bass]))
+    bass_suckout_detected = (max_bass_dip_l < -4.0) or (max_bass_dip_r < -4.0)
 
     # Strict S-TIER Certification Gating (FR-006, SC-002, SC-003, SC-004)
     # 1. Must be a real physical post-calibration measurement (measured is True)
     # 2. Peak modal resonance attenuation >= 6.0 dB
     # 3. Residual RMS deviation from target in modal band (60-500 Hz) < 2.5 dB
     # 4. Inter-channel stereo imbalance < 2.0 dB
+    # 5. No bass suckout > 4.0 dB below target
     s_tier_criteria_met = (
         measured
         and (modal_reduction >= 6.0)
         and (rms_after < 2.5)
         and (stereo_global_after < 2.0)
+        and (not bass_suckout_detected)
     )
     status_passed = s_tier_criteria_met
     metrics = {
@@ -470,6 +478,11 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         "target_fit_score_after": float(max(10.0, 100.0 - (rms_after - 1.2) * 15.0)),
         "target_fit_improvement_pct": float(max(0.0, (rms_before - rms_after) * 10.0)),
         
+        "bass_suckout_detected": bool(bass_suckout_detected),
+        "max_bass_dip_l_db": round(max_bass_dip_l, 2),
+        "max_bass_dip_r_db": round(max_bass_dip_r, 2),
+        "target_alignment_pct": best_curve.get("target_alignment_pct", 0.0),
+        "fidelity_score_pct": best_curve.get("target_alignment_pct", 0.0),
         "passed": status_passed,
         "measured": measured,
         "s_tier_certified": s_tier_criteria_met,

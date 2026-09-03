@@ -1471,10 +1471,11 @@ function renderVerificationResults(data) {
         "peq_manual": "Manual"
       };
       const avrMode = modeMap[c.id] || "Manual";
+      const getScore = (item) => (typeof item?.target_alignment_pct === 'number') ? item.target_alignment_pct : ((typeof item?.fidelity_score_pct === 'number') ? item.fidelity_score_pct : 0);
       const peakVal = typeof c.modal_peak_119hz_db === 'number' ? c.modal_peak_119hz_db : 0;
       const rmsVal = typeof c.rms_avg_db === 'number' ? c.rms_avg_db : 9.99;
       const imbVal = typeof c.stereo_imbalance_db === 'number' ? c.stereo_imbalance_db : 9.99;
-      const scoreVal = typeof c.fidelity_score_pct === 'number' ? c.fidelity_score_pct : 0;
+      const scoreVal = getScore(c);
       const liveTag = c.is_live ? '<span style="color:#86efac; font-size:0.65rem; font-weight:normal; display:block;">(Medición en Vivo)</span>' : '';
 
       compRowsHtml += `
@@ -1497,21 +1498,22 @@ function renderVerificationResults(data) {
     // Dynamic analytical comparison against runner-up and other profiles (100% computed, ZERO hardcoded)
     let dynamicVerdictHtml = '';
     if (comps.length > 0) {
+      const getScore = (item) => (typeof item?.target_alignment_pct === 'number') ? item.target_alignment_pct : ((typeof item?.fidelity_score_pct === 'number') ? item.fidelity_score_pct : 0);
       dynamicVerdictHtml += `
         <div>
-          🥇 <b>Curva Ganadora Absoluta: <span style="color:#86efac;">${best.name}</span> (Score de Fidelidad: ${fmt(best.fidelity_score_pct, 1)}%)</b>.<br>
+          🥇 <b>Curva Ganadora Absoluta: <span style="color:#86efac;">${best.name}</span> (Score de Fidelidad: ${fmt(getScore(best), 1)}%)</b>.<br>
           ${best.provenance ? `<span style="color:#a78bfa; font-size:0.72rem;">[Origen: ${best.provenance}]</span><br>` : ''}
           Ha obtenido la máxima puntuación matemática por presentar el <b>menor error RMS frente al Target (${fmt(best.rms_avg_db, 2)} dB)</b>, la <b>mayor simetría estéreo (|L - R| = ${fmt(best.stereo_imbalance_db, 2)} dB)</b> y una respuesta modal a 119 Hz de <b>${(best.modal_peak_119hz_db || 0) > 0 ? '+' : ''}${fmt(best.modal_peak_119hz_db, 2)} dB</b>.
         </div>
       `;
       if (comps.length > 1) {
         const second = comps[1];
-        const diffScore = best.fidelity_score_pct - second.fidelity_score_pct;
+        const diffScore = getScore(best) - getScore(second);
         const diffRms = second.rms_avg_db - best.rms_avg_db;
         const diffImb = second.stereo_imbalance_db - best.stereo_imbalance_db;
         dynamicVerdictHtml += `
           <div>
-            🥈 <b>Segundo Puesto: <span style="color:#fcd34d;">${second.name}</span> (Score: ${fmt(second.fidelity_score_pct, 1)}%)</b>.<br>
+            🥈 <b>Segundo Puesto: <span style="color:#fcd34d;">${second.name}</span> (Score: ${fmt(getScore(second), 1)}%)</b>.<br>
             Diferencia matemática frente a la ganadora: <b>-${fmt(diffScore, 1)}%</b> en fidelidad global, <b>+${fmt(diffRms, 2)} dB</b> de error cuadrático medio y <b>${diffImb >= 0 ? '+' : ''}${fmt(diffImb, 2)} dB</b> de desbalance entre canales.
           </div>
         `;
@@ -1522,7 +1524,7 @@ function renderVerificationResults(data) {
             <b>Otras Alternativas Analizadas:</b>
             <ul style="margin: 4px 0 0 16px; padding: 0; color: #cbd5e1; font-size: 0.73rem;">
               ${comps.slice(2).map(c => `
-                <li><b>${c.name}:</b> Score: <b>${fmt(c.fidelity_score_pct, 1)}%</b> | RMS: <b>${fmt(c.rms_avg_db, 2)} dB</b> | Desbalance: <b>${fmt(c.stereo_imbalance_db, 2)} dB</b> | Pico 119Hz: <b>${(c.modal_peak_119hz_db||0)>0?'+':''}${fmt(c.modal_peak_119hz_db, 2)} dB</b></li>
+                <li><b>${c.name}:</b> Score: <b>${fmt(getScore(c), 1)}%</b> | RMS: <b>${fmt(c.rms_avg_db, 2)} dB</b> | Desbalance: <b>${fmt(c.stereo_imbalance_db, 2)} dB</b> | Pico 119Hz: <b>${(c.modal_peak_119hz_db||0)>0?'+':''}${fmt(c.modal_peak_119hz_db, 2)} dB</b></li>
               `).join('')}
             </ul>
           </div>
@@ -1530,6 +1532,7 @@ function renderVerificationResults(data) {
       }
     }
 
+    const bestScore = (typeof best?.target_alignment_pct === 'number') ? best.target_alignment_pct : ((typeof best?.fidelity_score_pct === 'number') ? best.fidelity_score_pct : 0);
     if (reportPanel) reportPanel.style.display = "block";
     resDiv.innerHTML = `
       <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
@@ -1537,7 +1540,7 @@ function renderVerificationResults(data) {
           🛡️ CERTIFICACIÓN ACÚSTICA: SALA VALIDADA AL 100% (${m.rating || 'S-TIER'})
         </div>
         <div style="font-size: 0.76rem; color: #e2e8f0; text-align: center;">
-          Curva Ganadora: <b>${best.name || 'PEQ Manual'}</b> (Score: ${fmt(best.fidelity_score_pct, 1)}%).
+          Curva Ganadora: <b>${best.name || 'PEQ Manual'}</b> (Score: ${fmt(bestScore, 1)}%).
         </div>
       </div>
 
@@ -2207,6 +2210,29 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"ok": True, "status": st_data}).encode("utf-8"))
             return
+        if path == "/api/verification_comparison":
+            prof = params.get("profile", ["harman_wide_room"])[0]
+            try:
+                import scripts.verify_calibration as vc
+                metrics = vc.run_verification(prof, save_fig=False)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "profile": prof,
+                    "comparative_curves": metrics.get("comparative_curves", []),
+                    "best_curve": metrics.get("best_curve", {}),
+                    "metrics": metrics
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
 
 
         if path == "/api/play_sweep":
