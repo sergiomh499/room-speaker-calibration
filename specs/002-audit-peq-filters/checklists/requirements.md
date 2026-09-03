@@ -31,4 +31,4 @@
 
 ## Notes
 
-- All 16 quality criteria validated. Specification is ready for `/speckit.clarify` or `/speckit.plan`.
+- All 16 quality criteria validated. Specification is ready for planning (`/speckit.plan`).

@@ -8,6 +8,11 @@
 
 **Input**: User description: "los filtros peq no parecen bien calculados, comprueba si es cierto"
 
+## Clarifications
+
+### Session 2026-09-03
+- Q: Which acoustic measurement baseline should the audit use as the ground-truth reference when evaluating whether the active PEQ filters match your room's physical resonances? → A: Weighted composite: 80% Sweet Spot (Point 1) + 20% 5-point spatial average.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Diagnostic Audit of Active PEQ Filters Against Room Acoustics (Priority: P1)
@@ -54,7 +59,6 @@ As a listener, I want to see a side-by-side mathematical comparison between the 
 2. **Given** the revised filter set, **When** the comparison is displayed, **Then** the user sees before-and-after metrics including modal attenuation depth, stereo balance symmetry, and overall target alignment.
 
 ---
-
 ### Edge Cases
 
 - How does the system handle an audit request when no physical measurement file exists?
@@ -68,7 +72,7 @@ As a listener, I want to see a side-by-side mathematical comparison between the 
 
 ### Functional Requirements
 
-- **FR-001**: System MUST extract and evaluate all 14 active biquad filters (7 Left channel, 7 Right channel) against the empirical frequency response captured at the primary listening position.
+- **FR-001**: System MUST extract and evaluate all 14 active biquad filters (7 Left channel, 7 Right channel) against the composite acoustic reference baseline weighted as 80% primary listening position (Sweet Spot) and 20% 5-point spatial average mesh.
 - **FR-002**: System MUST identify the top physical room resonance peaks below 500 Hz for both Left and Right channels and compare their center frequencies to the deployed filter frequencies.
 - **FR-003**: System MUST calculate the frequency alignment discrepancy for each filter band and flag any filter deviating by more than ±5.0 Hz from a measured peak or target adjustment zone.
 - **FR-004**: System MUST enforce that all modal filters (< 500 Hz) apply attenuation (negative gain) with maximum boost strictly clamped to 0.0 dB.
