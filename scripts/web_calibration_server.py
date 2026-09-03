@@ -2724,6 +2724,44 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"ok": True, "session": info, "sessions": list_measurement_sessions()}).encode("utf-8"))
             return
+        if path == "/api/audit_peq":
+            print("[Server] Ejecutando auditoría y diagnóstico de filtros PEQ...")
+            try:
+                import scripts.audit_peq_filters as apf
+                content_length = int(self.headers.get("Content-Length", 0))
+                req_body = {}
+                if content_length > 0:
+                    raw_body = self.rfile.read(content_length)
+                    req_body = json.loads(raw_body.decode("utf-8"))
+
+                baseline_file = req_body.get("baseline_file", f"{DATA_DIR}/medicion_real_calibracion.npz")
+                spatial_avg_file = req_body.get("spatial_avg_file", f"{DATA_DIR}/medicion_promedio_espacial.npz")
+                peq_file = req_body.get("peq_file", f"{DATA_DIR}/medicion_verificacion_manual.npz")
+                reopt = req_body.get("reoptimize", False)
+
+                freqs, spl_l, spl_r = apf.load_composite_baseline(baseline_file, spatial_avg_file)
+
+                if "peq_matrix" in req_body and req_body["peq_matrix"]:
+                    mat = req_body["peq_matrix"]
+                    peq_data = {
+                        "left_channel": [apf.ParametricFilterBand.from_dict(b) for b in mat.get("left", mat.get("left_channel", []))],
+                        "right_channel": [apf.ParametricFilterBand.from_dict(b) for b in mat.get("right", mat.get("right_channel", []))],
+                    }
+                else:
+                    peq_data = apf.parse_peq_file(peq_file)
+
+                diag = apf.run_diagnostic_audit(freqs, spl_l, spl_r, peq_data, reoptimize=reopt)
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "diagnosis": diag.to_dict()}).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
 
         self.send_response(404)
         self.end_headers()
