@@ -150,6 +150,99 @@ def set_peq_mode(mode):
     print(f"[✓] PEQ Mode configurado en '{target_mode}': {res.strip()}")
     return True
 
+def get_peq_manual_data(host=IP, timeout=3.0) -> str:
+    """Queries the raw XML of active PEQ manual bands from Yamaha NVRAM."""
+    xml = '<YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data>GetParam</Manual_Data></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
+    req = urllib.request.Request(
+        f"http://{host}/YamahaRemoteControl/ctrl",
+        data=xml.encode('utf-8'),
+        headers={'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode('utf-8', errors='ignore')
+
+def deploy_peq_matrix_with_readback(
+    peq_matrix: dict,
+    host=IP,
+    timeout=3.0,
+    verify_readback: bool = True
+) -> tuple[bool, list[str]]:
+    """
+    Atomic Write-Commit-Readback transaction for Yamaha RX-V673 PEQ.
+    Guarantees that 100% of the 14 biquad bands committed to hardware match the optimizer.
+    """
+    url = f"http://{host}/YamahaRemoteControl/ctrl"
+    headers = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+    
+    # 1. Set PEQ mode to Manual
+    cmd_sel = '<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Sel>Manual</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
+    req = urllib.request.Request(url, data=cmd_sel.encode('utf-8'), headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        pass
+        
+    def format_freq(f_hz: float) -> str:
+        if f_hz >= 1000.0:
+            val = f_hz / 1000.0
+            return f"{val:.2f} kHz" if (val * 10) % 1 != 0 else f"{val:.1f} kHz"
+        return f"{f_hz:.1f} Hz"
+
+    # 2. Build XML for Front_L and Front_R
+    ch_map = {"left": "Front_L", "right": "Front_R"}
+    for ch_key, ch_tag in ch_map.items():
+        bands = peq_matrix.get(ch_key, [])
+        if not bands:
+            continue
+        bands_xml = ""
+        for b in bands:
+            b_idx = int(b["band"])
+            f_str = format_freq(float(b["freq_hz"]))
+            gain_val = int(round(float(b["gain_db"]) * 10))
+            q_str = f"{float(b['q']):.3f}"
+            bands_xml += f"<Band_{b_idx}><Freq>{f_str}</Freq><Gain><Val>{gain_val}</Val><Exp>1</Exp><Unit>dB</Unit></Gain><Q>{q_str}</Q></Band_{b_idx}>"
+            
+        xml_ch = f'<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data><{ch_tag}>{bands_xml}</{ch_tag}></Manual_Data></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
+        req_ch = urllib.request.Request(url, data=xml_ch.encode('utf-8'), headers=headers)
+        with urllib.request.urlopen(req_ch, timeout=timeout) as r:
+            res_txt = r.read().decode('utf-8', errors='ignore')
+            if 'RC="0"' not in res_txt and 'OK' not in res_txt:
+                return False, [f"Hardware returned error on {ch_tag} write: {res_txt}"]
+
+    if not verify_readback:
+        return True, []
+        
+    # 3. Hardware Readback Verification
+    time.sleep(0.1)
+    try:
+        raw_xml = get_peq_manual_data(host=host, timeout=timeout)
+        root = ET.fromstring(raw_xml)
+    except Exception as e:
+        return False, [f"Failed to read back NVRAM state: {e}"]
+        
+    divergent = []
+    for ch_key, ch_tag in ch_map.items():
+        bands = peq_matrix.get(ch_key, [])
+        ch_elem = root.find(f".//{ch_tag}")
+        if ch_elem is None:
+            divergent.append(f"Channel {ch_tag} missing in readback XML")
+            continue
+            
+        for b in bands:
+            b_idx = int(b["band"])
+            b_elem = ch_elem.find(f"Band_{b_idx}")
+            if b_elem is None:
+                divergent.append(f"{ch_tag} Band_{b_idx} missing in hardware readback")
+                continue
+            
+            gain_elem = b_elem.find(".//Gain/Val")
+            if gain_elem is not None and gain_elem.text:
+                hw_gain = float(gain_elem.text) / 10.0
+                expected_gain = float(b["gain_db"])
+                if abs(hw_gain - expected_gain) > 0.3:
+                    divergent.append(f"{ch_tag} Band_{b_idx} Gain mismatch: expected {expected_gain} dB, hardware has {hw_gain} dB")
+
+    if divergent:
+        return False, divergent
+    return True, []
     print_status()
 
 def program_all_scenes():

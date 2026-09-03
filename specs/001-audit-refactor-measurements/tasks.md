@@ -14,10 +14,9 @@ description: "Task list for comprehensive acoustic engine audit, real optimizati
 ## Phase 1: Setup (Shared Infrastructure)
 
 **Purpose**: Initialize directory layouts, calibration epoch storage, and test fixtures.
-
-- [ ] T001 Initialize epoch storage directory structure at `data/calibrations/epochs/` with `.gitkeep`
-- [ ] T002 [P] Implement base Calibration Epoch data models and JSON manifest parser in `scripts/calibration_epoch.py`
-- [ ] T003 [P] Configure pytest test runner and synthetic benchmark impulse response fixtures in `tests/conftest.py`
+- [X] T001 Initialize epoch storage directory structure at `data/calibrations/epochs/` with `.gitkeep`
+- [X] T002 [P] Implement base Calibration Epoch data models and JSON manifest parser in `scripts/calibration_epoch.py`
+- [X] T003 [P] Configure pytest test runner and synthetic benchmark impulse response fixtures in `tests/conftest.py`
 
 ---
 
@@ -27,9 +26,9 @@ description: "Task list for comprehensive acoustic engine audit, real optimizati
 
 **⚠️ CRITICAL**: Must complete before any User Story tasks can proceed.
 
-- [ ] T004 Implement Yamaha RX-V673 discrete parameter tables (28 center frequencies, 14 Q factors, 0.5 dB gain steps) in `scripts/peq_optimizer.py`
-- [ ] T005 [P] Implement atomic Write-Commit-Readback YNC XML transaction layer in `scripts/04_yamaha_control.py`
-- [ ] T006 [P] Implement acoustic transfer function loader and provenance tag validator (`REAL_MEASUREMENT` vs `THEORETICAL_TARGET`) in `scripts/calibration_epoch.py`
+- [X] T004 Implement Yamaha RX-V673 discrete parameter tables (28 center frequencies, 14 Q factors, 0.5 dB gain steps) in `scripts/peq_optimizer.py`
+- [X] T005 [P] Implement atomic Write-Commit-Readback YNC XML transaction layer in `scripts/04_yamaha_control.py`
+- [X] T006 [P] Implement acoustic transfer function loader and provenance tag validator (`REAL_MEASUREMENT` vs `THEORETICAL_TARGET`) in `scripts/calibration_epoch.py`
 
 **Checkpoint**: Foundation ready - User Story implementation can now proceed.
 
@@ -40,14 +39,12 @@ description: "Task list for comprehensive acoustic engine audit, real optimizati
 **Goal**: Eradicate all synthetic fallback calculations (`measurement + filter_curve`), ensure honest curve provenance, and enforce immutable epoch storage.
 
 **Independent Test**: Run verification on raw impulse responses with altered acoustic peaks; verify zero static fallback curves are emitted and all provenance headers are authenticated.
-
-### Tests for User Story 1
-- [ ] T007 [P] [US1] Unit test for measurement provenance and synthetic curve rejection in `tests/test_calibration_epoch.py`
+- [X] T007 [P] [US1] Unit test for measurement provenance and synthetic curve rejection in `tests/test_calibration_epoch.py`
 
 ### Implementation for User Story 1
-- [ ] T008 [US1] Remove fake arithmetic curve addition fallback (`measurement + peq_model`) across `scripts/verify_calibration.py`
-- [ ] T009 [P] [US1] Eliminate hardcoded fallback filter tables from `scripts/auto_calibrate.py`
-- [ ] T010 [US1] Implement immutable epoch snapshot creation (`iter_0_baseline`, `iter_1_peq`, etc.) with SHA-256 impulse hashing in `scripts/calibration_epoch.py`
+- [X] T008 [US1] Remove fake arithmetic curve addition fallback (`measurement + peq_model`) across `scripts/verify_calibration.py`
+- [X] T009 [P] [US1] Eliminate hardcoded fallback filter tables from `scripts/auto_calibrate.py`
+- [X] T010 [US1] Implement immutable epoch snapshot creation (`iter_0_baseline`, `iter_1_peq`, etc.) with SHA-256 impulse hashing in `scripts/calibration_epoch.py`
 
 ---
 
@@ -57,16 +54,14 @@ description: "Task list for comprehensive acoustic engine audit, real optimizati
 
 **Independent Test**: Run optimizer on baseline room response; verify continuous fit snaps to discrete Yamaha limits, boost $\le +3.0\text{ dB}$, 0 dB boost above 500 Hz, and runtime $< 3\text{ s}$ per channel.
 
-### Tests for User Story 2
-- [ ] T011 [P] [US2] Unit and property tests for discrete parameter snapping and gain clamping in `tests/test_peq_optimizer.py`
-- [ ] T012 [P] [US2] Benchmark test for mathematical convergence in < 3 seconds per channel in `tests/test_peq_optimizer.py`
+- [X] T011 [P] [US2] Unit and property tests for discrete parameter snapping and gain clamping in `tests/test_peq_optimizer.py`
+- [X] T012 [P] [US2] Benchmark test for mathematical convergence in < 3 seconds per channel in `tests/test_peq_optimizer.py`
 
 ### Implementation for User Story 2
-- [ ] T013 [US2] Implement Stage 1 modal resonance detection with logarithmic derivative and prominence filtering in `scripts/peq_optimizer.py`
-- [ ] T014 [US2] Implement Stage 2 continuous biquad non-linear least squares (SLSQP) curve fitting in `scripts/peq_optimizer.py`
-- [ ] T015 [US2] Implement Stage 3 discrete parameter quantization and coordinate descent retuning in `scripts/peq_optimizer.py`
-- [ ] T016 [US2] Implement channel-independent dual-channel optimization ($f_{0,L} \neq f_{0,R}$) with 80/20 Sweet Spot weighting in `scripts/peq_optimizer.py`
-
+- [X] T013 [US2] Implement Stage 1 modal resonance detection with logarithmic derivative and prominence filtering in `scripts/peq_optimizer.py`
+- [X] T014 [US2] Implement Stage 2 continuous biquad non-linear least squares (SLSQP) curve fitting in `scripts/peq_optimizer.py`
+- [X] T015 [US2] Implement Stage 3 discrete parameter quantization and coordinate descent retuning in `scripts/peq_optimizer.py`
+- [X] T016 [US2] Implement channel-independent dual-channel optimization ($f_{0,L} \neq f_{0,R}$) with 80/20 Sweet Spot weighting in `scripts/peq_optimizer.py`
 ---
 
 ## Phase 5: User Story 3 - Honest Post-Calibration Verification & Multi-Metric S-TIER Audit (Priority: P3)
@@ -74,16 +69,14 @@ description: "Task list for comprehensive acoustic engine audit, real optimizati
 **Goal**: Validate live physical sweeps against strict S-TIER gates ($\ge 6.0\text{ dB}$ modal cut, $< 2.5\text{ dB}$ RMS error, $< 2.0\text{ dB}$ stereo imbalance) and generate complete technical audit report with 3D CSD waterfall and NVRAM register dump.
 
 **Independent Test**: Generate audit report for an epoch; verify CSD waterfall renders ringing decay under 300 Hz, register dump is verified via YNC, and S-TIER badge is withheld on failing thresholds.
-
-### Tests for User Story 3
-- [ ] T017 [P] [US3] Unit test for CSD waterfall STFT computation and temporal decay in `tests/test_csd_waterfall.py`
-- [ ] T018 [P] [US3] Unit test for strict multi-metric S-TIER certification gating in `tests/test_verify_calibration.py`
+- [X] T017 [P] [US3] Unit test for CSD waterfall STFT computation in `tests/test_csd_waterfall.py`
+- [X] T018 [P] [US3] Unit test for strict multi-metric S-TIER certification gating in `tests/test_verify_calibration.py`
 
 ### Implementation for User Story 3
-- [ ] T019 [US3] Implement 3D Cumulative Spectral Decay (CSD) STFT analyzer for modal ringing in `scripts/csd_waterfall.py`
-- [ ] T020 [US3] Refactor verification metrics calculation in `scripts/verify_calibration.py` to enforce strict scientific formulations without arbitrary multipliers
-- [ ] T021 [US3] Implement hardware register dump extraction and verification in `scripts/verify_calibration.py`
-- [ ] T022 [US3] Implement technical audit report generator (HTML/SVG with 1/24-octave magnitude, CSD waterfall, NVRAM dump, and epoch delta table) in `scripts/verify_calibration.py`
+- [X] T019 [US3] Implement 3D Cumulative Spectral Decay (CSD) STFT analyzer for modal ringing in `scripts/csd_waterfall.py`
+- [X] T020 [US3] Refactor verification metrics calculation in `scripts/verify_calibration.py` to enforce strict scientific formulations without arbitrary multipliers
+- [X] T021 [US3] Implement hardware register dump extraction and verification in `scripts/verify_calibration.py`
+- [X] T022 [US3] Implement technical audit report generator (HTML/SVG with 1/24-octave magnitude, CSD waterfall, NVRAM dump, and epoch delta table) in `scripts/verify_calibration.py`
 
 ---
 
@@ -91,30 +84,21 @@ description: "Task list for comprehensive acoustic engine audit, real optimizati
 
 **Goal**: Ensure physical audio sweeps route through V-AUX at reference volume (-25 dBFS), validate anti-clipping (-24 dBFS to -3 dBFS), and enforce SNR $\ge 14\text{ dB}$.
 
-**Independent Test**: Simulate sweep capture with clipping (> -3 dBFS) or low SNR (< 14 dB); verify system aborts with clear diagnostic error.
-
-### Tests for User Story 4
-- [ ] T023 [P] [US4] Unit test for signal level validation, anti-clipping, and SNR thresholds in `tests/test_measure_sweep.py`
+- [X] T023 [P] [US4] Unit test for signal level validation, anti-clipping, and SNR thresholds in `tests/test_measure_sweep.py`
 
 ### Implementation for User Story 4
-- [ ] T024 [US4] Enforce V-AUX input selection, -25 dBFS reference volume, and Through DSP mode in `scripts/01_measure_sweep.py`
-- [ ] T025 [US4] Implement pre-sweep level check and SNR verification abort logic in `scripts/01_measure_sweep.py`
+- [X] T024 [US4] Enforce V-AUX input selection, -25 dBFS reference volume, and Through DSP mode in `scripts/01_measure_sweep.py`
+- [X] T025 [US4] Implement pre-sweep level check and SNR verification abort logic in `scripts/01_measure_sweep.py`
 
 ---
 
 ## Phase 7: Polish & Dashboard Integration
 
-**Purpose**: Wire refactored engines into dashboard backend and execute end-to-end quickstart validation.
-
-- [ ] T026 [P] Update `/api/optimize_peq` endpoint to invoke dynamic optimizer in `scripts/web_calibration_server.py`
-- [ ] T027 [P] Update `/api/deploy_peq` with atomic YNC readback verification in `scripts/web_calibration_server.py`
-- [ ] T028 [P] Update `/api/run_epoch_verification` and `/api/epoch_history` in `scripts/web_calibration_server.py`
-- [ ] T029 Update web UI dashboard templates and telemetry status displays to render genuine epoch metrics and CSD plots in `scripts/web_calibration_server.py`
-- [ ] T030 Execute end-to-end automated validation suite and verify all test runs complete in < 10 seconds per `quickstart.md`
-
----
-
-## Dependencies & Execution Order
+- [X] T026 [P] [US1] Update `/api/optimize_peq` endpoint to invoke `peq_optimizer.py` Stage 1-3 in `scripts/web_calibration_server.py`
+- [X] T027 [P] [US2] Update `/api/deploy_peq` with atomic YNC readback verification in `scripts/web_calibration_server.py`
+- [X] T028 [P] [US3] Update `/api/run_epoch_verification` and `/api/epoch_history` in `scripts/web_calibration_server.py`
+- [X] T029 [US3] Update web UI dashboard templates and telemetry status displays in `scripts/web_calibration_server.py`
+- [X] T030 Execute end-to-end automated validation suite in `tests/`
 
 ```mermaid
 graph TD

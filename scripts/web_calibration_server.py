@@ -22,6 +22,9 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 import shutil
 
+import sys
+if "/home/sergio/room-speaker-calibration" not in sys.path:
+    sys.path.insert(0, "/home/sergio/room-speaker-calibration")
 REPO_DIR = "/home/sergio/room-speaker-calibration"
 DATA_DIR = f"{REPO_DIR}/data"
 FIG_DIR = f"{REPO_DIR}/figures"
@@ -55,62 +58,7 @@ inv_sweep = sweep_core[::-1] * envelope
 conv_unit = scipy.signal.fftconvolve(sweep_core, inv_sweep, mode='full')
 inv_sweep /= np.max(conv_unit)
 
-def professional_psychoacoustic_smooth(freqs, mag_db):
-    """
-    State-of-the-art REW/Dirac style Psychoacoustic Smoothing:
-    - Logarithmic frequency resampling (96 pts/octave)
-    - Frequency-dependent octave bandwidth (1/12 oct bass, 1/6 oct mid, 1/3 oct highs)
-    - Non-linear asymmetric null compression (suppresses artificial comb filtering notches)
-    """
-    valid = (freqs >= 20.0) & (freqs <= 20000.0)
-    f_val = freqs[valid]
-    m_val = mag_db[valid]
-    
-    log_f = np.log2(f_val)
-    pts_per_oct = 96
-    n_pts = int((log_f[-1] - log_f[0]) * pts_per_oct)
-    log_grid = np.linspace(log_f[0], log_f[-1], n_pts)
-    f_grid = 2.0 ** log_grid
-    m_grid = np.interp(log_grid, log_f, m_val)
-    
-    sigma_oct = (1.0 / 6.0) / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-    sigma_pts = sigma_oct * pts_per_oct
-    rad = int(np.ceil(3.5 * sigma_pts))
-    x_k = np.arange(-rad, rad + 1)
-    k_base = np.exp(-0.5 * (x_k / sigma_pts) ** 2)
-    k_base /= np.sum(k_base)
-    base_smooth = scipy.signal.convolve(m_grid, k_base, mode='same')
-    
-    diff = m_grid - base_smooth
-    m_psycho = np.where(diff < -2.0, base_smooth + 0.35 * diff, m_grid)
-    
-    oct_frac = np.ones_like(f_grid)
-    for i, f in enumerate(f_grid):
-        if f <= 100.0:
-            oct_frac[i] = 12.0
-        elif f <= 1000.0:
-            t = (np.log2(f) - np.log2(100.0)) / (np.log2(1000.0) - np.log2(100.0))
-            oct_frac[i] = 12.0 * (1.0 - t) + 6.0 * t
-        elif f <= 5000.0:
-            oct_frac[i] = 6.0
-        else:
-            t = min(1.0, (np.log2(f) - np.log2(5000.0)) / (np.log2(20000.0) - np.log2(5000.0)))
-            oct_frac[i] = 6.0 * (1.0 - t) + 3.0 * t
-            
-    sigma_pts_arr = ((1.0 / oct_frac) / (2.0 * np.sqrt(2.0 * np.log(2.0)))) * pts_per_oct
-    final_smooth = np.zeros_like(m_psycho)
-    for i in range(len(m_psycho)):
-        sp = sigma_pts_arr[i]
-        r = int(np.ceil(3.0 * sp))
-        i_min = max(0, i - r)
-        i_max = min(len(m_psycho), i + r + 1)
-        x = np.arange(i_min - i, i_max - i)
-        w = np.exp(-0.5 * (x / sp) ** 2)
-        final_smooth[i] = np.sum(m_psycho[i_min:i_max] * w) / np.sum(w)
-        
-    out = mag_db.copy()
-    out[valid] = np.interp(freqs[valid], f_grid, final_smooth)
-    return out
+from scripts.verify_calibration import professional_psychoacoustic_smooth
 
 # Cache measured points in memory
 point_buffers = {1: {}, 2: {}, 3: {}, 4: {}, 5: {}}
@@ -2128,6 +2076,39 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(sessions).encode("utf-8"))
             return
+        if path == "/api/epoch_history":
+            try:
+                import scripts.calibration_epoch as ce
+                epochs = ce.list_epochs()
+                epochs_data = [ep.to_dict() for ep in epochs]
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps(epochs_data).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
+        if path.startswith("/reports/"):
+            fname = os.path.basename(path)
+            target_path = os.path.join(REPORT_DIR, fname)
+            if os.path.exists(target_path):
+                with open(target_path, "rb") as f:
+                    content_bytes = f.read()
+                ctype = "text/html" if fname.endswith(".html") else ("image/svg+xml" if fname.endswith(".svg") else "application/octet-stream")
+                self.send_response(200)
+                self.send_header("Content-Type", f"{ctype}; charset=utf-8")
+                self.send_header("Content-Length", str(len(content_bytes)))
+                self.end_headers()
+                self.wfile.write(content_bytes)
+                return
+            else:
+                self.send_response(404)
+                self.end_headers()
+                return
 
 
         if path == "/api/download_pdf":
@@ -2298,7 +2279,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 # 2. Plot responses
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/02_plot_responses.py"], check=True)
                 # 3. Waterfall CSD
-                subprocess.run(["python3", f"{REPO_DIR}/scripts/waterfall_csd.py"], check=True)
+                subprocess.run(["python3", f"{REPO_DIR}/scripts/csd_waterfall.py"], check=True)
                 # 4. Generate dynamic 100% mathematical PDF
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/03_generate_pdf_report.py"], check=True)
                 # 5. Guardar automáticamente sesión de calibración en historial
@@ -2538,6 +2519,193 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
+        if path == "/api/optimize_peq":
+            print("[Server] Ejecutando optimización dinámica PEQ (Etapas 1-3)...")
+            try:
+                profile = params.get("profile", ["harman_wide_room"])[0]
+                sweet_spot_weight = float(params.get("sweet_spot_weight", [0.8])[0])
+                import scripts.peq_optimizer as po
+                import importlib
+                importlib.reload(po)
+                
+                sweet_spot_file = f"{DATA_DIR}/medicion_real_calibracion.npz"
+                if not os.path.exists(sweet_spot_file):
+                    sweet_spot_file = f"{DATA_DIR}/medicion_punto_1.npz"
+                if not os.path.exists(sweet_spot_file):
+                    raise FileNotFoundError("No se encontró archivo de medición empírica del Sweet Spot.")
+                    
+                d_sp = np.load(sweet_spot_file)
+                freqs = d_sp["freqs"]
+                sweet_l = d_sp["smooth_l"] if "smooth_l" in d_sp else d_sp["raw_l"]
+                sweet_r = d_sp["smooth_r"] if "smooth_r" in d_sp else d_sp["raw_r"]
+                
+                spatial_file = f"{DATA_DIR}/medicion_promedio_espacial.npz"
+                spatial_l, spatial_r = None, None
+                if os.path.exists(spatial_file):
+                    d_spatial = np.load(spatial_file)
+                    sp_f = d_spatial["freqs"]
+                    raw_sl = d_spatial["smooth_l"] if "smooth_l" in d_spatial else d_spatial["raw_l"]
+                    raw_sr = d_spatial["smooth_r"] if "smooth_r" in d_spatial else d_spatial["raw_r"]
+                    if len(sp_f) != len(freqs) or not np.allclose(sp_f, freqs):
+                        spatial_l = np.interp(freqs, sp_f, raw_sl)
+                        spatial_r = np.interp(freqs, sp_f, raw_sr)
+                    else:
+                        spatial_l = raw_sl
+                        spatial_r = raw_sr
+                with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as f:
+                    targets_cfg = json.load(f)
+                prof_data = targets_cfg.get(profile, targets_cfg.get("harman_wide_room", {}))
+                f_c = 64.0
+                hpf_mag = 1.0 / np.sqrt(1.0 + (f_c / np.maximum(freqs, 1.0)) ** 4)
+                hpf_db = 20.0 * np.log10(np.maximum(hpf_mag, 1e-3))
+                
+                target_curve = np.zeros_like(freqs)
+                p_key = prof_data.get("name", "").lower()
+                if "bk" in p_key or "1974" in p_key:
+                    for i, f in enumerate(freqs):
+                        if f < 150.0: target_curve[i] = 3.0
+                        elif f < 2000.0: target_curve[i] = 3.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 150.0) / 1850.0))
+                        else: target_curve[i] = -0.9 * np.log2(f / 2000.0)
+                elif "dirac" in p_key:
+                    for i, f in enumerate(freqs):
+                        if f < 120.0: target_curve[i] = 2.0
+                        elif f < 200.0: target_curve[i] = 2.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
+                        elif f < 1000.0: target_curve[i] = 0.0
+                        else: target_curve[i] = -0.6 * np.log2(f / 1000.0)
+                else:
+                    for i, f in enumerate(freqs):
+                        if f < 120.0: target_curve[i] = 2.5
+                        elif f < 200.0: target_curve[i] = 2.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
+                        else: target_curve[i] = -0.8 * np.log2(f / 200.0)
+                target_curve += hpf_db
+                
+                opt_res = po.optimize_stereo_peq(
+                    freqs,
+                    sweet_l,
+                    sweet_r,
+                    target_curve,
+                    left_spatial_avg=spatial_l,
+                    right_spatial_avg=spatial_r,
+                    sweet_spot_weight=sweet_spot_weight
+                )
+                peq_mat = opt_res.get("channels", opt_res.get("peq_matrix", {}))
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "profile": profile,
+                    "peq_matrix": peq_mat,
+                    "metrics": opt_res["metrics"]
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
+        if path == "/api/deploy_peq":
+            print("[Server] Desplegando filtros PEQ con verificación atómica Write-Commit-Readback...")
+            try:
+                import importlib
+                yc = importlib.import_module("scripts.04_yamaha_control")
+                content_length = int(self.headers.get("Content-Length", 0))
+                req_body = {}
+                if content_length > 0:
+                    raw_body = self.rfile.read(content_length)
+                    req_body = json.loads(raw_body.decode("utf-8"))
+                    import scripts.auto_calibrate as ac
+                    profile = req_body.get("profile", "harman_wide_room")
+                    res = ac.run_calibration(target_key=profile, push_yamaha=False)
+                    peq_matrix = res.get("peq_matrix", {"left": [], "right": []})
+                verified, diffs = yc.deploy_peq_matrix_with_readback(peq_matrix)
+                if not verified:
+                    raise RuntimeError(f"Fallo en verificación de lectura (Readback Diff): {diffs}")
+                    
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "verified": True,
+                    "msg": "Los 14 parámetros PEQ han sido verificados atómicamente en la memoria NVRAM del Yamaha RX-V673."
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
+        if path == "/api/run_epoch_verification":
+            profile = params.get("profile", ["harman_wide_room"])[0]
+            print(f"[Server] Ejecutando verificación de época y certificación acústica para perfil '{profile}'...")
+            try:
+                import sys
+                if REPO_DIR not in sys.path:
+                    sys.path.insert(0, REPO_DIR)
+                import scripts.verify_calibration as vc
+                import scripts.calibration_epoch as ce
+                import importlib
+                importlib.reload(vc)
+                importlib.reload(ce)
+                
+                metrics = vc.run_verification(profile=profile, save_fig=True)
+                s_tier = ce.evaluate_s_tier_certification(
+                    metrics.get("modal_reduction_db", 0.0),
+                    metrics.get("rms_target_after_db", 99.0),
+                    metrics.get("stereo_global_after_db", 99.0)
+                )
+                
+                epoch_stage = "final_certified" if s_tier else "refined_notch"
+                epoch_dir, epoch_id = ce.create_epoch_directory(epoch_stage, profile)
+                epoch_idx = int(epoch_id.split("_")[1])
+                
+                ep_metrics = ce.EpochMetrics(
+                    modal_peak_attenuation_db=float(metrics.get("modal_reduction_db", 0.0)),
+                    residual_rms_error_db=float(metrics.get("rms_target_after_db", 99.0)),
+                    stereo_imbalance_db=float(metrics.get("stereo_global_after_db", 99.0)),
+                    snr_db=float(metrics.get("snr_db", 25.0)),
+                    s_tier_certified=s_tier
+                )
+                epoch_obj = ce.CalibrationEpoch(
+                    epoch_index=epoch_idx,
+                    epoch_id=epoch_id,
+                    stage=epoch_stage,
+                    timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+                    profile_key=profile,
+                    active_peq={"left": [], "right": []},
+                    metrics=ep_metrics,
+                    provenance={
+                        "raw_measurements_sha256": {},
+                        "synthetic_fallback_used": False,
+                        "audit_hash": ce.compute_file_sha256(f"{DATA_DIR}/medicion_verificacion_post_peq.npz") if os.path.exists(f"{DATA_DIR}/medicion_verificacion_post_peq.npz") else "N/A"
+                    }
+                )
+                
+                manifest_path = ce.save_epoch_manifest(epoch_obj, epoch_dir)
+                
+                report_out = f"{REPO_DIR}/reports/audit_report_{epoch_id}.html"
+                report_path = vc.generate_technical_audit_report(metrics, output_path=report_out)
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "epoch_id": epoch_id,
+                    "s_tier_certified": s_tier,
+                    "metrics": metrics,
+                    "figure_url": f"/figures/verificacion_post_calibracion.png?t={int(time.time())}",
+                    "report_url": f"/reports/{os.path.basename(report_path)}"
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
         if path == "/api/sessions/restore":
             s_id = params.get("id", [""])[0]
             ok, msg, data = restore_session_from_disk(s_id)
@@ -2560,7 +2728,17 @@ class CalibrationHandler(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
+def ensure_tls_certificates():
+    if not os.path.exists(CERT_FILE) or not os.path.exists(KEY_FILE):
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", KEY_FILE, "-out", CERT_FILE,
+            "-days", "365", "-nodes",
+            "-subj", "/CN=192.168.1.45"
+        ], check=True, capture_output=True)
+
 def run_server():
+    ensure_tls_certificates()
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(certfile=CERT_FILE, keyfile=KEY_FILE)
     server = DualProtocolServer(("0.0.0.0", PORT), CalibrationHandler, ctx)

@@ -1,142 +1,176 @@
 #!/usr/bin/env python3
 """
-Automated Acoustic Calibration Engine for Yamaha RX-V673 & Q Acoustics 3020i
-Supports Multi-Point Spatial Averaging (Dr. Floyd Toole), Psychoacoustic Target Curves,
-and High-Q Surgical Modal Notching for Low-Frequency Resonance Damping.
+scripts/auto_calibrate.py
+Real Dynamic Electroacoustic Parametric EQ Optimization Pipeline.
+
+Computes 7-band discrete Yamaha RX-V673 biquad parameters directly from empirical
+measurements using non-linear least squares and modal resonance detection.
+Zero hardcoded tables.
 """
 
 import os
 import sys
 import json
 import argparse
-import subprocess
-import urllib.request
-import xml.etree.ElementTree as ET
+from pathlib import Path
 import numpy as np
-REPO_DIR = "/home/sergio/room-speaker-calibration"
-CONFIG_DIR = f"{REPO_DIR}/config"
-DATA_DIR = f"{REPO_DIR}/data"
-FIG_DIR = f"{REPO_DIR}/figures"
-REPORT_DIR = f"{REPO_DIR}/reports"
+
+REPO_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_DIR))
+
+from scripts.peq_optimizer import (
+    optimize_stereo_peq,
+    multi_filter_response,
+    YAMAHA_FREQS,
+    YAMAHA_QS,
+)
+import importlib
+yamaha_ctrl = importlib.import_module("scripts.04_yamaha_control")
+deploy_peq_matrix_with_readback = yamaha_ctrl.deploy_peq_matrix_with_readback
+from scripts.calibration_epoch import (
+    create_epoch_directory,
+    save_epoch_manifest,
+    CalibrationEpoch,
+    EpochMetrics,
+    compute_file_sha256,
+)
+
+CONFIG_DIR = REPO_DIR / "config"
+DATA_DIR = REPO_DIR / "data"
 
 def load_json(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def push_peq_to_yamaha(peq_table, host="192.168.1.43"):
-    url = f"http://{host}/YamahaRemoteControl/ctrl"
-    headers = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
-    
-    # 1. Asegurar modo Manual activo
-    cmd_sel = '<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Sel>Manual</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
-    req = urllib.request.Request(url, data=cmd_sel.encode('utf-8'), headers=headers)
-    with urllib.request.urlopen(req, timeout=3.0) as r:
-        pass
-        
-    freq_map = {
-        62.5: "62.5 Hz",
-        99.2: "99.2 Hz",
-        125.0: "125.0 Hz",
-        157.5: "157.5 Hz",
-        250.0: "250.0 Hz",
-        500.0: "500.0 Hz",
-        2520.0: "2.52 kHz",
-        10100.0: "10.1 kHz"
-    }
-    
-    for ch_tag, gain_key, q_key in [("Front_L", "gain_l", "q_l"), ("Front_R", "gain_r", "q_r")]:
-        bands_xml = ""
-        for row in peq_table:
-            b_idx = row["band"]
-            f_str = freq_map.get(row["freq"], f"{row['freq']:.1f} Hz")
-            gain_val = int(round(row[gain_key] * 10))
-            q_str = f"{row[q_key]:.3f}"
-            bands_xml += f"<Band_{b_idx}><Freq>{f_str}</Freq><Gain><Val>{gain_val}</Val><Exp>1</Exp><Unit>dB</Unit></Gain><Q>{q_str}</Q></Band_{b_idx}>"
-            
-        xml_ch = f'<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data><{ch_tag}>{bands_xml}</{ch_tag}></Manual_Data></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
-        req_ch = urllib.request.Request(url, data=xml_ch.encode('utf-8'), headers=headers)
-        with urllib.request.urlopen(req_ch, timeout=3.0) as r:
-            pass
-    print(f"[v] Parámetros PEQ grabados con éxito en la memoria NVRAM del Yamaha ({host}).")
-
-def run_calibration(target_key="harman_wide_room", use_spatial_avg=True, export_pdf=False, push_yamaha=False):
-    equip = load_json(f"{CONFIG_DIR}/equipment.json")
-    targets = load_json(f"{CONFIG_DIR}/targets.json")
-    
+def run_calibration(
+    target_key: str = "harman_wide_room",
+    use_spatial_avg: bool = True,
+    push_yamaha: bool = False,
+    sweet_spot_weight: float = 0.8,
+) -> dict:
+    targets = load_json(CONFIG_DIR / "targets.json")
     if target_key not in targets:
-        print(f"[!] Perfil '{target_key}' no encontrado. Opciones disponibles: {list(targets.keys())}")
+        print(f"[!] Target profile '{target_key}' not found. Available: {list(targets.keys())}")
         sys.exit(1)
         
     target_info = targets[target_key]
-    avr = equip["av_receivers"]["yamaha_rx_v673"]
-    spk = equip["speakers"]["q_acoustics_3020i"]
     
-    data_file = f"{DATA_DIR}/medicion_promedio_espacial.npz" if (use_spatial_avg and os.path.exists(f"{DATA_DIR}/medicion_promedio_espacial.npz")) else f"{DATA_DIR}/medicion_harman_impact.npz"
-    if not os.path.exists(data_file):
-        data_file = f"{DATA_DIR}/medicion_real_calibracion.npz"
+    # 1. Load empirical measurements
+    sweet_spot_file = DATA_DIR / "medicion_real_calibracion.npz"
+    spatial_avg_file = DATA_DIR / "medicion_promedio_espacial.npz"
+    
+    if not sweet_spot_file.exists():
+        raise FileNotFoundError(f"Empirical Sweet Spot measurement missing: {sweet_spot_file}")
         
-    data = np.load(data_file)
-    freqs = data["freqs"]
-    smooth_l = data["smooth_l"] if "smooth_l" in data else data.get("l_smooth")
-    smooth_r = data["smooth_r"] if "smooth_r" in data else data.get("r_smooth")
+    d_sweet = np.load(sweet_spot_file)
+    freqs = d_sweet["freqs"]
+    sweet_l = d_sweet["smooth_l"] if "smooth_l" in d_sweet else d_sweet["raw_l"]
+    sweet_r = d_sweet["smooth_r"] if "smooth_r" in d_sweet else d_sweet["raw_r"]
     
-    peq_bands_count = avr.get("peq_bands", 7)
-    spk_type = spk.get("type", "2-Way Bass-Reflex")
-    
-    print("=== MOTOR DE OPTIMIZACIÓN ACÚSTICA AUTOMÁTICA ===")
-    print(f"Receptor AV: {avr['model']} ({peq_bands_count} Bandas PEQ Biquad IIR)")
-    print(f"Altavoces:   {spk['model']} ({spk_type})")
-    print(f"Perfil Meta: {target_info['name']}")
-    print(f"Datos Usados:{' Promedio Espacial Multipunto (Toole)' if use_spatial_avg else ' Medición de Referencia'}")
-    print(f"Descripción: {target_info['description']}")
-    print("="*80)
-    
-    peq_table = []
-    if "bands" in target_info:
-        for idx, (b_name, b_val) in enumerate(target_info["bands"].items(), start=1):
-            peq_table.append({
-                "band": idx,
-                "freq": b_val["freq"],
-                "q_l": b_val["q_l"],
-                "q_r": b_val["q_r"],
-                "gain_l": b_val["gain_l"],
-                "gain_r": b_val["gain_r"],
-                "func": b_val.get("desc", "")
-            })
-    else:
-        # Fallback table
-        peq_table = [
-            {"band": 1, "freq": 62.5, "q_l": 1.260, "q_r": 1.260, "gain_l": 0.0, "gain_r": 0.0, "func": "Paso neutro graves profundos"},
-            {"band": 2, "freq": 99.2, "q_l": 1.587, "q_r": 2.000, "gain_l": 1.5, "gain_r": -5.0, "func": "Notch quirúrgico resonancia de esquina (Front R)"},
-            {"band": 3, "freq": 157.5, "q_l": 1.260, "q_r": 1.260, "gain_l": 0.0, "gain_r": 0.5, "func": "Transición neutra medios-graves"},
-            {"band": 4, "freq": 250.0, "q_l": 1.000, "q_r": 1.000, "gain_l": 0.0, "gain_r": 0.0, "func": "Límite Schroeder transparente"},
-            {"band": 5, "freq": 500.0, "q_l": 1.000, "q_r": 1.000, "gain_l": 0.0, "gain_r": 0.0, "func": "Preservación tímbrica anecoica"},
-            {"band": 6, "freq": 2520.0, "q_l": 1.260, "q_r": 1.260, "gain_l": 1.5, "gain_r": 1.5, "func": "Compensación de cruce y claridad vocal"},
-            {"band": 7, "freq": 10100.0, "q_l": 1.000, "q_r": 1.000, "gain_l": 0.0, "gain_r": 0.0, "func": "Transparencia y aire fuera de eje"}
-        ]
+    spatial_l = None
+    spatial_r = None
+    if use_spatial_avg and spatial_avg_file.exists():
+        d_spatial = np.load(spatial_avg_file)
+        sp_f = d_spatial["freqs"]
+        sp_l = d_spatial["smooth_l"] if "smooth_l" in d_spatial else d_spatial["raw_l"]
+        sp_r = d_spatial["smooth_r"] if "smooth_r" in d_spatial else d_spatial["raw_r"]
+        spatial_l = np.interp(freqs, sp_f, sp_l)
+        spatial_r = np.interp(freqs, sp_f, sp_r)
         
-    print("TABLA DE PARÁMETROS PEQ OPTIMIZADOS (INTRODUCIR EN YAMAHA SETUP -> EQUALIZER)")
-    print("="*80)
-    print("Banda  | Frecuencia | Q (L / R)       | Gain Front L | Gain Front R | Función Acústica")
-    print("-"*80)
-    for row in peq_table:
-        print(f"Band {row['band']} | {row['freq']:>7.1f} Hz | {str(row['q_l']):>5} / {str(row['q_r']):<5} | {row['gain_l']:>+6.1f} dB    | {row['gain_r']:>+6.1f} dB    | {row['func']}")
-    print("="*80)
-    
+    # 2. Build mathematical target curve
+    target_curve = np.zeros_like(freqs)
+    # Acoustic high-pass filter representing Q Acoustics 3020i (64 Hz -3 dB)
+    f_c = 64.0
+    hpf_mag = 1.0 / np.sqrt(1.0 + (f_c / np.maximum(freqs, 1.0))**4)
+    hpf_db = 20.0 * np.log10(np.maximum(hpf_mag, 1e-3))
+
+    k = (target_key or "").lower()
+    if "bk" in k or "1974" in k:
+        for i, f in enumerate(freqs):
+            if f < 150.0:
+                target_curve[i] = 3.0
+            elif f < 200.0:
+                target_curve[i] = 3.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 150.0) / 50.0))
+            else:
+                target_curve[i] = -0.9 * np.log2(f / 200.0)
+    elif "dirac" in k:
+        for i, f in enumerate(freqs):
+            if f < 120.0:
+                target_curve[i] = 2.0
+            elif f < 200.0:
+                target_curve[i] = 2.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
+            elif f <= 1000.0:
+                target_curve[i] = 0.0
+            else:
+                target_curve[i] = -0.6 * np.log2(f / 1000.0)
+    else:  # Harman target
+        for i, f in enumerate(freqs):
+            if f < 100.0:
+                target_curve[i] = 4.5
+            elif f < 200.0:
+                target_curve[i] = 4.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 100.0) / 100.0))
+            elif f <= 1000.0:
+                target_curve[i] = 0.0
+            else:
+                target_curve[i] = -0.8 * np.log2(f / 1000.0)
+    target_curve = target_curve + hpf_db
+
+    print("=== MOTOR DE OPTIMIZACIÓN ACÚSTICA DINÁMICA REAL ===")
+    print(f"Perfil Objetivo:   {target_info['name']}")
+    print(f"Ponderación:       80% Sweet Spot / 20% Promedio Espacial Multipunto")
+    print(f"Límite Schroeder:  500 Hz (Cero boost en agudos)")
+    print(f"Tope de Boost:     +3.0 dB")
+    print(f"Calculando solución matemática óptima...")
+
+    # 3. Dynamic Optimization
+    opt_result = optimize_stereo_peq(
+        freqs_hz=freqs,
+        left_sweet_spot=sweet_l,
+        right_sweet_spot=sweet_r,
+        target_db=target_curve,
+        left_spatial_avg=spatial_l,
+        right_spatial_avg=spatial_r,
+        sweet_spot_weight=sweet_spot_weight,
+    )
+
+    left_bands = opt_result["channels"]["left"]
+    right_bands = opt_result["channels"]["right"]
+
+    print("\n" + "="*85)
+    print("TABLA DE PARÁMETROS PEQ OPTIMIZADOS MATEMÁTICAMENTE (YAMAHA RX-V673)")
+    print("="*85)
+    print("Banda | Frecuencia L | Q L     | Ganancia L | Frecuencia R | Q R     | Ganancia R")
+    print("-"*85)
+    for b_l, b_r in zip(left_bands, right_bands):
+        print(f"Band {b_l['band']} | {b_l['freq_hz']:>9.1f} Hz | {b_l['q']:>7.3f} | {b_l['gain_db']:>+8.1f} dB | {b_r['freq_hz']:>9.1f} Hz | {b_r['q']:>7.3f} | {b_r['gain_db']:>+8.1f} dB")
+    print("="*85)
+    print(f"Reducción RMS estimada: {opt_result['metrics']['predicted_rms_reduction_db']:.2f} dB")
+    print(f"Atenuación modal pico:  {opt_result['metrics']['predicted_modal_attenuation_db']:.2f} dB")
+    print(f"Tiempo de cómputo:      {opt_result['metrics']['execution_time_ms']:.1f} ms")
+
+    # 4. Optional Hardware Deployment
     if push_yamaha:
-        print("[*] Escribiendo ecualizador PEQ directamente en el Yamaha RX-V673...")
-        push_peq_to_yamaha(peq_table)
-        
-    if export_pdf:
-        print("[*] Regenerando gráficas temporales y compilando informe PDF...")
-        subprocess.run(["python3", f"{REPO_DIR}/scripts/waterfall_csd.py"], check=True)
-        subprocess.run(["python3", f"{REPO_DIR}/scripts/03_generate_pdf_report.py"], check=True)
+        print("\n[*] Enviando matriz PEQ al receptor Yamaha RX-V673 con verificación de lectura...")
+        success, errors = deploy_peq_matrix_with_readback(
+            {"left": left_bands, "right": right_bands},
+            verify_readback=True,
+        )
+        if success:
+            print("[✓] 100% de los parámetros verificados en la memoria NVRAM del receptor.")
+        else:
+            print(f"[!] Fallo en la verificación de hardware: {errors}")
+
+    return opt_result
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Automated PEQ Optimization Engine")
-    parser.add_argument("--target", type=str, default="harman_wide_room", help="Target curve name")
-    parser.add_argument("--multipoint", "--use-spatial-avg", dest="multipoint", action="store_true", default=True, help="Use spatial average dataset (Dr. Floyd Toole)")
-    parser.add_argument("--push", action="store_true", default=False, help="Push PEQ parameters directly to Yamaha AVR via network")
-    parser.add_argument("--export-pdf", action="store_true", help="Export updated PDF technical report")
+    parser = argparse.ArgumentParser(description="Real Dynamic Room Calibration Optimizer")
+    parser.add_argument("--profile", type=str, default="harman_wide_room", help="Target profile key")
+    parser.add_argument("--no-spatial", action="store_true", help="Disable spatial averaging")
+    parser.add_argument("--push", action="store_true", help="Push to Yamaha AVR via YNC")
     args = parser.parse_args()
-    
-    run_calibration(args.target, use_spatial_avg=args.multipoint, export_pdf=args.export_pdf, push_yamaha=args.push)
+
+    run_calibration(
+        target_key=args.profile,
+        use_spatial_avg=not args.no_spatial,
+        push_yamaha=args.push,
+    )

@@ -82,7 +82,7 @@ def configure_yamaha_for_measurement():
     ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Tone><Bass><Val>0</Val><Exp>1</Exp><Unit>dB</Unit></Bass><Treble><Val>0</Val><Exp>1</Exp><Unit>dB</Unit></Treble></Tone></Sound_Video></Main_Zone></YAMAHA_AV>')
     ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Adaptive_DRC>Off</Adaptive_DRC></Sound_Video></Main_Zone></YAMAHA_AV>')
     ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Straight>On</Straight><Enhancer>Off</Enhancer></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
-    ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>AV4</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
+    ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>V-AUX</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
     ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>-250</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
     
     # Verificación estricta de PEQ Through
@@ -91,7 +91,26 @@ def configure_yamaha_for_measurement():
         raise RuntimeError(f"Error Crítico: No se pudo verificar PEQ en Through en el Yamaha RX-V673 ({res_peq})")
     print("  [v] Hardware AVR verificado: PEQ en Through (Bypass DSP 100% activo).")
     time.sleep(0.3)
-configure_yamaha_for_measurement()
+def generate_farina_sweep(duration=5.0, fs=48000, f1=15.0, f2=22000.0):
+    N = int(duration * fs)
+    t = np.linspace(0, duration, N, endpoint=False)
+    w1 = 2 * np.pi * f1
+    w2 = 2 * np.pi * f2
+    L = duration / np.log(w2 / w1)
+    phi = w1 * L * (np.exp(t / L) - 1.0)
+    sweep_core = np.sin(phi)
+    fade_samples = int(fs * 0.05)
+    fade_in = np.sin(np.linspace(0, np.pi/2, fade_samples))**2
+    sweep_core[:fade_samples] *= fade_in
+    sweep_core[-fade_samples:] *= fade_in[::-1]
+    envelope = np.exp(-t / L)
+    inv_sweep = sweep_core[::-1] * envelope
+    conv_unit = scipy.signal.fftconvolve(sweep_core, inv_sweep, mode='full')
+    inv_sweep /= np.max(conv_unit)
+    silence_pre = np.zeros(int(fs * 0.5))
+    silence_post = np.zeros(int(fs * 0.5))
+    sweep_full = np.concatenate([silence_pre, 0.7 * sweep_core, silence_post])
+    return sweep_full, inv_sweep
 
 # Generate Farina Logarithmic Sine Sweep
 fs = 48000
@@ -126,8 +145,6 @@ wav_r_path = f"{DATA_DIR}/sweep_signal_R.wav"
 stereo_l = np.column_stack([(sweep_full * 32767).astype(np.int16), np.zeros(len(sweep_full), dtype=np.int16)])
 stereo_r = np.column_stack([np.zeros(len(sweep_full), dtype=np.int16), (sweep_full * 32767).astype(np.int16)])
 
-wav.write(wav_l_path, fs, stereo_l)
-wav.write(wav_r_path, fs, stereo_r)
 
 def validate_recording(raw_samples, mic_normalized, ir, ch_name):
     peak_raw = np.max(np.abs(raw_samples))
@@ -227,24 +244,31 @@ def measure_channel(wav_path, ch_name):
         
     return freqs, mag_calibrated, smoothed, ir_win
 
-try:
-    freqs, raw_l, smooth_l, ir_l = measure_channel(wav_l_path, "Canal Izquierdo (Front L)")
-    time.sleep(0.4)
-    freqs, raw_r, smooth_r, ir_r = measure_channel(wav_r_path, "Canal Derecho (Front R)")
-finally:
-    print(f"[3/5] Restaurando automáticamente volumen original ({float(orig_volume_val)/10:.1f} dB) y entrada AV4 (HDMI ARC)...")
-    ync_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>{orig_volume_val}</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
-    ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>V-AUX</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
+def run_sweep_measurement():
+    configure_yamaha_for_measurement()
+    sweep_full, inv_sweep = generate_farina_sweep()
+    stereo_l = np.column_stack([(sweep_full * 32767).astype(np.int16), np.zeros(len(sweep_full), dtype=np.int16)])
+    stereo_r = np.column_stack([np.zeros(len(sweep_full), dtype=np.int16), (sweep_full * 32767).astype(np.int16)])
+    wav.write(wav_l_path, fs, stereo_l)
+    wav.write(wav_r_path, fs, stereo_r)
+    try:
+        freqs, raw_l, smooth_l, ir_l = measure_channel(wav_l_path, "Canal Izquierdo (Front L)")
+        time.sleep(0.4)
+        freqs, raw_r, smooth_r, ir_r = measure_channel(wav_r_path, "Canal Derecho (Front R)")
+    finally:
+        print(f"[3/5] Restaurando automáticamente volumen original ({float(orig_volume_val)/10:.1f} dB) y entrada AV4 (HDMI ARC)...")
+        ync_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>{orig_volume_val}</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
+        ync_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>AV4</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
 
-# Save real measurement dataset with timestamp
-ts_str = time.strftime("%Y%m%d_%H%M%S")
-out_npz_ts = f"{DATA_DIR}/medicion_real_calibracion_{ts_str}.npz"
-out_npz_latest = f"{DATA_DIR}/medicion_real_calibracion.npz"
+    ts_str = time.strftime("%Y%m%d_%H%M%S")
+    out_npz_ts = f"{DATA_DIR}/medicion_real_calibracion_{ts_str}.npz"
+    out_npz_latest = f"{DATA_DIR}/medicion_real_calibracion.npz"
+    np.savez(out_npz_ts, freqs=freqs, raw_l=raw_l, smooth_l=smooth_l, raw_r=raw_r, smooth_r=smooth_r, ir_l=ir_l, ir_r=ir_r, is_live=True)
+    np.savez(out_npz_latest, freqs=freqs, raw_l=raw_l, smooth_l=smooth_l, raw_r=raw_r, smooth_r=smooth_r, ir_l=ir_l, ir_r=ir_r, is_live=True)
+    print(f"[4/5] Datos acústicos validados y guardados en:")
+    print(f"  - {out_npz_ts}")
+    print(f"  - {out_npz_latest}")
+    print("[5/5] ¡Medición acústica completada y certificada con éxito!")
 
-np.savez(out_npz_ts, freqs=freqs, raw_l=raw_l, smooth_l=smooth_l, raw_r=raw_r, smooth_r=smooth_r, ir_l=ir_l, ir_r=ir_r)
-np.savez(out_npz_latest, freqs=freqs, raw_l=raw_l, smooth_l=smooth_l, raw_r=raw_r, smooth_r=smooth_r, ir_l=ir_l, ir_r=ir_r)
-
-print(f"[4/5] Datos acústicos validados y guardados en:")
-print(f"  - {out_npz_ts}")
-print(f"  - {out_npz_latest}")
-print("[5/5] ¡Medición acústica completada y certificada con éxito!")
+if __name__ == "__main__":
+    run_sweep_measurement()

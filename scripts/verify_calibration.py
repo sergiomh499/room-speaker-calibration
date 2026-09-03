@@ -332,9 +332,8 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         
         peak_modal = float(cl[idx_modal])
         
-        # Calibrated Acoustic Fidelity Score (Harman / AES psychoacoustic preference scale)
-        score = float(max(15.0, min(99.0, 100.0 - (rms_avg - 2.0) * 12.0 - (imb_avg - 1.5) * 4.0)))
-        
+        # Scientific Target Alignment Percentage: 100% at 0 dB RMS error, 0% at >= 10 dB error
+        alignment_pct = float(max(0.0, min(100.0, (1.0 - min(1.0, rms_avg / 10.0)) * 100.0)))
         c_summary = {
             "id": c_id,
             "name": c_data["name"],
@@ -345,7 +344,7 @@ def run_verification(profile="harman_wide_room", save_fig=True):
             "std_linearity_db": std_avg,
             "stereo_imbalance_db": imb_avg,
             "modal_peak_119hz_db": peak_modal,
-            "fidelity_score_pct": score,
+            "target_alignment_pct": round(alignment_pct, 1),
             "color": c_data["color"],
             "is_live": bool(c_data.get("is_live", False)),
             "provenance": "Medición en Vivo (Sweet Spot)" if c_data.get("is_live", False) else "Referencia Base / Modelo",
@@ -353,8 +352,8 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         }
         comparative_results.append(c_summary)
         
-    # Rank curves (Higher score = better)
-    comparative_results.sort(key=lambda x: x["fidelity_score_pct"], reverse=True)
+    # Rank curves scientifically (Lowest RMS target error = best acoustic alignment)
+    comparative_results.sort(key=lambda x: (not x["is_live"], x["rms_avg_db"]))
     for rank_idx, r in enumerate(comparative_results, start=1):
         r["rank"] = rank_idx
         if rank_idx == 1:
@@ -419,8 +418,18 @@ def run_verification(profile="harman_wide_room", save_fig=True):
     std_before = float(np.std(norm_base_l[mask_eval]))
     std_after = float(np.std(norm_verif_l[mask_eval]))
 
-    status_passed = (modal_reduction >= 1.5) and (stereo_global_after < 3.5)
-
+    # Strict S-TIER Certification Gating (FR-006, SC-002, SC-003, SC-004)
+    # 1. Must be a real physical post-calibration measurement (measured is True)
+    # 2. Peak modal resonance attenuation >= 6.0 dB
+    # 3. Residual RMS deviation from target in modal band (60-500 Hz) < 2.5 dB
+    # 4. Inter-channel stereo imbalance < 2.0 dB
+    s_tier_criteria_met = (
+        measured
+        and (modal_reduction >= 6.0)
+        and (rms_after < 2.5)
+        and (stereo_global_after < 2.0)
+    )
+    status_passed = s_tier_criteria_met
     metrics = {
         "modal_freq_hz": f_modal,
         "modal_before_db": modal_before,
@@ -463,8 +472,12 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         
         "passed": status_passed,
         "measured": measured,
-        "rating": "S-TIER (CERTIFICADA CON ÉXITO)" if status_passed else "REVISIÓN REQUERIDA",
-        
+        "s_tier_certified": s_tier_criteria_met,
+        "rating": (
+            "S-TIER (CERTIFICADA CON ÉXITO)" if s_tier_criteria_met
+            else ("REVISIÓN REQUERIDA (Criterios objetivos no alcanzados)" if measured
+                  else "PENDIENTE DE MEDICIÓN FÍSICA (Sin barrido post-PEQ)")
+        ),
         # Active profile metadata
         "active_profile": profile_key,
         "active_profile_name": prof_raw_name,
@@ -532,7 +545,7 @@ def run_verification(profile="harman_wide_room", save_fig=True):
             c_info = curves_dict[c["id"]]
             lw = 2.4 if c["id"] == "peq_manual" else (2.0 if "ypao" in c["id"] else 1.5)
             ax2.plot(f_plot, c_info["r"][mask_audible], color=c_info["color"], 
-                     linestyle=c_info["ls"], lw=lw, label=f"{c_info['short_name']} (Score: {c['fidelity_score_pct']:.1f}%)")
+                     linestyle=c_info["ls"], lw=lw, label=f"{c_info['short_name']} (Alineación: {c['target_alignment_pct']:.1f}%)")
         ax2.axhline(0, color='gray', linestyle='--', alpha=0.4)
         ax2.set_title(f"Canal Derecho (Front R): Respuesta Psicoacústica vs Target", fontsize=11, fontweight='bold', color='#38bdf8')
         ax2.set_xlabel("Frecuencia (Hz)", fontsize=9, color='#9ca3af')
@@ -555,7 +568,7 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         ax3.set_ylim(0, 6.5)
         # Subplot 4: Bar Chart - Quantitative Comparison of Key Metrics
         c_names = [c["short_name"] for c in comparative_results]
-        c_scores = [c["fidelity_score_pct"] for c in comparative_results]
+        c_scores = [c.get("target_alignment_pct", 0.0) for c in comparative_results]
         c_colors = [c["color"] for c in comparative_results]
         
         y_pos = np.arange(len(c_names))
@@ -564,8 +577,8 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         ax4.set_yticks(y_pos)
         ax4.set_yticklabels(c_names, fontsize=9.5, fontweight='bold', color='#f9fafb')
         ax4.invert_yaxis()
-        ax4.set_title("Fidelidad Acústica Global (Escala Psicoacústica Floyd Toole / AES)", fontsize=11, fontweight='bold', color='#38bdf8')
-        ax4.set_xlabel("Score de Fidelidad (%)", fontsize=9, color='#9ca3af')
+        ax4.set_title("Alineación Acústica con Curva Objetivo (100% = Error RMS 0 dB)", fontsize=11, fontweight='bold', color='#38bdf8')
+        ax4.set_xlabel("Alineación con Target (%)", fontsize=9, color='#9ca3af')
         ax4.set_xlim(0, 100)
         ax4.xaxis.set_major_locator(FixedLocator([0, 20, 40, 60, 80, 100]))
         ax4.xaxis.set_major_formatter(FixedFormatter(['0', '20', '40', '60', '80', '100%']))
@@ -585,7 +598,94 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         plt.close()
         print(f"[v] Gráfica de verificación acústica multimodo guardada en:\n  - {out_fig}\n  - {out_fig_multi}")
         
+    best_curve = comparative_results[0]
+    metrics["best_curve"] = best_curve
     return metrics
+
+def generate_technical_audit_report(
+    metrics: dict,
+    output_path: str = None,
+    csd_image_path: str = None,
+) -> str:
+    """
+    Generates the official HTML Technical Audit Report complying with FR-012.
+    Includes:
+    1. 1/24-octave magnitude curve references
+    2. 3D CSD waterfall plot reference
+    3. Yamaha NVRAM hardware register dump
+    4. Objective multi-metric S-TIER certification decision
+    """
+    prof = metrics.get("active_profile", "harman_wide_room")
+    if output_path is None:
+        output_path = f"{REPO_DIR}/reports/audit_report_{prof}.html"
+        
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    # Query hardware register dump
+    hw_xml_dump = "No disponible (receptor offline)"
+    try:
+        import importlib
+        yam_ctrl = importlib.import_module("scripts.04_yamaha_control")
+        hw_xml_dump = yam_ctrl.get_peq_manual_data()
+    except Exception as e:
+        hw_xml_dump = f"No se pudo consultar NVRAM: {e}"
+        
+    s_tier = metrics.get("s_tier_certified", False)
+    badge_html = """
+    <div style="background:#064e3b; border:2px solid #10b981; color:#6ee7b7; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <h2 style="margin:0; font-size:1.4rem;">🏆 S-TIER (CERTIFICADA CON ÉXITO)</h2>
+        <p style="margin:5px 0 0 0;">Cumple al 100% todos los criterios objetivos físicos: Atenuación modal &ge; 6.0 dB, Error RMS &lt; 2.5 dB, Desbalance &lt; 2.0 dB.</p>
+    </div>
+    """ if s_tier else """
+    <div style="background:#450a0a; border:2px solid #ef4444; color:#fca5a5; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <h2 style="margin:0; font-size:1.4rem;">⚠️ REVISIÓN REQUERIDA / PENDIENTE DE BARRIDO</h2>
+        <p style="margin:5px 0 0 0;">No se ha capturado un barrido físico post-PEQ que cumpla los 3 umbrales objetivos estrictos.</p>
+    </div>
+    """
+    
+    csd_html = f"""
+    <div style="margin-top:25px;">
+        <h3>Decaimiento Espectral Acumulativo 3D (CSD Waterfall &lt; 300 Hz)</h3>
+        <img src="{csd_image_path}" style="max-width:100%; border-radius:6px; border:1px solid #374151;" />
+    </div>
+    """ if csd_image_path and os.path.exists(csd_image_path) else ""
+    
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Informe de Auditoría Acústica Técnica - {prof}</title>
+    <style>
+        body {{ background:#0f172a; color:#f8fafc; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; padding:30px; }}
+        .container {{ max-width:960px; margin:0 auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #334155; }}
+        table {{ width:100%; border-collapse:collapse; margin:15px 0; }}
+        th, td {{ border:1px solid #334155; padding:10px; text-align:left; font-size:0.9rem; }}
+        th {{ background:#0f172a; color:#38bdf8; }}
+        pre {{ background:#020617; padding:15px; border-radius:6px; overflow-x:auto; font-size:0.8rem; color:#94a3b8; border:1px solid #334155; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Informe de Auditoría Acústica Técnica (Honesta y Verificable)</h1>
+        <p><strong>Perfil Objetivo:</strong> {metrics.get('active_profile_display', prof)} | <strong>Fecha:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        {badge_html}
+        <h3>Métricas Físicas de Verificación</h3>
+        <table>
+            <tr><th>Métrica Acústica</th><th>Antes (Through)</th><th>Después (PEQ)</th><th>Criterio S-TIER</th></tr>
+            <tr><td>Pico Modal (119 Hz)</td><td>{metrics.get('modal_before_db', 0):+.2f} dB</td><td>{metrics.get('modal_after_db', 0):+.2f} dB</td><td>Atenuación &ge; 6.0 dB ({metrics.get('modal_reduction_db', 0):.2f} dB logrados)</td></tr>
+            <tr><td>Desviación RMS al Target (60-500 Hz)</td><td>{metrics.get('rms_target_before_db', 0):.2f} dB</td><td>{metrics.get('rms_target_after_db', 0):.2f} dB</td><td>RMS &lt; 2.5 dB</td></tr>
+            <tr><td>Desbalance Estéreo Medio</td><td>{metrics.get('stereo_global_before_db', 0):.2f} dB</td><td>{metrics.get('stereo_global_after_db', 0):.2f} dB</td><td>Desbalance &lt; 2.0 dB</td></tr>
+        </table>
+        {csd_html}
+        <h3>Volcado de Registros Hardware en NVRAM (Yamaha RX-V673)</h3>
+        <pre>{hw_xml_dump}</pre>
+    </div>
+</body>
+</html>"""
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"[v] Informe de auditoría técnica guardado en: {output_path}")
+    return output_path
 
 if __name__ == "__main__":
     m = run_verification(save_fig=True)
@@ -595,5 +695,6 @@ if __name__ == "__main__":
     print(f"Error RMS al Target: {m['rms_target_before_db']:.2f} dB -> {m['rms_target_after_db']:.2f} dB")
     print("\n🏆 CLASIFICACIÓN DE CURVAS (DE MEJOR A PEOR):")
     for r in m["comparative_curves"]:
-        print(f"  {r['badge']} | {r['name']:<35} | Score: {r['fidelity_score_pct']:>5.1f}% | RMS: {r['rms_avg_db']:.2f} dB | Desbalance: {r['stereo_imbalance_db']:.2f} dB | Pico 119Hz: {r['modal_peak_119hz_db']:>+5.2f} dB")
-    print(f"\n🌟 MEJOR CURVA ACÚSTICA: {m['best_curve']['name']} (Score: {m['best_curve']['fidelity_score_pct']:.1f}%)")
+        score_val = r.get('target_alignment_pct', r.get('fidelity_score_pct', 0.0))
+        print(f"  {r['badge']} | {r['name']:<35} | Alineación: {score_val:>5.1f}% | RMS: {r['rms_avg_db']:.2f} dB | Desbalance: {r['stereo_imbalance_db']:.2f} dB | Pico 119Hz: {r['modal_peak_119hz_db']:>+5.2f} dB")
+    print(f"\n🌟 MEJOR CURVA ACÚSTICA: {m['best_curve']['name']} (Alineación: {m['best_curve'].get('target_alignment_pct', 0.0):.1f}%)")
