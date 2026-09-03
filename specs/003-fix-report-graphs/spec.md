@@ -5,6 +5,11 @@
 **Status**: Ready for Review
 **Input**: User description: "el informe tecnico graficas etc parece incorrectas y que no se actualizan, verifica que todo este correcto"
 
+## Clarifications
+
+### Session 2026-09-03
+- Q: ¿De qué fuente acústica debe calcularse la Cascada Espectral 3D (Waterfall CSD) para que refleje el decaimiento temporal real sin ceros? → A: Usar la respuesta al impulso medida real del Punto 1 (Sweet Spot / Posición Principal de Escucha) ya que preserva la fase física real y las colas de resonancia acústica sin cancelaciones por promediado.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Real-time Synchronized Technical Report with Active Profile Awareness (Priority: P1)
@@ -31,10 +36,8 @@ As an audio enthusiast reviewing acoustic plots, I want all displayed graphs (sp
 **Independent Test**: Can be tested by executing a new sweep, observing that all figure assets update their file modification timestamps, and verifying that the web UI displays fresh images with cache-busting parameters.
 
 **Acceptance Scenarios**:
-
-1. **Given** a completed 5-point measurement, **When** the analysis pipeline runs, **Then** every displayed figure asset (`promedio_espacial_multipunto.png`, `respuesta_acustica_real.png`, `waterfall_csd_comparison.png`, and impulse/RT60 decay) is generated afresh from the actual recorded audio data.
+1. **Given** a completed 5-point measurement, **When** the analysis pipeline runs, **Then** every displayed figure asset (`promedio_espacial_multipunto.png`, `respuesta_acustica_real.png`, `waterfall_csd_comparison.png`, and impulse/RT60 decay) is generated afresh from the actual recorded audio data, sourcing the 3D Waterfall CSD and impulse decay strictly from the physical Sweet Spot (Punto 1) impulse response.
 2. **Given** the web interface results panel, **When** figures are rendered, **Then** all image elements include dynamic cache-busting query strings and strict HTTP cache-control headers preventing browser cache staleness.
-
 ---
 
 ### User Story 3 - Unification and Instant Delivery of Verification Audits (Priority: P3)
@@ -58,15 +61,11 @@ As a system operator validating acoustic correction, I want the multi-mode verif
 - **Microphone disconnection or clipping during sweep**: If SNR is insufficient, the system must abort figure generation with an informative error rather than overwriting valid previous figures with corrupted artifacts.
 - **Offline AVR during hardware readback**: If the Yamaha receiver is powered off or unreachable, the report must display "Hardware unreachable (Offline)" in the register section without failing the acoustic analysis.
 
----
-
-## Requirements *(mandatory)*
-
 ### Functional Requirements
 
 - **FR-001**: System MUST accept an active profile parameter when generating the technical PDF report and calculate simulated/measured curves against that specific profile.
 - **FR-002**: System MUST dynamically generate all acoustic figures referenced in the report and web UI directly from the current measurement session data (`.npz` files).
-- **FR-003**: System MUST compute and generate a dynamic decay / impulse response figure (`respuesta_impulso_real.png` or dynamically calculated RT60) for every run, completely replacing any static or stale legacy image files.
+- **FR-003**: System MUST compute the 3D Waterfall CSD and impulse decay using the physical impulse response from Punto 1 (Sweet Spot), guaranteeing non-zero time-frequency decay analysis, and replace any static or stale legacy image files.
 - **FR-004**: System MUST serve all report and figure endpoints with `Cache-Control: no-cache, no-store, must-revalidate` and appropriate cache-busting tokens.
 - **FR-005**: System MUST synchronize the download paths between the web server endpoint (`/api/download_pdf`), the session storage, and the generation script output directory.
 - **FR-006**: System MUST ensure narrative text in reports dynamically reflects computed metrics (such as detected modal peak frequencies and attenuation values) rather than fixed hardcoded phrases.
