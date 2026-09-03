@@ -16,6 +16,8 @@
 - Q: How should microphone calibration data be loaded and managed when a specific measurement microphone is selected? → A: Built-in standard curves for supported models (Pixel 9 Pro, UMIK-1 90°, Dayton UMM-6) + optional .cal/.txt upload for individual mic serial calibration.
 - Q: How should the 5 measurement points within the tight sweet-spot cluster be mathematically weighted for the optimization target? → A: 70% Center Sweet Spot (Point 1) + 30% Spatial Average of satellite points 2–5.
 - Q: How should inter-channel level normalization and modal peak detection thresholds be calibrated between Front L and Front R before computing PEQ filters? → A: Broadband 300 Hz – 3 kHz average normalization with adaptive +1.0 dB modal peak threshold.
+- Q: Which psychoacoustic curve smoothing algorithm should the optimizer apply to the measured raw sweep before calculating PEQ filters? → A: Variable Smoothing (Var) — adaptive resolution (heavy in sub-bass nulls, surgical in 80–400 Hz modal band).
+- Q: How should the measurement interface guide and enforce the microphone's physical orientation during the tight sweet-spot calibration sweeps? → A: Mandatory 90° Vertical (pointing straight up at ceiling) with 90° calibration curve.
 
 ---
 
@@ -75,18 +77,19 @@ As an audio calibrator, I want an interactive diagnostic visualizer comparing Fr
 
 ### Functional Requirements
 
-- **FR-001**: The calibration measurement workflow MUST provide dedicated guidance for a "Tight Sweet-Spot Cluster" (maximum radius 20 cm around listener ear center), replacing wide-room measurement positioning.
+- **FR-001**: The calibration measurement workflow MUST provide dedicated guidance for a "Tight Sweet-Spot Cluster" (maximum radius 20 cm around listener ear center), enforcing a mandatory 90° vertical microphone orientation (pointing at ceiling) with corresponding 90° diffuse-field calibration curve.
 - **FR-002**: The spatial averaging algorithm MUST compute the optimization baseline using a 70% weighting for the center sweet-spot capture (Point 1) and 30% for the spatial average of the 4 surrounding points (15 cm left, right, forward, and elevated).
-- **FR-003**: The PEQ optimization engine MUST use broadband energy averaging across 300 Hz – 3 kHz for baseline reference normalization (rather than a single 1 kHz bin), with an adaptive peak detection threshold of +1.0 dB above target, ensuring real room modes on both Front L and Front R are reliably identified and corrected.
-- **FR-004**: The system MUST implement a persistent hardware configuration schema (`config/hardware.json`) storing selected microphone, amplifier, and speaker profiles.
-- **FR-005**: The web calibration dashboard MUST provide an intuitive UI panel allowing users to view and switch the active:
+- **FR-003**: The PEQ optimization engine MUST apply REW-standard Variable Smoothing (Var) to the raw spatial frequency response prior to peak extraction, avoiding over-correction of sub-bass nulls while preserving high resolution in the 80–400 Hz modal band.
+- **FR-004**: The PEQ optimization engine MUST use broadband energy averaging across 300 Hz – 3 kHz for baseline reference normalization (rather than a single 1 kHz bin), with an adaptive peak detection threshold of +1.0 dB above target, ensuring real room modes on both Front L and Front R are reliably identified and corrected.
+- **FR-005**: The system MUST implement a persistent hardware configuration schema (`config/hardware.json`) storing selected microphone, amplifier, and speaker profiles.
+- **FR-006**: The web calibration dashboard MUST provide an intuitive UI panel allowing users to view and switch the active:
   - Microphone profile (with pre-loaded standard calibration curves for Pixel 9 Pro, miniDSP UMIK-1 90°, and Dayton UMM-6, plus an optional `.cal`/`.txt` upload endpoint for user-specific serial calibration files).
   - Amplifier profile (with associated PEQ band counts and discrete parameter matrices).
   - Loudspeaker profile (with low-frequency cutoffs, crossover frequencies, and voicing compensation).
-- **FR-006**: The optimization engine MUST ingest the active hardware profile from `config/hardware.json` and dynamically bind optimization limits (such as speaker low-frequency extension and crossover compensation) to the selected hardware.
-- **FR-007**: Default hardware configuration MUST be initialized to: Microphone: `Google Pixel 9 Pro (Calibrated Mic)`; Amplifier: `Yamaha RX-V673 (YNC XML Lan)`; Speakers: `Q Acoustics 3020i (Bookshelf)`.
-- **FR-008**: Generated technical PDF reports MUST dynamically reflect the selected hardware profile components in Table 1 (System Configuration).
-- **FR-009**: Hardware selection changes MUST NOT issue destructive writes to the amplifier until an explicit calibration deployment or test action is triggered.
+- **FR-007**: The optimization engine MUST ingest the active hardware profile from `config/hardware.json` and dynamically bind optimization limits (such as speaker low-frequency extension and crossover compensation) to the selected hardware.
+- **FR-008**: Default hardware configuration MUST be initialized to: Microphone: `Google Pixel 9 Pro (Calibrated Mic)`; Amplifier: `Yamaha RX-V673 (YNC XML Lan)`; Speakers: `Q Acoustics 3020i (Bookshelf)`.
+- **FR-009**: Generated technical PDF reports MUST dynamically reflect the selected hardware profile components in Table 1 (System Configuration).
+- **FR-010**: Hardware selection changes MUST NOT issue destructive writes to the amplifier until an explicit calibration deployment or test action is triggered.
 
 ---
 
