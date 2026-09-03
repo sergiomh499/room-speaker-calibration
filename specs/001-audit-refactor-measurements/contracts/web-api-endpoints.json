@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WebCalibrationServerAPI",
+  "description": "API contracts for the acoustic calibration daemon endpoints",
+  "type": "object",
+  "properties": {
+    "/api/optimize_peq": {
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "enum": ["POST"] },
+        "requestBody": {
+          "type": "object",
+          "required": ["profile_key"],
+          "properties": {
+            "profile_key": { "type": "string" },
+            "epoch_index": { "type": "integer" }
+          }
+        },
+        "response": {
+          "type": "object",
+          "required": ["success", "peq_matrix", "predicted_improvement"],
+          "properties": {
+            "success": { "type": "boolean" },
+            "peq_matrix": { "type": "object" },
+            "predicted_improvement": { "type": "object" }
+          }
+        }
+      }
+    },
+    "/api/deploy_peq": {
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "enum": ["POST"] },
+        "requestBody": {
+          "type": "object",
+          "required": ["peq_matrix"],
+          "properties": {
+            "peq_matrix": { "type": "object" }
+          }
+        },
+        "response": {
+          "type": "object",
+          "required": ["success", "readback_verified", "divergent_bands"],
+          "properties": {
+            "success": { "type": "boolean" },
+            "readback_verified": { "type": "boolean" },
+            "divergent_bands": { "type": "array" }
+          }
+        }
+      }
+    },
+    "/api/run_epoch_verification": {
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "enum": ["POST"] },
+        "requestBody": {
+          "type": "object",
+          "required": ["profile_key", "epoch_id"],
+          "properties": {
+            "profile_key": { "type": "string" },
+            "epoch_id": { "type": "string" }
+          }
+        },
+        "response": {
+          "type": "object",
+          "required": ["success", "metrics", "s_tier_certified", "report_url"],
+          "properties": {
+            "success": { "type": "boolean" },
+            "metrics": { "type": "object" },
+            "s_tier_certified": { "type": "boolean" },
+            "report_url": { "type": "string" }
+          }
+        }
+      }
+    },
+    "/api/epoch_history": {
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "enum": ["GET"] },
+        "response": {
+          "type": "object",
+          "required": ["epochs", "convergence_trend"],
+          "properties": {
+            "epochs": { "type": "array" },
+            "convergence_trend": { "type": "array" }
+          }
+        }
+      }
+    }
+  }
+}
