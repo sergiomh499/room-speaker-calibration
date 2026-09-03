@@ -8,6 +8,13 @@
 
 **Input**: User description: "haz mas compacta la parte de seleccion de perfil"
 
+
+## Clarifications
+
+### Session 2026-09-03
+
+- Q: Should clicking a compact profile card immediately write the configuration to the Yamaha AVR hardware, or should it preview the PEQ filters locally and require an explicit apply action? → A: Option A: Preview locally on click; require explicit button click to write to Yamaha AVR.
+- Q: How should the detailed pros, cons, and community backing be displayed in the compact selector? → A: Option A: Minimal cards; single shared inspector panel below the grid showing details for the active selection.
 ---
 
 ## User Scenarios & Testing *(mandatory)*
@@ -66,9 +73,9 @@ As a user calibrating from either a desktop monitor, tablet, or smartphone near 
 
 - **FR-001**: The community profiles panel MUST render all available target curves in a compact visual layout (such as a 3-column CSS grid or compact selector chips) instead of full-page vertical cards.
 - **FR-002**: Each compact profile item MUST prominently display the profile rank/badge (e.g., `#1 RECOMENDADA`, `#2 SEGUNDO PUESTO`), the profile name, and the category tag.
-- **FR-003**: Clicking anywhere on a profile item MUST directly select that profile, trigger active highlighting, and reload Section 3 (`Filtros PEQ Calculados`) with that profile's optimized parameters.
+- **FR-003**: Clicking anywhere on a profile item MUST directly select that profile as a local preview, trigger active highlighting, update the on-demand detail inspector, and reload Section 3 (`Filtros PEQ Calculados`) with that profile's optimized parameters, without issuing destructive network writes to the Yamaha AVR until the user explicitly clicks the deployment button.
 - **FR-004**: The compact selector MUST clearly distinguish the currently active profile using high-contrast border and background styling (e.g., cyan `#38bdf8` accent).
-- **FR-005**: Detailed information (community backing, description, advantages, drawbacks) MUST be housed in an on-demand collapsible area or dedicated single-card inspector rather than repeated 9 times.
+- **FR-005**: Detailed information (community backing, description, advantages, drawbacks) MUST be housed in a single shared active profile inspector panel located directly below the compact grid rather than repeated inside each individual card, maintaining minimal card heights and clean separation between quick selection and deep technical inspection.
 - **FR-006**: Total vertical height consumed by the unexpanded profile selection section MUST NOT exceed 380 pixels on standard desktop viewports (1080p).
 - **FR-007**: The compact profile component MUST maintain 100% compatibility with existing backend endpoints (`/api/community_profiles`, `/api/apply_profile`, `/api/verification_status`, and `/api/verification_comparison`).
 - **FR-008**: Profile switching MUST preserve the profile-scoping contract mandated by Principle III of the project constitution.
