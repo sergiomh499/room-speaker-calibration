@@ -83,4 +83,6 @@ Access `http://127.0.0.1:53317/` in browser:
 1. Confirm `#wizard-stepper` renders all 6 navigation tabs.
 2. Verify clicking "Paso 2 (Medición)" jumps directly to the multipoint measurement view.
 3. Verify clicking "Paso 5 (Verificación)" jumps directly to the acoustic verification view.
+4. Confirm that the microphone placement cluster is rendered as a clean SVG vector graphic with highlighted sweet spot coordinates (±15 cm) without ASCII text.
+5. Verify that modal resonance diagnostics are displayed within Step 3 (Optimization & Profiles) rather than Step 1.
 ```

@@ -92,3 +92,15 @@ Structure the web calibration interface as a modular, paginated step-by-step wiz
 - **UX Pain Point**: A single-page monolithic scroll forces users to re-run the entire calibration session if a single measurement point suffers from background noise (cough, car horn, door slam).
 - **State Granularity**: By decoupling each phase into distinct viewports (`#page-preflight`, `#page-multipoint`, `#page-optimizer`, `#page-deploy`, `#page-verification`, `#page-reports`) backed by an active step manager in JavaScript, the user has full navigational freedom.
 - **Non-Destructive Point Re-measurement**: Individual point endpoints (`/api/record_point?point=N` and `/api/clear_point?point=N`) permit re-recording Point 3 without affecting Points 1, 2, 4, or 5. Once updated, the spatial average is immediately re-calculated in background.
+
+---
+
+## 8. Mobile Wizard Layout Hierarchy & SVG Vector Graphics Standard
+
+### Decision
+Relocate modal resonance diagnostics to Step 3 (Optimization & Profiles) and require vector graphics (SVG) for geometric and cluster representations instead of ASCII characters.
+
+### Technical Rationale
+- **Information Context**: Diagnostic graphs and resonance Q values reflect empirical measurement outcomes; displaying them in Step 1 (Hardware Preflight) introduces unnecessary friction and confusion before the room has even been swept.
+- **Mobile Readability**: ASCII text diagrams suffer from font proportional scaling and line breaks on narrow mobile viewports (< 480px), corrupting spatial understanding. SVG graphics maintain resolution independence, precise circular coordinates, and clean color contrasts matching the "Dark Moderno Studio" design system.
+- **Syntactic Resilience**: Strict closure of async error flows (`try/catch/finally`) prevents catastrophic UI lockups on mobile browsers where uncaught promises freeze touch event delegation.

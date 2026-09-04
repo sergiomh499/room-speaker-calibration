@@ -126,3 +126,16 @@ Initiates a sweep measurement for the specified point. Upon completion, automati
    - `#btn-wizard-prev`: Navigate to the preceding phase.
    - `#btn-wizard-next`: Navigate to the next phase (enabled when step criteria pass).
    - `#btn-repeat-point`: Re-arms and measures strictly the active point in Step 2.
+
+---
+
+## 6. UI Vector Graphics and Diagnostic Panel Placement Contract
+
+1. **Step 1 (Hardware & Setup)**:
+   - Geometry representation MUST be embedded as `<svg>` rendering the 5 cluster coordinates and relative spacing ($\pm 15\text{ cm}$) centered on the sweet spot.
+   - Modal resonance and acoustic mode diagnostic panels MUST NOT be rendered in Step 1.
+2. **Step 3 (Optimization & Profiles)**:
+   - Modal resonance diagnostic (`#modal-symmetry-content`) and standing wave metrics MUST be rendered under Step 3 alongside calculated PEQ filters.
+   - Visual representation MUST support responsive collapsible accordions for technical deep dives (`.info-accordion`).
+3. **Client-Side Event Resilience**:
+   - Navigation triggers (`goToWizardStep(N)`) MUST execute within unblocked synchronous or fully caught asynchronous wrappers to prevent navigation stalls.

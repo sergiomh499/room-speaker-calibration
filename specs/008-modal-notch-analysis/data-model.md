@@ -57,6 +57,8 @@ Represents an independent page/phase within the step-by-step calibration assista
 | `is_navigable` | `bool` | True if the user can click directly to this step |
 | `can_advance` | `bool` | True if the step's completion criteria are satisfied |
 
+| `associated_diagnostic` | `string` | Diagnostic components mounted within this step (`modal_diagnostic` in step 3) |
+| `vector_graphics` | `string[]` | SVG assets embedded in step template |
 ### 5. DynamicPEQOptimizationResult
 Encapsulates the mathematical output of `optimize_stereo_peq()` on empirical measurement data.
 
