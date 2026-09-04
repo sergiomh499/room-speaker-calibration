@@ -46,7 +46,7 @@ def run_calibration(
     target_key: str = "harman_wide_room",
     use_spatial_avg: bool = True,
     push_yamaha: bool = False,
-    sweet_spot_weight: float = 0.8,
+    sweet_spot_weight: float = 0.7,
 ) -> dict:
     targets = load_json(CONFIG_DIR / "targets.json")
     if target_key not in targets:
@@ -68,12 +68,13 @@ def run_calibration(
     freqs = d_sweet["freqs"]
     sweet_l = d_sweet["smooth_l"] if "smooth_l" in d_sweet else d_sweet["raw_l"]
     sweet_r = d_sweet["smooth_r"] if "smooth_r" in d_sweet else d_sweet["raw_r"]
-    
-    # FR-005: 1.0 kHz anchor level normalization relative to target
-    idx_1k = np.argmin(np.abs(freqs - 1000.0))
-    sweet_l = sweet_l - sweet_l[idx_1k]
-    sweet_r = sweet_r - sweet_r[idx_1k]
-    
+    # FR-002: Apply REW Variable Smoothing (Var) and broadband 300Hz-3kHz normalization
+    from scripts.peq_optimizer import variable_smooth, broadband_normalize
+    sweet_l = broadband_normalize(freqs, sweet_l)
+    sweet_r = broadband_normalize(freqs, sweet_r)
+    sweet_l = variable_smooth(freqs, sweet_l)
+    sweet_r = variable_smooth(freqs, sweet_r)
+
     spatial_l = None
     spatial_r = None
     if use_spatial_avg and spatial_avg_file.exists():
@@ -81,9 +82,10 @@ def run_calibration(
         sp_f = d_spatial["freqs"]
         sp_l = d_spatial["smooth_l"] if "smooth_l" in d_spatial else d_spatial["raw_l"]
         sp_r = d_spatial["smooth_r"] if "smooth_r" in d_spatial else d_spatial["raw_r"]
-        idx_1k_sp = np.argmin(np.abs(sp_f - 1000.0))
-        sp_l = sp_l - sp_l[idx_1k_sp]
-        sp_r = sp_r - sp_r[idx_1k_sp]
+        sp_l = broadband_normalize(sp_f, sp_l)
+        sp_r = broadband_normalize(sp_f, sp_r)
+        sp_l = variable_smooth(sp_f, sp_l)
+        sp_r = variable_smooth(sp_f, sp_r)
         spatial_l = np.interp(freqs, sp_f, sp_l)
         spatial_r = np.interp(freqs, sp_f, sp_r)
     # 2. Build mathematical target curve
@@ -126,7 +128,9 @@ def run_calibration(
 
     print("=== MOTOR DE OPTIMIZACIÓN ACÚSTICA DINÁMICA REAL ===")
     print(f"Perfil Objetivo:   {target_info['name']}")
-    print(f"Ponderación:       80% Sweet Spot / 20% Promedio Espacial Multipunto")
+    print(f"Ponderación:       70% Sweet Spot / 30% Promedio Espacial Cluster (Tight 15-20cm)")
+    print(f"Suavizado:         Variable Smoothing (Var) — 2026 Pro")
+    print(f"Normalización:     Banda Ancha 300 Hz – 3 kHz (anti-dip 1 kHz)")
     print(f"Límite Schroeder:  500 Hz (Cero boost en agudos)")
     print(f"Tope de Boost:     +3.0 dB")
     print(f"Calculando solución matemática óptima...")

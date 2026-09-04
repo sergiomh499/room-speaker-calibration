@@ -40,6 +40,83 @@ GAIN_STEP_DB = 0.5
 SCHROEDER_FREQ_HZ = 500.0
 MAX_BANDS_PER_CHANNEL = 7
 
+def variable_smooth(freqs_hz: np.ndarray, response_db: np.ndarray) -> np.ndarray:
+    """
+    REW-standard Variable Smoothing (Var).
+    Applies heavy 1/3-octave smoothing at sub-bass to prevent attempting to equalize
+    narrow physical cancellation nulls, and high-resolution 1/24-1/12 octave smoothing
+    in the modal band (80-400 Hz) to clearly resolve genuine room mode standing waves.
+    """
+    freqs_hz = np.asarray(freqs_hz, dtype=np.float64)
+    response_db = np.asarray(response_db, dtype=np.float64)
+    smoothed = np.copy(response_db)
+    log_f = np.log10(np.maximum(freqs_hz, 1.0))
+    n = len(freqs_hz)
+    if n < 3:
+        return smoothed
+    window = np.ones(n, dtype=np.float64)
+    # Heavy 1/3-octave smoothing below 80 Hz
+    for i, f in enumerate(freqs_hz):
+        if f < 80.0:
+            window[i] = 12.0  # ~1/3 octave
+        elif f < 400.0:
+            window[i] = 3.0  # ~1/12 octave (surgical for modal band)
+        elif f < 1000.0:
+            window[i] = 6.0
+        else:
+            window[i] = 6.0  # ~1/6 octave
+    for i in range(n):
+        # Width in log-frequency domain
+        w = window[i]
+        df = w * 0.05  # smoothing radius in log-freq
+        lo = np.searchsorted(log_f, log_f[i] - df)
+        hi = np.searchsorted(log_f, log_f[i] + df)
+        if hi > lo:
+            smoothed[i] = np.mean(response_db[lo:hi])
+    return smoothed
+
+
+def broadband_normalize(
+    freqs_hz: np.ndarray,
+    response_db: np.ndarray,
+    low_hz: float = 300.0,
+    high_hz: float = 3000.0,
+) -> np.ndarray:
+    """
+    Replaces single-frequency anchor normalization (1.0 kHz bin) with broadband
+    logarithmic energy averaging between `low_hz` and `high_hz`. Immune to
+    localized narrow reflection dips in the 1 kHz band.
+    """
+    freqs_hz = np.asarray(freqs_hz, dtype=np.float64)
+    response_db = np.asarray(response_db, dtype=np.float64)
+    mask = (freqs_hz >= low_hz) & (freqs_hz <= high_hz)
+    if not np.any(mask):
+        return response_db
+    baseline = np.mean(response_db[mask])
+    return response_db - baseline
+
+
+def load_hardware_profile(
+    config_path: str = "config/hardware.json",
+    active_only: bool = True,
+) -> Dict[str, Any]:
+    """Loads the persistent hardware configuration and returns active profile data."""
+    path = pathlib.Path(config_path)
+    if not path.is_absolute():
+        path = pathlib.Path(__file__).resolve().parent.parent / config_path
+    with open(path, "r", encoding="utf-8") as f:
+        hw = json.load(f)
+    if not active_only:
+        return hw
+    a = hw["active"]
+    return {
+        "active": a,
+        "microphone": hw["microphones"][a["microphone"]],
+        "amplifier": hw["amplifiers"][a["amplifier"]],
+        "speakers": hw["speakers"][a["speakers"]],
+    }
+
+
 
 def snap_frequency(freq_hz: float) -> float:
     """Snaps a continuous frequency to the closest discrete Yamaha frequency."""
