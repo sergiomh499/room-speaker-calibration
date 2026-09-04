@@ -20,10 +20,10 @@
     "bands": {
       "Band 1": {
         "freq": 315.0,
-        "q_l": 0.5,
-        "q_r": 0.5,
-        "gain_l": -1.5,
-        "gain_r": -2.5,
+        "q_l": 0.794,
+        "q_r": 0.794,
+        "gain_l": -2.5,
+        "gain_r": -3.0,
         "desc": "Modo modal compartido (315.0 Hz)"
       },
       "Band 2": {
