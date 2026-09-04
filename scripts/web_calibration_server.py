@@ -71,53 +71,106 @@ HTML_CONTENT = """<!DOCTYPE html>
 <title>Calibración Acústica - Pixel 9 Pro</title>
 <style>
   :root {
-    --bg: #0f172a;
-    --card: #1e293b;
+    --bg: #090d16;
+    --card: #111827;
+    --card-hover: #172033;
+    --card-header: #1f293d;
     --primary: #38bdf8;
-    --accent: #22c55e;
+    --primary-dark: #0284c7;
+    --accent: #10b981;
     --text: #f8fafc;
     --text-dim: #94a3b8;
-    --border: #334155;
+    --border: #1e293b;
+    --border-highlight: #334155;
     --warn: #f59e0b;
     --danger: #ef4444;
   }
+  * { box-sizing: border-box; }
   body {
     margin: 0;
-    padding: 16px;
+    padding: 12px;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    padding-bottom: 40px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
+    padding-bottom: 50px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
   }
-  h1 { font-size: 1.25rem; margin: 0 0 4px 0; color: var(--primary); }
-  .subtitle { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px; }
-  .device-badge {
-    display: inline-block;
-    background: #0369a1;
-    color: #fff;
-    padding: 4px 10px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
+  .header-container {
+    text-align: center;
     margin-bottom: 14px;
+    padding: 6px 0;
+  }
+  h1 { font-size: 1.2rem; margin: 0 0 2px 0; color: #f8fafc; font-weight: 700; letter-spacing: -0.02em; }
+  .subtitle { font-size: 0.78rem; color: var(--primary); margin-bottom: 6px; font-weight: 500; }
+  .device-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    color: #7dd3fc;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
   }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 14px;
-    margin-bottom: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+    margin-bottom: 14px;
+    box-shadow: 0 8px 20px -4px rgba(0,0,0,0.35);
+    transition: border-color 0.2s;
   }
   .card-title {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
-  .card-desc { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px; line-height: 1.35; }
+  .card-desc { font-size: 0.76rem; color: var(--text-dim); margin-bottom: 10px; line-height: 1.4; }
+  .info-accordion {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .info-accordion summary {
+    padding: 8px 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .info-accordion summary::-webkit-details-marker { display: none; }
+  .info-accordion summary::after {
+    content: "▼";
+    font-size: 0.6rem;
+    transition: transform 0.2s;
+  }
+  .info-accordion[open] summary::after {
+    transform: rotate(180deg);
+  }
+  .info-accordion-content {
+    padding: 8px 10px;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: #cbd5e1;
+    line-height: 1.45;
+  }
   .status-badge {
     font-size: 0.72rem;
     padding: 2px 8px;
@@ -552,40 +605,44 @@ HTML_CONTENT = """<!DOCTYPE html>
   .wizard-stepper {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 8px 12px;
-    margin-bottom: 18px;
+    justify-content: flex-start;
+    background: rgba(17, 24, 39, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 16px;
     gap: 6px;
     overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
+  .wizard-stepper::-webkit-scrollbar { display: none; }
   .wizard-step-chip {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    background: #1e293b;
-    color: #94a3b8;
-    font-size: 0.75rem;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.74rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
     border: 1px solid transparent;
+    flex-shrink: 0;
   }
   .wizard-step-chip.active {
-    background: #0284c7;
-    color: #ffffff;
-    border-color: #38bdf8;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
   }
   .wizard-step-chip.completed {
-    background: rgba(16, 185, 129, 0.15);
+    background: rgba(16, 185, 129, 0.10);
     color: #34d399;
-    border-color: rgba(16, 185, 129, 0.4);
+    border-color: rgba(16, 185, 129, 0.25);
   }
   .step-num {
     display: inline-flex;
@@ -647,10 +704,11 @@ HTML_CONTENT = """<!DOCTYPE html>
 </style>
 </head>
 <body>
-<h1>Calibración Acústica</h1>
-<div class="subtitle">Yamaha RX-V673 + Q Acoustics 3020i</div>
-<div class="device-badge">🎤 Sonda: Google Pixel 9 Pro (MEMS Uncompressed)</div>
-
+<div class="header-container">
+  <h1>Calibración Acústica</h1>
+  <div class="subtitle">Yamaha RX-V673 + Q Acoustics 3020i</div>
+  <div class="device-badge">🎤 Sonda: Google Pixel 9 Pro (MEMS Uncompressed)</div>
+</div>
 <!-- WIZARD STEPPER -->
 <div class="wizard-stepper" id="wizard-stepper">
   <div class="wizard-step-chip active" data-step="1" onclick="goToWizardStep(1)">
@@ -681,31 +739,18 @@ HTML_CONTENT = """<!DOCTYPE html>
 
 <!-- STEP 1: HARDWARE & PREFLIGHT -->
 <div class="wizard-page active" id="wizard-page-1">
-<div class="card" id="tight-cluster-card" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); margin-bottom: 14px;">
-  <div class="card-title" style="color: #fbbf24; font-size: 0.85rem; margin-bottom: 4px;">
-    <span>🎯 Cluster Estrecho de Sweet Spot (Calibración Multipunto 2026 Pro)</span>
-    <span class="status-badge ok" id="tight-cluster-badge">15-20 cm</span>
+<div class="card" id="step1-focus-card" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.04);">
+  <div class="card-title">
+    <span>🎯 Preparación y Cadena de Hardware</span>
+    <span class="status-badge ok" id="hardware-status-badge">PASO 1 / 6</span>
   </div>
-  <div class="card-desc" style="font-size: 0.75rem; margin-bottom: 6px;">
-    5 puntos de medición confinados a una esfera de <b>15-20 cm</b> alrededor del oído del oyente (Punto 1: Sweet Spot central, 70% de peso). Ponderación espacial 70% central / 30% promedio satélites. Micrófono OBLIGATORIO a <b>90° vertical (apuntando al techo)</b>.
+  <div class="card-desc">
+    Verifica tu hardware y la posición del micrófono a 90° (apuntando al techo) en el punto de escucha central (Sweet Spot).
   </div>
-  <pre style="font-family: monospace; font-size: 0.65rem; color: #fcd34d; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin: 0;">
-       [ Punto 5: +15 cm Arriba (Cenital) ]
-                         |
-  [ Punto 2: -15 cm Izq ] -- [ Punto 1: SWEET SPOT (MLP) ] -- [ Punto 3: +15 cm Der ]
-                         |
-       [ Punto 4: +15 cm Delante (Hacia TV) ]
-  </pre>
-</div>
 
-<div class="card" id="hardware-config-panel" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); margin-bottom: 14px;">
-  <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 4px;">
-    <span>🔧 Configuración de Hardware & Cadena Electroacústica (2026 Pro)</span>
-    <span class="status-badge ok" id="hardware-status-badge">ACTIVO</span>
-  </div>
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 10px;">
+  <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
     <div>
-      <label style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">🎤 MICRÓFONO DE MEDICIÓN (90° VERTICAL)</label>
+      <label style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">🎤 Micrófono de Medición (90° Vertical)</label>
       <select id="select-mic" class="input-select" onchange="onHardwareChange()">
         <option value="pixel_9_pro_calibrated">Google Pixel 9 Pro (Tethered Acoustic)</option>
         <option value="minidsp_umik1">miniDSP UMIK-1 (USB Calibrado 90°)</option>
@@ -714,14 +759,14 @@ HTML_CONTENT = """<!DOCTYPE html>
       </select>
     </div>
     <div>
-      <label style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">🎛️ AMPLIFICADOR / RECEPTOR AV</label>
+      <label style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">🎛️ Amplificador / Receptor AV</label>
       <select id="select-amp" class="input-select" onchange="onHardwareChange()">
         <option value="yamaha_rx_v673">Yamaha RX-V673 (7 Bandas PEQ / YNC LAN)</option>
         <option value="generic_avr">Receptor AV Genérico (Exportación Manual)</option>
       </select>
     </div>
     <div>
-      <label style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">🔊 ALTAVOCES PRINCIPALES (FRONT L / R)</label>
+      <label style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">🔊 Altavoces Frontales (L / R)</label>
       <select id="select-speakers" class="input-select" onchange="onHardwareChange()">
         <option value="q_acoustics_3020i">Q Acoustics 3020i (F3: 64Hz, Dip Crossover: 2.52kHz)</option>
         <option value="generic_bookshelf">Altavoces de Estantería Genéricos (F3: 80Hz)</option>
@@ -729,41 +774,34 @@ HTML_CONTENT = """<!DOCTYPE html>
       </select>
     </div>
   </div>
-  <div style="font-size: 0.7rem; color: #64748b; margin-top: 8px; font-style: italic;">
-    Los cambios NO escriben en el receptor. Se reflejan en la Tabla 1 del informe PDF y en los límites del optimizador.
-  </div>
-</div>
-<div class="card" id="export-filters-card" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); margin-bottom: 14px;">
-  <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 4px;">
-    <span>📦 Exportar Filtros PEQ (Multi-Formato)</span>
-    <span class="status-badge ok" id="export-status-badge">DISPONIBLE</span>
-  </div>
-  <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 8px;">
-    Descarga la solución paramétrica de 7 bandas optimizada para REW, EqualizerAPO o análisis en CSV.
-  </div>
-  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-    <a id="btn-export-rew" class="btn-profile" href="/api/export_filters?format=rew&profile=harman_wide_room" style="text-decoration:none; background:#0284c7; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar REW (.zip)</a>
-    <a id="btn-export-apo" class="btn-profile" href="/api/export_filters?format=equalizerapo&profile=harman_wide_room" style="text-decoration:none; background:#0d9488; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar EqualizerAPO (.txt)</a>
-    <a id="btn-export-csv" class="btn-profile" href="/api/export_filters?format=csv&profile=harman_wide_room" style="text-decoration:none; background:#6366f1; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar CSV</a>
-    <a id="btn-export-all" class="btn-profile" href="/api/export_filters?format=all&profile=harman_wide_room" style="text-decoration:none; background:#475569; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar Todo (.zip)</a>
-  </div>
-</div>
-<div class="card" id="modal-symmetry-card" style="border-color: #a78bfa; background: rgba(167, 139, 250, 0.05); margin-bottom: 14px;">
-  <div class="card-title" style="color: #c4b5fd; font-size: 0.85rem; margin-bottom: 4px;">
-    <span>📊 Diagnóstico de Ondas Estacionarias & Simetría Modal (L vs R)</span>
-    <span class="status-badge ok" id="modal-symmetry-badge">SUAVIZADO VAR</span>
-  </div>
-  <div class="card-desc" style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 8px;">
-    Análisis de ondas estacionarias axiales ($\lambda = 343 / f$) y salud acústica de los transductores en el campo directo.
-  </div>
-  <div id="modal-symmetry-content" style="font-size: 0.74rem; color: #cbd5e1;">
-    Cargando telemetría electroacústica...
-  </div>
-  <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-    <button class="btn-test-curve" onclick="loadModalDiagnosticsUI()" style="background:#7c3aed; padding: 5px 10px;">
-      🔄 Actualizar Diagnóstico Modal
-    </button>
-  </div>
+
+  <details class="info-accordion" style="margin-top: 14px;">
+    <summary>ℹ️ Geometría del Cluster Estrecho (15-20 cm)</summary>
+    <div class="info-accordion-content">
+      5 puntos de medición confinados a un radio de <b>15-20 cm</b> alrededor del oído del oyente. El Punto 1 recibe el 70% del peso en el algoritmo acústico:
+      <pre style="font-family: monospace; font-size: 0.64rem; color: #fcd34d; background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px; margin: 8px 0 0 0; overflow-x: auto;">
+       [ Punto 5: +15 cm Arriba ]
+                   |
+[ P2: -15 cm Izq ] -- [ P1: SWEET SPOT ] -- [ P3: +15 cm Der ]
+                   |
+       [ Punto 4: +15 cm Delante ]
+      </pre>
+    </div>
+  </details>
+
+  <details class="info-accordion">
+    <summary>📊 Diagnóstico Modal y Ondas Estacionarias</summary>
+    <div class="info-accordion-content">
+      <div id="modal-symmetry-content" style="font-size: 0.72rem; color: #cbd5e1;">
+        Cargando telemetría electroacústica...
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+        <button class="btn-test-curve" onclick="loadModalDiagnosticsUI()" style="background:#7c3aed; padding: 5px 10px;">
+          🔄 Actualizar Diagnóstico
+        </button>
+      </div>
+    </div>
+  </details>
 </div>
 
   <div class="wizard-nav-bar">
@@ -774,38 +812,41 @@ HTML_CONTENT = """<!DOCTYPE html>
 
 <!-- STEP 2: MULTIPOINT MEASUREMENT -->
 <div class="wizard-page" id="wizard-page-2">
-  <button id="btn-measure-mode" class="btn-measure-mode" onclick="activateMeasurementMode()">
-    🛡️ Poner en Modo Medición (Bypass DSP / PEQ Through / -25 dB)
-  </button>
-  <div id="measure-mode-status" style="font-size: 0.74rem; text-align: center; margin-top: -8px; margin-bottom: 12px; color: #94a3b8;"></div>
-<div class="card" id="sessions-panel" style="border-color: #8b5cf6; background: rgba(139, 92, 246, 0.08); margin-top: 14px; margin-bottom: 14px;">
-  <div class="card-title" style="color: #c4b5fd; margin-bottom: 6px;">
-    <span>📦 Historial de Mediciones y Restauración</span>
-    <span class="status-badge" id="badge-sessions-count" style="background:#6d28d9; color:#fff;">HISTORIAL</span>
-  </div>
-  <div class="card-desc" style="margin-bottom: 10px;">
-    Recupera mediciones multipunto anteriores para calibrar o probar diferentes curvas objetivo sin necesidad de volver a medir los 5 puntos con el móvil:
-  </div>
-
-  <div style="display: flex; gap: 8px; flex-direction: column;">
-    <label style="font-size: 0.76rem; color: #94a3b8; font-weight: 600;">Seleccionar Sesión de Medición Guardada:</label>
-    <select id="select-session" onchange="onSessionSelectChange()" style="width: 100%; background: #1e293b; border: 1px solid #475569; color: #f8fafc; padding: 10px; border-radius: 8px; font-size: 0.82rem; font-family: inherit;">
-      <option value="">Cargando historial de sesiones...</option>
-    </select>
-
-    <div id="selected-session-info" style="font-size: 0.74rem; color: #cbd5e1; background: rgba(30, 41, 59, 0.7); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #8b5cf6; display: none;"></div>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
-      <button id="btn-restore-session" onclick="restoreSelectedSession()" style="background: #7c3aed; color: #fff; padding: 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer;">
-        📥 Cargar y Calibrar
-      </button>
-      <button id="btn-save-session" onclick="saveCurrentSessionPrompt()" style="background: #334155; color: #e2e8f0; padding: 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; border: 1px solid #475569; cursor: pointer;">
-        💾 Guardar Actual
-      </button>
+  <div class="card" id="step2-control-card" style="border-color: #10b981; background: rgba(16, 185, 129, 0.04); margin-bottom: 12px;">
+    <div class="card-title">
+      <span>🎤 Medición Multipunto (5 Puntos)</span>
+      <span class="status-badge ok">PASO 2 / 6</span>
     </div>
-    <div id="session-status" style="font-size: 0.74rem; text-align: center; margin-top: 4px; color: #86efac;"></div>
+    <div class="card-desc">
+      Coloca el móvil vertical a la altura del oído en cada punto y pulsa medir. El sistema ejecutará el barrido y comprobará la señal acústica.
+    </div>
+
+    <button id="btn-measure-mode" class="btn-measure-mode" onclick="activateMeasurementMode()" style="margin-bottom: 6px;">
+      🛡️ Configurar AVR en Modo Medición (-25 dB / Bypass)
+    </button>
+    <div id="measure-mode-status" style="font-size: 0.72rem; text-align: center; color: #94a3b8; margin-bottom: 8px;"></div>
+
+    <details class="info-accordion">
+      <summary>📦 Restaurar o Guardar Sesión Anterior</summary>
+      <div class="info-accordion-content">
+        <div style="display: flex; gap: 8px; flex-direction: column;">
+          <select id="select-session" onchange="onSessionSelectChange()" class="input-select">
+            <option value="">Cargando historial de sesiones...</option>
+          </select>
+          <div id="selected-session-info" style="font-size: 0.72rem; color: #cbd5e1; background: rgba(30, 41, 59, 0.7); padding: 6px 10px; border-radius: 6px; display: none;"></div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px;">
+            <button id="btn-restore-session" onclick="restoreSelectedSession()" style="background: #7c3aed; color: #fff; padding: 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: none; cursor: pointer;">
+              📥 Cargar Sesión
+            </button>
+            <button id="btn-save-session" onclick="saveCurrentSessionPrompt()" style="background: #334155; color: #e2e8f0; padding: 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: 1px solid #475569; cursor: pointer;">
+              💾 Guardar Actual
+            </button>
+          </div>
+          <div id="session-status" style="font-size: 0.72rem; text-align: center; color: #86efac;"></div>
+        </div>
+      </div>
+    </details>
   </div>
-</div>
 
 <div id="points-container"></div>
 
@@ -885,56 +926,52 @@ HTML_CONTENT = """<!DOCTYPE html>
 
 <!-- STEP 4: AVR DEPLOYMENT & SYNC -->
 <div class="wizard-page" id="wizard-page-4">
-  <div class="card" id="avr-status-card" style="border-color: #22c55e; background: rgba(6, 78, 59, 0.25); margin-bottom: 14px;">
-    <div class="card-title" style="color: #4ade80; font-size: 0.85rem; margin-bottom: 2px;">
-      <span>🛡️ Telemetría AVR Protegida</span>
-      <span class="status-badge ok" id="avr-peq-badge">COMPROBANDO...</span>
-    </div>
-    <div id="avr-details" style="font-size: 0.72rem; color: #cbd5e1; line-height: 1.4;">
-      Conectando con Yamaha RX-V673...
-    </div>
-  </div>
-
-  <div class="card" id="avr-deploy-card" style="border-color: #10b981; background: rgba(16, 185, 129, 0.08); margin-bottom: 14px;">
-    <div class="card-title" style="color: #34d399; font-size: 0.85rem;">
-      <span>🎛️ Despliegue de Filtros en Yamaha RX-V673</span>
-      <span class="status-badge ok">YNC LAN</span>
+  <div class="card" id="step4-focus-card" style="border-color: #10b981; background: rgba(16, 185, 129, 0.04);">
+    <div class="card-title">
+      <span>🎛️ Despliegue en Yamaha RX-V673</span>
+      <span class="status-badge ok" id="avr-peq-badge">CONECTADO</span>
     </div>
     <div class="card-desc">
-      Transfiere la matriz paramétrica de 7 bandas calculada para el perfil seleccionado directamente a la memoria de trabajo del receptor.
+      Sincroniza los filtros paramétricos calculados directamente a la memoria de trabajo del receptor AV.
     </div>
-    <button id="btn-apply-selected-peq" class="btn-apply-amp" onclick="applySelectedProfile()">
-      🎛️ Enviar y Aplicar Perfil Seleccionado al Yamaha RX-V673 (NVRAM)
-    </button>
-    <div id="apply-status" style="font-size: 0.75rem; text-align: center; margin-top: 6px; color: #94a3b8;"></div>
-  </div>
 
-  <div class="card" id="peq-live-card" style="border-color: #38bdf8; background: rgba(14, 116, 144, 0.15); margin-bottom: 14px;">
-    <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 2px;">
-      <span>🎛️ Conmutador en Directo de Modos PEQ (Hardware Yamaha)</span>
-      <span class="status-badge ok" id="live-peq-mode-badge">MANUAL</span>
-    </div>
-    <div class="card-desc" style="margin-bottom: 6px;">
-      Cambia instantáneamente la curva de ecualización en la memoria DSP del amplificador para evaluar y comparar el sonido en tiempo real:
-    </div>
-    <div class="peq-switcher-grid">
-      <button id="btn-mode-through" class="btn-peq-live" onclick="setLivePeqMode('Through')">
-        ⚡ Through<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Bypass / Directo</span>
-      </button>
-      <button id="btn-mode-flat" class="btn-peq-live" onclick="setLivePeqMode('Flat')">
-        📏 YPAO Flat<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Automático Plano</span>
-      </button>
-      <button id="btn-mode-front" class="btn-peq-live" onclick="setLivePeqMode('Front')">
-        🎭 YPAO Front<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Frontales Ref.</span>
-      </button>
-      <button id="btn-mode-natural" class="btn-peq-live" onclick="setLivePeqMode('Natural')">
-        ☕ YPAO Natural<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Cálido / Roll-off</span>
-      </button>
-      <button id="btn-mode-manual" class="btn-peq-live" onclick="setLivePeqMode('Manual')">
-        🎯 PEQ Manual<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Harman Calibrado</span>
-      </button>
-    </div>
-    <div id="live-peq-status" style="font-size: 0.72rem; text-align: center; color: #86efac; margin-top: 4px;"></div>
+    <button id="btn-apply-selected-peq" class="btn-apply-amp" onclick="applySelectedProfile()" style="margin-bottom: 6px;">
+      🚀 Enviar y Aplicar al Receptor (NVRAM)
+    </button>
+    <div id="apply-status" style="font-size: 0.74rem; text-align: center; color: #94a3b8; margin-bottom: 8px;"></div>
+
+    <details class="info-accordion" open style="margin-top: 10px;">
+      <summary>🎚️ Conmutador en Vivo de Modos PEQ</summary>
+      <div class="info-accordion-content">
+        <div class="peq-switcher-grid">
+          <button id="btn-mode-through" class="btn-peq-live" onclick="setLivePeqMode('Through')">
+            ⚡ Through<br><span style="font-size:0.64rem; font-weight:normal; color:#94a3b8;">Bypass</span>
+          </button>
+          <button id="btn-mode-flat" class="btn-peq-live" onclick="setLivePeqMode('Flat')">
+            📏 Flat<br><span style="font-size:0.64rem; font-weight:normal; color:#94a3b8;">Plano</span>
+          </button>
+          <button id="btn-mode-front" class="btn-peq-live" onclick="setLivePeqMode('Front')">
+            🎭 Front<br><span style="font-size:0.64rem; font-weight:normal; color:#94a3b8;">Frontal</span>
+          </button>
+          <button id="btn-mode-natural" class="btn-peq-live" onclick="setLivePeqMode('Natural')">
+            🍃 Natural<br><span style="font-size:0.64rem; font-weight:normal; color:#94a3b8;">Cálido</span>
+          </button>
+          <button id="btn-mode-manual" class="btn-peq-live" onclick="setLivePeqMode('Manual')">
+            🎯 Manual<br><span style="font-size:0.64rem; font-weight:normal; color:#94a3b8;">Calibrado</span>
+          </button>
+        </div>
+        <div id="live-peq-status" style="font-size: 0.72rem; text-align: center; color: #86efac; margin-top: 4px;"></div>
+      </div>
+    </details>
+
+    <details class="info-accordion">
+      <summary>🛡️ Telemetría y Estado de Conexión AVR</summary>
+      <div class="info-accordion-content">
+        <div id="avr-details" style="font-size: 0.72rem; color: #cbd5e1; line-height: 1.4;">
+          Conectando con Yamaha RX-V673...
+        </div>
+      </div>
+    </details>
   </div>
 
   <div class="wizard-nav-bar">
@@ -945,68 +982,62 @@ HTML_CONTENT = """<!DOCTYPE html>
 
 <!-- STEP 5: LIVE ACOUSTIC VERIFICATION -->
 <div class="wizard-page" id="wizard-page-5">
-<!-- 4. VALIDACIÓN ACÚSTICA COMPARATIVA MULTIMODO -->
-<div class="card" id="verification-panel" style="border-color: #06b6d4; background: rgba(8, 145, 178, 0.12); margin-top: 14px;">
-  <div class="card-title" style="color: #22d3ee; margin-bottom: 6px;">
-    <span>🔬 Validación Acústica Comparativa Multimodo (5 Modos Yamaha)</span>
-    <span class="status-badge" id="badge-verif">PENDIENTE</span>
-  </div>
-  <div class="card-desc">
-    Mide y compara en el Sweet Spot los 5 modos acústicos del receptor Yamaha: <b>Through (Bypass)</b>, <b>YPAO Flat</b>, <b>YPAO Front</b>, <b>YPAO Natural</b> y <b>PEQ Manual (<span id="verif-active-profile-chip" style="color: #38bdf8;">Perfil Seleccionado</span>)</b>. La calibración PEQ manual evalúa el perfil comunitario que tengas activo en cada momento:
-  </div>
+  <div class="card" id="step5-focus-card" style="border-color: #06b6d4; background: rgba(8, 145, 178, 0.04);">
+    <div class="card-title">
+      <span>🔬 Validación Acústica Comparativa</span>
+      <span class="status-badge ok" id="badge-verif">PASO 5 / 6</span>
+    </div>
+    <div class="card-desc">
+      Mide en el Sweet Spot los modos del receptor Yamaha (Through, Flat, Front, Natural y PEQ Manual) para auditar la reducción de resonancias.
+    </div>
 
-  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; margin-bottom: 10px;">
-    <div style="background: rgba(15, 23, 42, 0.6); padding: 6px 4px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
-      <div style="font-size: 0.64rem; color: #94a3b8;">1. Through</div>
-      <div id="status-verif-through" style="font-size: 0.68rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
+    <button id="btn-verify-all" class="btn-verify" onclick="runFullMultimodeVerification()" style="background: #0284c7; margin-bottom: 8px;">
+      🚀 Medir y Validar los 5 Modos en Secuencia
+    </button>
+
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 8px;">
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 4px 2px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
+        <div style="font-size: 0.62rem; color: #94a3b8;">Through</div>
+        <div id="status-verif-through" style="font-size: 0.65rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 4px 2px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
+        <div style="font-size: 0.62rem; color: #94a3b8;">Flat</div>
+        <div id="status-verif-ypao-flat" style="font-size: 0.65rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 4px 2px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
+        <div style="font-size: 0.62rem; color: #94a3b8;">Front</div>
+        <div id="status-verif-ypao-front" style="font-size: 0.65rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 4px 2px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
+        <div style="font-size: 0.62rem; color: #94a3b8;">Natural</div>
+        <div id="status-verif-ypao-natural" style="font-size: 0.65rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 4px 2px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
+        <div style="font-size: 0.62rem; color: #94a3b8;">Manual</div>
+        <div id="status-verif-manual" style="font-size: 0.65rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
+      </div>
     </div>
-    <div style="background: rgba(15, 23, 42, 0.6); padding: 6px 4px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
-      <div style="font-size: 0.64rem; color: #94a3b8;">2. YPAO Flat</div>
-      <div id="status-verif-ypao-flat" style="font-size: 0.68rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
-    </div>
-    <div style="background: rgba(15, 23, 42, 0.6); padding: 6px 4px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
-      <div style="font-size: 0.64rem; color: #94a3b8;">3. YPAO Front</div>
-      <div id="status-verif-ypao-front" style="font-size: 0.68rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
-    </div>
-    <div style="background: rgba(15, 23, 42, 0.6); padding: 6px 4px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
-      <div style="font-size: 0.64rem; color: #94a3b8;">4. YPAO Natural</div>
-      <div id="status-verif-ypao-natural" style="font-size: 0.68rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
-    </div>
-    <div style="background: rgba(15, 23, 42, 0.6); padding: 6px 4px; border-radius: 6px; border: 1px solid #334155; text-align: center;">
-      <div style="font-size: 0.64rem; color: #94a3b8;">5. PEQ Manual</div>
-      <div id="status-verif-manual" style="font-size: 0.68rem; font-weight: bold; color: #fca5a5;">PENDIENTE</div>
-    </div>
+
+    <details class="info-accordion">
+      <summary>🎯 Medición Manual Modo por Modo</summary>
+      <div class="info-accordion-content">
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 6px;">
+          <button id="btn-verif-through" onclick="selectVerifMode('through')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 6px 2px; border-radius: 6px; font-size: 0.66rem; font-weight: 600; cursor: pointer;">Through</button>
+          <button id="btn-verif-flat" onclick="selectVerifMode('ypao_flat')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 6px 2px; border-radius: 6px; font-size: 0.66rem; font-weight: 600; cursor: pointer;">Flat</button>
+          <button id="btn-verif-front" onclick="selectVerifMode('ypao_front')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 6px 2px; border-radius: 6px; font-size: 0.66rem; font-weight: 600; cursor: pointer;">Front</button>
+          <button id="btn-verif-natural" onclick="selectVerifMode('ypao_natural')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 6px 2px; border-radius: 6px; font-size: 0.66rem; font-weight: 600; cursor: pointer;">Natural</button>
+          <button id="btn-verif-manual" onclick="selectVerifMode('manual')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 6px 2px; border-radius: 6px; font-size: 0.66rem; font-weight: 600; cursor: pointer;">Manual</button>
+        </div>
+        <button id="btn-start-single-verif" onclick="startSelectedVerifMode()" style="display:none; background: #7c3aed; color: white; border: none; padding: 8px; border-radius: 6px; font-size: 0.74rem; font-weight: bold; cursor: pointer; width: 100%;">
+          ▶ Iniciar Barrido - <span id="lbl-selected-verif-mode">-</span>
+        </button>
+      </div>
+    </details>
+
+    <button id="btn-process-verif" onclick="processVerificationComparison()" style="background: #059669; color: white; border: none; padding: 9px; border-radius: 6px; font-size: 0.76rem; font-weight: bold; margin-top: 6px; cursor: pointer; width: 100%;">
+      📊 Procesar Comparativa Acústica y Certificar
+    </button>
   </div>
-
-  <button id="btn-verify-all" class="btn-verify" onclick="runFullMultimodeVerification()" style="background: #0284c7; margin-bottom: 8px;">
-    🚀 Validación Completa Automatizada (Mide los 5 Modos en Secuencia)
-  </button>
-
-  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;">
-    <button id="btn-verif-through" onclick="selectVerifMode('through')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 7px 2px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; cursor: pointer;">
-      ⚡ Through
-    </button>
-    <button id="btn-verif-flat" onclick="selectVerifMode('ypao_flat')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 7px 2px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; cursor: pointer;">
-      📐 Flat
-    </button>
-    <button id="btn-verif-front" onclick="selectVerifMode('ypao_front')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 7px 2px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; cursor: pointer;">
-      🎭 Front
-    </button>
-    <button id="btn-verif-natural" onclick="selectVerifMode('ypao_natural')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 7px 2px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; cursor: pointer;">
-      🍃 Natural
-    </button>
-    <button id="btn-verif-manual" onclick="selectVerifMode('manual')" style="background: #1e293b; color: #e2e8f0; border: 1px solid #475569; padding: 7px 2px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; cursor: pointer;">
-      🎯 Manual
-    </button>
-  </div>
-  <button id="btn-start-single-verif" onclick="startSelectedVerifMode()" style="display:none; background: #7c3aed; color: white; border: none; padding: 9px; border-radius: 6px; font-size: 0.76rem; font-weight: bold; margin-top: 6px; cursor: pointer; width: 100%;">
-    ▶ Iniciar Barrido — <span id="lbl-selected-verif-mode">—</span> (cambia PEQ del AVR y mide)
-  </button>
-
-  <button id="btn-process-verif" onclick="processVerificationComparison()" style="background: #059669; color: white; border: none; padding: 9px; border-radius: 6px; font-size: 0.76rem; font-weight: bold; margin-top: 8px; cursor: pointer; width: 100%;">
-    📊 Procesar Comparativa Acústica y Certificar
-  </button>
-</div>
 
 <!-- 5. INFORME Y GRÁFICAS DE VALIDACIÓN POST-CALIBRACIÓN -->
   <div class="card" id="verification-report-panel" style="border-color: #10b981; background: rgba(16, 185, 129, 0.10); margin-top: 14px;">
@@ -1028,61 +1059,59 @@ HTML_CONTENT = """<!DOCTYPE html>
 
 <!-- STEP 6: REPORTS & EXPORT -->
 <div class="wizard-page" id="wizard-page-6">
-<!-- 6. GESTIÓN DE ESCENAS (FINAL DE PÁGINA) -->
-<div class="card" id="scenes-panel" style="border-color: #818cf8; background: rgba(79, 70, 229, 0.12); margin-top: 14px;">
-  <div class="card-title" style="color: #a5b4fc; margin-bottom: 6px;">
-    <span>🎛️ Gestión de Escenas Yamaha RX-V673</span>
-    <span class="status-badge ok">SINCRONIZADO</span>
-  </div>
-  <div class="card-desc">
-    Las 4 escenas de hardware del receptor programadas y asociadas a los perfiles de audio optimizados:
-  </div>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
-    <button class="btn-scene" onclick="activateScene(1)">
-      🎵 <b>SCENE 1</b><br><span style="font-size: 0.7rem; font-weight: normal;">Música Hi-Fi (Straight)</span>
-    </button>
-    <button class="btn-scene" onclick="activateScene(2)">
-      🎬 <b>SCENE 2</b><br><span style="font-size: 0.7rem; font-weight: normal;">Cine y Pelis (Standard)</span>
-    </button>
-    <button class="btn-scene" onclick="activateScene(3)">
-      🗣️ <b>SCENE 3</b><br><span style="font-size: 0.7rem; font-weight: normal;">TV y Series (Drama)</span>
-    </button>
-    <button class="btn-scene" onclick="activateScene(4)">
-      ✨ <b>SCENE 4</b><br><span style="font-size: 0.7rem; font-weight: normal;">Pure Direct (Bypass)</span>
-    </button>
-  </div>
-  <button class="btn-sync-scenes" onclick="programAllScenes()">
-    💾 Reprogramar y Fijar las 4 Escenas en la NVRAM del Receptor
-  </button>
-  <div id="scenes-status" style="font-size: 0.74rem; text-align: center; margin-top: 6px; color: #cbd5e1;"></div>
-  <div class="card" id="export-filters-card-step6" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); margin-top: 14px; margin-bottom: 14px;">
-    <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 4px;">
-      <span>📦 Exportación Multi-Formato de Filtros PEQ</span>
-      <span class="status-badge ok">DESCARGA</span>
+  <div class="card" id="step6-focus-card" style="border-color: #818cf8; background: rgba(79, 70, 229, 0.04);">
+    <div class="card-title">
+      <span>🎛️ Escenas Hardware y Exportación</span>
+      <span class="status-badge ok">PASO 6 / 6</span>
     </div>
-    <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 8px;">
-      Descarga la solución paramétrica de 7 bandas lista para importar en software externo (REW, EqualizerAPO o análisis en CSV):
+    <div class="card-desc">
+      Asocia tus perfiles calibrados a los 4 botones de hardware del frontal de tu Yamaha RX-V673 y exporta las curvas a tus aplicaciones favoritas.
     </div>
-    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-      <a id="btn-export-rew-step6" class="btn-profile" href="/api/export_filters?format=rew&profile=harman_wide_room" style="text-decoration:none; background:#0284c7; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color:white; font-weight:600;">
-        📥 REW (.zip)
-      </a>
-      <a id="btn-export-apo-step6" class="btn-profile" href="/api/export_filters?format=equalizerapo&profile=harman_wide_room" style="text-decoration:none; background:#0d9488; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color:white; font-weight:600;">
-        📥 Equalizer APO (.txt)
-      </a>
-      <a id="btn-export-csv-step6" class="btn-profile" href="/api/export_filters?format=csv&profile=harman_wide_room" style="text-decoration:none; background:#6366f1; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color:white; font-weight:600;">
-        📥 CSV (.csv)
-      </a>
-      <a id="btn-export-all-step6" class="btn-profile" href="/api/export_filters?format=all&profile=harman_wide_room" style="text-decoration:none; background:#475569; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color:white; font-weight:600;">
-        📥 Todo (.zip)
-      </a>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+      <button class="btn-scene" onclick="activateScene(1)" style="padding: 10px 6px;">
+        🎵 <b>SCENE 1</b><br><span style="font-size: 0.68rem; font-weight: normal; color: #cbd5e1;">Música (Straight)</span>
+      </button>
+      <button class="btn-scene" onclick="activateScene(2)" style="padding: 10px 6px;">
+        🎬 <b>SCENE 2</b><br><span style="font-size: 0.68rem; font-weight: normal; color: #cbd5e1;">Cine (Standard)</span>
+      </button>
+      <button class="btn-scene" onclick="activateScene(3)" style="padding: 10px 6px;">
+        🗣️ <b>SCENE 3</b><br><span style="font-size: 0.68rem; font-weight: normal; color: #cbd5e1;">TV (Drama)</span>
+      </button>
+      <button class="btn-scene" onclick="activateScene(4)" style="padding: 10px 6px;">
+        ✨ <b>SCENE 4</b><br><span style="font-size: 0.68rem; font-weight: normal; color: #cbd5e1;">Pure Direct</span>
+      </button>
     </div>
+
+    <button class="btn-sync-scenes" onclick="programAllScenes()" style="margin-bottom: 6px;">
+      💾 Fijar las 4 Escenas en la NVRAM del Receptor
+    </button>
+    <div id="scenes-status" style="font-size: 0.72rem; text-align: center; color: #cbd5e1; margin-bottom: 8px;"></div>
+
+    <details class="info-accordion" open>
+      <summary>📦 Descarga de Filtros PEQ (Multi-Formato)</summary>
+      <div class="info-accordion-content">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <a id="btn-export-rew-step6" class="btn-profile" href="/api/export_filters?format=rew&profile=harman_wide_room" style="text-decoration:none; background:#0284c7; padding: 6px 10px; font-size: 0.72rem; border-radius: 4px; color:white; font-weight:600;">
+            📥 REW (.zip)
+          </a>
+          <a id="btn-export-apo-step6" class="btn-profile" href="/api/export_filters?format=equalizerapo&profile=harman_wide_room" style="text-decoration:none; background:#0d9488; padding: 6px 10px; font-size: 0.72rem; border-radius: 4px; color:white; font-weight:600;">
+            📥 Equalizer APO (.txt)
+          </a>
+          <a id="btn-export-csv-step6" class="btn-profile" href="/api/export_filters?format=csv&profile=harman_wide_room" style="text-decoration:none; background:#6366f1; padding: 6px 10px; font-size: 0.72rem; border-radius: 4px; color:white; font-weight:600;">
+            📥 CSV (.csv)
+          </a>
+          <a id="btn-export-all-step6" class="btn-profile" href="/api/export_filters?format=all&profile=harman_wide_room" style="text-decoration:none; background:#475569; padding: 6px 10px; font-size: 0.72rem; border-radius: 4px; color:white; font-weight:600;">
+            📥 Todo (.zip)
+          </a>
+        </div>
+      </div>
+    </details>
   </div>
   <div class="wizard-nav-bar">
     <button class="btn-wizard-nav" onclick="goToWizardStep(5)">◀ Volver a Verificación</button>
     <span></span>
   </div>
-</div>
 </div>
 
 <div id="log-box">Listo para iniciar. Sitúate en el Punto 1 y pulsa Medir.</div>
