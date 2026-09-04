@@ -2970,20 +2970,32 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/set_peq_mode":
             mode = params.get("mode", ["Manual"])[0]
-            print(f"[Server] Conmutando en directo modo PEQ a '{mode}' en el Yamaha RX-V673...")
+            prepare = params.get("prepare_sweep", ["1"])[0]
             try:
-                target_mode, res_xml = set_avr_peq_mode(mode)
+                # If preparing for acoustic sweep measurement, ensure receiver is on V-AUX and calibration volume
+                if prepare == "1":
+                    url = "http://192.168.1.43/YamahaRemoteControl/ctrl"
+                    hdr = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+                    def _put(xml):
+                        r = urllib.request.Request(url, data=xml.encode('utf-8'), headers=hdr)
+                        with urllib.request.urlopen(r, timeout=2.0) as resp:
+                            return resp.read()
+                    try:
+                        _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Power_Control><Power>On</Power></Power_Control></Main_Zone></YAMAHA_AV>')
+                        _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>V-AUX</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
+                        _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>-250</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
+                        _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Adaptive_DRC>Off</Adaptive_DRC></Sound_Video></Main_Zone></YAMAHA_AV>')
+                        _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Straight>On</Straight></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
+                    except Exception as e_prep:
+                        print(f"[Aviso set_peq_mode prepare]: {e_prep}")
+                m, res = set_avr_peq_mode(mode)
                 self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({
-                    "ok": True,
-                    "mode": target_mode,
-                    "msg": f"Modo PEQ '{target_mode}' aplicado en directo en el receptor Yamaha RX-V673."
-                }).encode("utf-8"))
+                self.wfile.write(json.dumps({"ok": True, "mode": m, "res": res}).encode("utf-8"))
             except Exception as e:
                 self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
@@ -3000,8 +3012,32 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             
             try:
                 samples = np.frombuffer(raw_data, dtype=np.int16)
+                peak_raw = np.max(np.abs(samples)) if len(samples) > 0 else 0
+                if peak_raw < 500:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "ok": False,
+                        "msg": "Señal de validación inaudible o silencio. Comprueba que el Yamaha suena en V-AUX y el volumen esté alto."
+                    }).encode("utf-8"))
+                    return
+
                 mic = samples.astype(np.float64) / 32768.0
                 ir = scipy.signal.fftconvolve(mic, inv_sweep, mode='full')
+                peak_ir = np.max(np.abs(ir))
+                noise_floor = np.mean(np.abs(mic[:int(fs * 0.3)])) + 1e-12
+                snr_db = 20 * np.log10(peak_ir / noise_floor + 1e-12)
+                if snr_db < 14.0:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "ok": False,
+                        "msg": f"SNR de validación insuficiente ({snr_db:.1f} dB < 14 dB). Comprueba que el Yamaha suena en V-AUX."
+                    }).encode("utf-8"))
+                    return
+
                 peak_idx = int(np.argmax(np.abs(ir)))
                 pre_samples = int(0.010 * fs)
                 post_samples = int(0.500 * fs)
