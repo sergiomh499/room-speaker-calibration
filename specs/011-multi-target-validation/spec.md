@@ -22,6 +22,7 @@ Enable multi-target validation and interactive comparative overlays across all g
 
 ### Session 2026-09-04
 - Q: ¿Cómo prefieres estructurar el flujo de calibración y validación simplificado para cada curva? → A: Opción A enriquecida con C: Flujo profesional 1 a 1 donde cada preset tiene su calibración, testeo directo y visualización de 3 métricas útiles (reducción modal en graves, simetría estéreo |L-R| y adherencia al target), permitiendo además consultar verificaciones históricas y precargar presets ya guardados en el receptor o en disco.
+- Q: ¿Qué estilo visual y de interacción prefieres como estándar de diseño para modernizar la interfaz hacia software de estudio profesional? → A: Opción A (Dark Studio Pro / Dirac & Logic Pro inspired): paleta grafito/slate oscuro (#0f172a / #1e293b), botones táctiles de gran formato (>=48px de altura), diseño totalmente adaptable y responsive (móvil y PC), microanimaciones fluidas de feedback visual y estética de herramienta de audio profesional sin apariencia de prototipo genérico.
 
 ---
 
@@ -65,6 +66,13 @@ Enable multi-target validation and interactive comparative overlays across all g
 - **Then** the user can select from a dropdown or checkbox list of available reference targets (Harman, B&K 1974, Dirac Live, Cinema Blockbuster, Audiophile Flat),
 - **And** the interface renders the chosen target curves overlaid directly against the measured Left/Right acoustic response, updating deviation badges and alignment metrics in real time.
 
+### Scenario 6: Responsive Mobile Studio Workflow at Listening Position
+- **Given** a user holding a smartphone or tablet at the main listening position (Sweet Spot),
+- **When** the user accesses the calibration web interface via local Wi-Fi,
+- **Then** the interface presents large, ergonomic touch controls ($\ge 48\text{px}$) with instant tactile visual feedback,
+- **And** graphs, status badges, and sweep triggers scale smoothly without horizontal scrolling or tiny illegible text.
+
+
 ---
 
 ## 3. Functional Requirements
@@ -89,6 +97,13 @@ Enable multi-target validation and interactive comparative overlays across all g
 - **FR-011**: The system MUST support browsing and reloading historical verification runs (`/api/sessions`) with full preset parameter pre-loading directly to the AVR hardware.
 - **FR-012**: Complex multi-target comparative matrices MUST remain collapsible or secondary so they do not clutter the default professional 1-to-1 view.
 
+
+
+### 3.5 Dark Studio Pro Responsive UX & Ergonomics
+- **FR-013**: The web interface MUST follow the "Dark Studio Pro" design system inspired by professional audio suites (Dirac Live, Logic Pro): dark slate palette (`#0f172a`, `#1e293b`), crisp typography, border glows on active states, and zero generic placeholder AI styling.
+- **FR-014**: All primary touch/click controls (Start Sweep, Calibrate, Test Profile, Save Preset) MUST have a minimum height of 48px with clear tactile visual feedback (hover/active states, active border highlight) for effortless one-handed smartphone operation at the listening position.
+- **FR-015**: The interface MUST be fully responsive across mobile (>=360px), tablet, and desktop (up to 4K displays) using CSS flex/grid layouts, scalable font sizing, and collapsible auxiliary telemetry panels.
+- **FR-016**: Visual state transitions (measurement progression, sweeps, preset loading, graph updates) MUST utilize GPU-accelerated CSS micro-animations (fade, slide, progress pulse) that convey meaningful operational state without causing layout shifts.
 
 ---
 
@@ -116,6 +131,8 @@ Enable multi-target validation and interactive comparative overlays across all g
 - **SC-002**: **No False Bass Penalty**: In 2.0 bookshelf mode, evaluating an uncorrected speaker against the target curve below 60 Hz does not degrade the score due to natural speaker roll-off.
 - **SC-003**: **Multi-Target Comparability**: The system can evaluate and render any measured curve against any of the 9 defined presets within $< 50\text{ ms}$ compute time.
 - **SC-004**: **Interactive Overlay**: Users can toggle between at least 5 distinct reference targets in the web interface and observe updated delta metrics without page reloads.
+- **SC-005**: **Studio Pro Mobile & Desktop Ergonomics**: 100% of interactive calibration buttons conform to $\ge 48\text{px}$ touch targets and render seamlessly with zero horizontal overflow on mobile screens down to $360\text{px}$ width.
+- **SC-006**: **Responsive Interaction Latency**: Visual state transitions and animations complete in $< 250\text{ ms}$ with zero frame drops on standard mobile and desktop browsers.
 
 ---
 
