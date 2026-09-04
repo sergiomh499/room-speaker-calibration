@@ -2302,6 +2302,49 @@ function renderVerificationResults(data) {
         📥 Descargar Gráfica de Verificación en Alta Resolución
       </a>
     `;
+
+      // Render Multi-Target Benchmark Card if available
+      if (m.multi_target_benchmark) {
+        const mt = m.multi_target_benchmark;
+        let mtHtml = `
+          <div style="margin-top: 14px; padding: 12px; background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 8px;">
+            <div style="font-size: 0.85rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; display:flex; justify-content:space-between;">
+              <span>🎯 Comparativa Cruzada Multi-Target (¿A qué curva se parece más?)</span>
+              <span style="font-size:0.75rem; color:#a78bfa;">9 Targets Evaluados</span>
+            </div>
+            <table class="peq-table" style="font-size: 0.73rem; width: 100%;">
+              <thead>
+                <tr>
+                  <th>Target de Referencia</th>
+                  <th>Categoría</th>
+                  <th>Error RMS</th>
+                  <th>Pico Modal Máx</th>
+                  <th>Fidelidad</th>
+                  <th>Ajuste</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        for (const [tKey, tData] of Object.entries(mt)) {
+          const isS = tData.rating === 'S-TIER';
+          mtHtml += `
+            <tr>
+              <td><b>${tData.target_name}</b></td>
+              <td style="color:#94a3b8;">${tData.category}</td>
+              <td style="color:${isS ? '#86efac' : '#e2e8f0'}; font-weight:bold;">${tData.rms_error_db} dB</td>
+              <td style="color:#fca5a5;">${tData.max_peak_error_db} dB</td>
+              <td style="color:#fbbf24; font-weight:bold;">${tData.fidelity_score_pct}%</td>
+              <td><span class="status-badge ${isS ? 'ok' : 'info'}">${tData.rating}</span></td>
+            </tr>
+          `;
+        }
+        mtHtml += `
+              </tbody>
+            </table>
+          </div>
+        `;
+        reportPanel.insertAdjacentHTML('beforeend', mtHtml);
+      }
     reportPanel.scrollIntoView({ behavior: 'smooth' });
     log("¡VALIDACIÓN COMPLETADA! La sala ha sido verificada y certificada.");
   } catch (renderErr) {
@@ -2738,6 +2781,31 @@ class CalibrationHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         params = urllib.parse.parse_qs(parsed.query)
+        if path == "/api/targets":
+            try:
+                with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as f:
+                    targets_cfg = json.load(f)
+                targets_list = []
+                for k, v in targets_cfg.items():
+                    if k == "_meta": continue
+                    targets_list.append({
+                        "id": k,
+                        "name": v.get("name", k),
+                        "category": v.get("category", "General"),
+                        "cutoff_hz": 64.0,
+                        "badge": v.get("badge", ""),
+                        "description": v.get("description", "")
+                    })
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "targets": targets_list}).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
 
         if path == "/" or path == "/index.html":
             self.send_response(200)
@@ -3650,29 +3718,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as f:
                     targets_cfg = json.load(f)
                 prof_data = targets_cfg.get(profile, targets_cfg.get("harman_wide_room", {}))
-                f_c = 64.0
-                hpf_mag = 1.0 / np.sqrt(1.0 + (f_c / np.maximum(freqs, 1.0)) ** 4)
-                hpf_db = 20.0 * np.log10(np.maximum(hpf_mag, 1e-3))
-                
-                target_curve = np.zeros_like(freqs)
-                p_key = prof_data.get("name", "").lower()
-                if "bk" in p_key or "1974" in p_key:
-                    for i, f in enumerate(freqs):
-                        if f < 150.0: target_curve[i] = 3.0
-                        elif f < 2000.0: target_curve[i] = 3.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 150.0) / 1850.0))
-                        else: target_curve[i] = -0.9 * np.log2(f / 2000.0)
-                elif "dirac" in p_key:
-                    for i, f in enumerate(freqs):
-                        if f < 120.0: target_curve[i] = 2.0
-                        elif f < 200.0: target_curve[i] = 2.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
-                        elif f < 1000.0: target_curve[i] = 0.0
-                        else: target_curve[i] = -0.6 * np.log2(f / 1000.0)
-                else:
-                    for i, f in enumerate(freqs):
-                        if f < 120.0: target_curve[i] = 2.5
-                        elif f < 200.0: target_curve[i] = 2.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
-                        else: target_curve[i] = -0.8 * np.log2(f / 200.0)
-                target_curve += hpf_db
+                target_curve = po.generate_bookshelf_target_curve(freqs, target_key=profile, fc_hz=64.0)
                 
                 opt_res = po.optimize_stereo_peq(
                     freqs,
@@ -3758,6 +3804,45 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
+
+        if path == "/api/calibration/multi_target_eval":
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                req_data = {}
+                if content_length > 0:
+                    raw_body = self.rfile.read(content_length)
+                    req_data = json.loads(raw_body.decode("utf-8"))
+                meas_file = req_data.get("measurement_file", "medicion_verificacion_manual.npz")
+                fpath = os.path.join(DATA_DIR, meas_file)
+                if not os.path.exists(fpath):
+                    fpath = os.path.join(DATA_DIR, "medicion_promedio_espacial.npz")
+                d = np.load(fpath)
+                freqs = d["freqs"]
+                resp_l = d["smooth_l"]
+                resp_r = d["smooth_r"]
+                
+                from scripts.verify_calibration import evaluate_multi_target_alignment
+                res = evaluate_multi_target_alignment(freqs, resp_l, resp_r, fc_hz=64.0)
+                
+                # Find best fit
+                best_fit = min(res.items(), key=lambda item: item[1]["rms_error_db"])[0] if res else ""
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "measurement_file": meas_file,
+                    "results": res,
+                    "best_fit": best_fit
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
 
 
         if path == "/api/deploy_peq":

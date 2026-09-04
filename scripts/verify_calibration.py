@@ -54,6 +54,7 @@ def professional_psychoacoustic_smooth(freqs, mag_db):
     m_psycho = np.where(diff < -2.0, base_smooth + 0.35 * diff, m_grid)
     
     oct_frac = np.ones_like(f_grid)
+
     for i, f in enumerate(f_grid):
         if f <= 100.0:
             oct_frac[i] = 12.0
@@ -81,6 +82,64 @@ def professional_psychoacoustic_smooth(freqs, mag_db):
     out = mag_db.copy()
     out[valid] = np.interp(freqs[valid], f_grid, final_smooth)
     return out
+
+
+def evaluate_multi_target_alignment(
+    freqs: np.ndarray,
+    resp_l: np.ndarray,
+    resp_r: np.ndarray,
+    target_keys: Optional[List[str]] = None,
+    fc_hz: float = 64.0,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Evaluates measured Left/Right acoustic responses against multiple reference target curves.
+    Returns a comparative dictionary with RMS error, max peak error, fidelity score and ratings.
+    """
+    from scripts.peq_optimizer import generate_bookshelf_target_curve
+    
+    with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as f:
+        targets_cfg = json.load(f)
+        
+    profiles = target_keys or [k for k in targets_cfg if k != "_meta"]
+    eval_mask = (freqs >= 60.0) & (freqs <= 5000.0)
+    modal_mask = (freqs >= 60.0) & (freqs <= 400.0)
+    
+    norm_l = resp_l - np.mean(resp_l[(freqs >= 300.0) & (freqs <= 3000.0)])
+    norm_r = resp_r - np.mean(resp_r[(freqs >= 300.0) & (freqs <= 3000.0)])
+    avg_resp = 0.5 * (norm_l + norm_r)
+    
+    results = {}
+    for t_key in profiles:
+        p_info = targets_cfg.get(t_key, {})
+        t_curve = generate_bookshelf_target_curve(freqs, target_key=t_key, fc_hz=fc_hz)
+        err = avg_resp[eval_mask] - t_curve[eval_mask]
+        rms_err = float(np.sqrt(np.mean(err ** 2)))
+        
+        modal_err = avg_resp[modal_mask] - t_curve[modal_mask]
+        max_peak_err = float(np.max(np.abs(modal_err))) if len(modal_err) > 0 else 0.0
+        
+        score = max(0.0, min(100.0, 100.0 - (rms_err * 12.0)))
+        if rms_err <= 1.2:
+            rating = "S-TIER"
+        elif rms_err <= 2.0:
+            rating = "A"
+        elif rms_err <= 3.0:
+            rating = "B"
+        else:
+            rating = "C"
+            
+        results[t_key] = {
+            "target_id": t_key,
+            "target_name": p_info.get("name", t_key),
+            "category": p_info.get("category", "General"),
+            "rms_error_db": round(rms_err, 2),
+            "max_peak_error_db": round(max_peak_err, 2),
+            "fidelity_score_pct": round(score, 1),
+            "rating": rating,
+        }
+    return results
+
+
 def run_verification(profile="harman_wide_room", save_fig=True):
     # 1. Baseline Data (Through / Sin Calibrar)
     base_file = f"{DATA_DIR}/medicion_promedio_espacial.npz"
@@ -103,62 +162,9 @@ def run_verification(profile="harman_wide_room", save_fig=True):
     peq_manual_name = f"PEQ Manual ({prof_display_name})"
     
     # 3. Dynamic Acoustic Target Curve Based on Selected Profile
+    from scripts.peq_optimizer import generate_bookshelf_target_curve
     def build_profile_target_curve(p_key, freqs_arr):
-        f_c = 64.0
-        hpf_mag = 1.0 / np.sqrt(1.0 + (f_c / np.maximum(freqs_arr, 1.0))**4)
-        hpf_db = 20.0 * np.log10(np.maximum(hpf_mag, 1e-3))
-        
-        target = np.zeros_like(freqs_arr)
-        k = (p_key or "").lower()
-        if "bk" in k or "1974" in k:
-            for i, f in enumerate(freqs_arr):
-                if f < 150.0:
-                    target[i] = 3.0
-                elif f < 200.0:
-                    target[i] = 3.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 150.0) / 50.0))
-                else:
-                    target[i] = -0.9 * np.log2(f / 200.0)
-        elif "dirac" in k:
-            for i, f in enumerate(freqs_arr):
-                if f < 120.0:
-                    target[i] = 2.0
-                elif f < 200.0:
-                    target[i] = 2.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
-                elif f < 1000.0:
-                    target[i] = 0.0
-                else:
-                    target[i] = -0.6 * np.log2(f / 1000.0)
-        elif "cinema" in k or "blockbuster" in k:
-            for i, f in enumerate(freqs_arr):
-                if f < 120.0:
-                    target[i] = 3.5
-                elif f < 200.0:
-                    target[i] = 3.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
-                elif f < 2000.0:
-                    target[i] = 0.0
-                else:
-                    target[i] = -1.0 * np.log2(f / 2000.0)
-        elif "vocal" in k:
-            for i, f in enumerate(freqs_arr):
-                if f < 150.0:
-                    target[i] = -0.5
-                elif 1000.0 <= f <= 3000.0:
-                    target[i] = 1.5
-                elif f > 4000.0:
-                    target[i] = -0.5 * np.log2(f / 4000.0)
-        elif "audiophile" in k or "flat" in k:
-            pass
-        else:
-            for i, f in enumerate(freqs_arr):
-                if f < 100.0:
-                    target[i] = 2.5
-                elif f < 200.0:
-                    target[i] = 2.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 100.0) / 100.0))
-                elif f < 1000.0:
-                    target[i] = 0.0
-                else:
-                    target[i] = -0.8 * np.log2(f / 1000.0)
-        return target + hpf_db
+        return generate_bookshelf_target_curve(freqs_arr, target_key=p_key, fc_hz=64.0)
         
     target_curve = build_profile_target_curve(profile_key, freqs)
     
@@ -499,7 +505,14 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         
         # Comparative benchmark of all curves
         "comparative_curves": comparative_results,
-        "best_curve": best_curve
+        "best_curve": best_curve,
+        # Multi-target benchmark evaluation
+        "multi_target_benchmark": evaluate_multi_target_alignment(
+            freqs,
+            best_curve.get("raw_l", peq_model_l),
+            best_curve.get("raw_r", peq_model_r),
+            fc_hz=64.0
+        ),
     }
     
     # 7. Generate Multi-Curve Comparative Figure

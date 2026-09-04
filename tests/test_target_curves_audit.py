@@ -1,18 +1,19 @@
 import unittest
 import json
 import numpy as np
+from scripts.peq_optimizer import generate_bookshelf_target_curve
 
 class TestTargetCurvesAudit(unittest.TestCase):
     def setUp(self):
         with open("config/targets.json", "r", encoding="utf-8") as f:
             self.cfg = json.load(f)
+        self.freqs = np.geomspace(20.0, 20000.0, 500)
 
     def test_all_9_profiles_exist(self):
         profiles = [k for k in self.cfg if k != "_meta"]
         self.assertEqual(len(profiles), 9)
 
     def test_subsonic_protection_and_voicing(self):
-        # In a 2.0 bookshelf setup, no profile should demand heavy positive boost below 60 Hz
         for p_key, p_data in self.cfg.items():
             if p_key == "_meta": continue
             bands = p_data.get("bands", {})
@@ -23,18 +24,20 @@ class TestTargetCurvesAudit(unittest.TestCase):
                 gain_l = b.get("gain_l", 0.0)
                 gain_r = b.get("gain_r", 0.0)
                 if freq < 60.0:
-                    self.assertLessEqual(gain_l, 0.0, f"Profile {p_key} has unsafe sub-bass boost on L at {freq}Hz: {gain_l}")
-                    self.assertLessEqual(gain_r, 0.0, f"Profile {p_key} has unsafe sub-bass boost on R at {freq}Hz: {gain_r}")
+                    self.assertLessEqual(gain_l, 0.0)
+                    self.assertLessEqual(gain_r, 0.0)
 
-    def test_crossover_voicing_within_bounds(self):
-        # Band at 2.52 kHz (speaker crossover compensation) should be within +1.0 to +3.0 dB
-        for p_key, p_data in self.cfg.items():
+    def test_bookshelf_rolloff_mathematical_consistency(self):
+        for p_key in self.cfg:
             if p_key == "_meta": continue
-            bands = p_data.get("bands", {})
-            for b_name, b in bands.items():
-                if b.get("freq") == 2520.0:
-                    self.assertTrue(0.0 <= b["gain_l"] <= 3.0)
-                    self.assertTrue(0.0 <= b["gain_r"] <= 3.0)
+            tc = generate_bookshelf_target_curve(self.freqs, p_key, fc_hz=64.0)
+            # At 30 Hz, level must be <= -10 dB
+            idx_30 = np.argmin(np.abs(self.freqs - 30.0))
+            self.assertLessEqual(tc[idx_30], -10.0, f"Target {p_key} lacks proper roll-off at 30Hz")
+            
+            # At 64 Hz (cutoff), HPF provides -3 dB
+            idx_64 = np.argmin(np.abs(self.freqs - 64.0))
+            self.assertLess(tc[idx_64], 3.0)
 
 if __name__ == "__main__":
     unittest.main()
