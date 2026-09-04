@@ -45,6 +45,32 @@ Formal electroacoustic diagnostic report assessing speaker transducer health.
 | `integrity_verdict` | `enum` | `PRISTINE_HEALTH`, `MINOR_ROOM_EFFECT`, `DRIVER_ANOMALY` |
 | `verdict_notes` | `string` | Detailed technical verdict text |
 
+### 4. CalibrationWizardStep
+Represents an independent page/phase within the step-by-step calibration assistant.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `step_number` | `int` | Phase sequence number (1 to 6) |
+| `step_id` | `string` | Unique identifier (`preflight`, `multipoint`, `optimizer`, `deploy`, `verification`, `reports`) |
+| `title` | `string` | Human-readable title displayed in the wizard header |
+| `status` | `enum` | `PENDING`, `IN_PROGRESS`, `COMPLETED`, `SKIPPED` |
+| `is_navigable` | `bool` | True if the user can click directly to this step |
+| `can_advance` | `bool` | True if the step's completion criteria are satisfied |
+
+### 5. DynamicPEQOptimizationResult
+Encapsulates the mathematical output of `optimize_stereo_peq()` on empirical measurement data.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `profile_key` | `string` | Active acoustic target profile (e.g. `harman_wide_room`) |
+| `source_sweet_spot` | `string` | Path or hash of `medicion_punto_1.npz` |
+| `source_spatial_avg` | `string` | Path or hash of `medicion_promedio_espacial.npz` |
+| `channels` | `object` | Dictionary containing `left` (7 bands) and `right` (7 bands) |
+| `predicted_rms_reduction_db` | `float` | Estimated error reduction against the target curve |
+| `predicted_modal_attenuation_db` | `float` | Estimated peak room mode attenuation |
+| `stereo_aligned` | `bool` | True if all bands share center frequencies or neutral 0.0 dB pairings |
+| `timestamp` | `string` | ISO 8601 calculation timestamp |
+
 ## Relationships
 
 ```mermaid

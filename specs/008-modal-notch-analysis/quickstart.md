@@ -53,4 +53,34 @@ Test the live API endpoint for modal diagnostics:
 
 ```bash
 curl -s http://127.0.0.1:53317/api/calibration/modal_diagnostics | jq .
+
+## 4. Verify Dynamic PEQ Optimizer Execution and targets.json Sync
+Validate that running `auto_calibrate.py` dynamically updates the 7 biquad bands with real room measurements:
+
+```bash
+python3 scripts/auto_calibrate.py --target harman_wide_room --spatial-avg
+python3 -c "
+import json
+with open('config/targets.json') as f:
+    cfg = json.load(f)
+bands = cfg['harman_wide_room']['bands']
+print('=== VERIFICACIÓN BANDAS DINÁMICAS HARMAN ===')
+for b_name, b in bands.items():
+    print(f'{b_name}: {b[\"freq\"]} Hz | L: {b[\"gain_l\"]:+.1f} dB (Q={b[\"q_l\"]}) | R: {b[\"gain_r\"]:+.1f} dB (Q={b[\"q_r\"]})')
+"
+```
+
+## 5. Verify Non-Destructive Single-Point Re-measurement
+Verify that clearing and re-measuring Point 3 preserves the validity of all other points:
+
+```bash
+curl -s -X POST "http://127.0.0.1:53317/api/clear_point?point=3" | jq .
+curl -s "http://127.0.0.1:53317/api/session_state" | jq '.points'
+```
+
+## 6. Verify Wizard Navigation UI
+Access `http://127.0.0.1:53317/` in browser:
+1. Confirm `#wizard-stepper` renders all 6 navigation tabs.
+2. Verify clicking "Paso 2 (Medición)" jumps directly to the multipoint measurement view.
+3. Verify clicking "Paso 5 (Verificación)" jumps directly to the acoustic verification view.
 ```

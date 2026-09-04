@@ -68,3 +68,27 @@ Provide explicit diagnostic metrics in the report proving the Q Acoustics 3020i 
 - **Above 400 Hz**: Room boundary modes diminish, and the measurement reflects the speaker's intrinsic direct sound.
 - **Empirical Tracking**: At 1000 Hz, difference between L and R is $-0.4\text{ dB}$. At 2520 Hz, difference is $+0.3\text{ dB}$.
 - A mechanically or electrically damaged driver (e.g. rub-and-buzz voice coil, torn surround, blown tweeter) exhibits irregular frequency response, severe THD (> 5%), and multi-dB level discrepancies throughout the mid and high bands. The empirical measurement confirms pristine speaker health.
+
+---
+
+## 6. Dynamic PEQ Generation Pipeline & targets.json Synchronization
+
+### Decision
+Integrate `optimize_stereo_peq()` directly into the `/api/finalize_calibration` execution pipeline, replacing static placeholder tables in `config/targets.json` with the dynamically calculated 7 biquad filters per channel based on empirical sweet spot (`medicion_punto_1.npz`) and spatial average (`medicion_promedio_espacial.npz`).
+
+### Technical Rationale
+- **Root Cause of Calibration Disconnect**: Previously, `targets.json` maintained hardcoded placeholder bands (e.g. Band 2: 125 Hz -2.5 dB L / 0.0 dB R; Band 6: 2520 Hz +1.5 dB L / +2.0 dB R). Although `scripts/peq_optimizer.py` contained mathematical optimization logic, the `/api/finalize_calibration` route only ran `spatial_average.py` and `03_generate_pdf_report.py`, reading static bands from `targets.json` without updating them.
+- **Stereo Alignment Contract**: In stereo listening, uncoordinated frequency allocation between channels (e.g. Left cutting at 157.5 Hz and Right cutting at 198.4 Hz on Band 1) creates localized phase anomalies that skew the acoustic soundstage. The optimizer aligns center frequencies for shared modal resonances, and for independent room modes, assigns the mode's center frequency to both channels with a neutral 0.0 dB gain on the unaffected channel.
+- **Immutability & Safety**: The calculated bands are committed to `targets.json` under the active profile key, ensuring that `/api/apply_profile`, `/api/apply_to_amp`, and verification sweeps always operate on the actual room calibration.
+
+---
+
+## 7. Paginated Step-by-Step Wizard Architecture & Non-Destructive Point Re-Measurement
+
+### Decision
+Structure the web calibration interface as a modular, paginated step-by-step wizard (Steps 1 to 6) allowing users to advance, go back, and re-record any individual measurement point or re-run live verification without discarding session state.
+
+### Technical Rationale
+- **UX Pain Point**: A single-page monolithic scroll forces users to re-run the entire calibration session if a single measurement point suffers from background noise (cough, car horn, door slam).
+- **State Granularity**: By decoupling each phase into distinct viewports (`#page-preflight`, `#page-multipoint`, `#page-optimizer`, `#page-deploy`, `#page-verification`, `#page-reports`) backed by an active step manager in JavaScript, the user has full navigational freedom.
+- **Non-Destructive Point Re-measurement**: Individual point endpoints (`/api/record_point?point=N` and `/api/clear_point?point=N`) permit re-recording Point 3 without affecting Points 1, 2, 4, or 5. Once updated, the spatial average is immediately re-calculated in background.
