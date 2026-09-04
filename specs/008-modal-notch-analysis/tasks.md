@@ -45,9 +45,11 @@ description: "Task list for Modal Notch Diagnostic, Dynamic PEQ Synchronization,
 - [ ] T006 [US4] Update `scripts/auto_calibrate.py` to persist the 7 calculated biquad bands into `config/targets.json` under the active profile key
 - [ ] T007 [US4] Integrate dynamic PEQ optimization and `targets.json` synchronization into `/api/finalize_calibration` route in `scripts/web_calibration_server.py`
 - [ ] T008 [US4] Add `/api/record_point` and `/api/clear_point` endpoints in `scripts/web_calibration_server.py` for non-destructive single-point re-measurement
-- [ ] T009 [US4] Implement modular paginated wizard UI structure (`#wizard-stepper`, `.wizard-page`, `#btn-wizard-prev`, `#btn-wizard-next`) in `scripts/web_calibration_server.py`
-- [ ] T010 [US4] Implement client-side step state management, breadcrumbs, and individual point re-measurement controls in `scripts/web_calibration_server.py`
-
+- [X] T009 [US4] Implement modular paginated wizard UI structure (`#wizard-stepper`, `.wizard-page`, `#btn-wizard-prev`, `#btn-wizard-next`) in `scripts/web_calibration_server.py`
+- [X] T010 [US4] Implement client-side step state management, breadcrumbs, and individual point re-measurement controls in `scripts/web_calibration_server.py`
+- [X] T021 [US4] Relocate modal resonance diagnostic panel from Step 1 to Step 3 (Optimization & Profiles) in `scripts/web_calibration_server.py`
+- [X] T022 [US4] Replace ASCII cluster diagram with modern SVG vector graphic showing coordinates and sweet spot weighting in `scripts/web_calibration_server.py`
+- [X] T023 [US4] Enforce strict try/catch/finally error handling in client-side async routines to prevent mobile navigation freezes in `scripts/web_calibration_server.py`
 **Checkpoint**: User Story 4 fully operational - calibration calculations are 100% dynamic and the interface is a navigable step-by-step wizard.
 
 ---
