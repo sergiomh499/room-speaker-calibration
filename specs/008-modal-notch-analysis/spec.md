@@ -5,6 +5,12 @@
 **Status**: Ready for Review
 **Input**: User description: "realizadas mediciones pero carecen de sentido los valores de filtros peq calculados, el notch modal quirurjico en L a que se debe?"
 
+## Clarifications
+
+### Session 2026-09-04
+
+- Q: ¿El notch modal en Front L (125 Hz) se debe a algún fallo o defecto mecánico/electrónico de los altavoces Q Acoustics 3020i? → A: Rotundamente no. Es un fenómeno 100% dependiente de la física de la sala (onda estacionaria axial a 125 Hz / $\lambda \approx 2.81\text{ m}$ reforzada por la proximidad a límites físicos). Los transductores están sanos e íntegros, como lo demuestra la simetría estéreo de $\Delta < 0.5\text{ dB}$ en el rango medio/alto anecoico (> 400 Hz).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Physical Acoustic Analysis of Front L 125 Hz Room Mode vs Front R Asymmetry (Priority: P1 MVP)
@@ -69,6 +75,7 @@ As a user navigating the web calibration dashboard, I want the modal symmetry di
 - **FR-004**: System MUST explain the physical cause of stereo asymmetry between Front L (125 Hz peak) and Front R (198 Hz peak) due to non-symmetric room boundaries.
 - **FR-005**: System MUST justify why bands with 0.0 dB gain are optimal and intentional under modern psychoacoustic target curve standards (Dr. Floyd Toole / Sean Olive / AES).
 - **FR-006**: System MUST explain the 2.52 kHz loudspeaker crossover dip compensation for the Q Acoustics 3020i 2-way architecture.
+- **FR-007**: System MUST document diagnostic proof confirming that the Q Acoustics 3020i transducers and crossovers are completely healthy and free of mechanical or electrical defects, citing anechoic frequency tracking and stereo tracking consistency above the Schroeder frequency (> 400 Hz).
 
 ### Success Criteria *(measurable & technology-agnostic)*
 
