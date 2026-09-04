@@ -819,7 +819,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 <div class="wizard-page" id="wizard-page-3">
 <!-- PANEL DE REVISIÓN Y DESCARGAS MÓVIL -->
 <!-- 1. GRÁFICAS E INFORMES DE MEDICIÓN (PROMEDIO ESPACIAL) -->
-<div class="card" id="calibration-summary-card" style="border-color: #38bdf8; background: #0d233a; margin-bottom: 14px;">
+<div class="card" id="results-panel" style="border-color: #38bdf8; background: #0d233a; margin-bottom: 14px;">
   <div class="card-title" style="color: #38bdf8; margin-bottom: 8px;">
     <span>🎉 Modelado Acústico y Solución Paramétrica</span>
     <span class="status-badge ok" id="results-badge">PROCESADO</span>
@@ -1365,10 +1365,10 @@ async function applyFinalCalibration() {
       btn.textContent = "✅ ¡Calibración y Documentos Listos!";
       log("¡Proceso completado! Se han generado las 4 gráficas de alta resolución y el informe técnico certificado PDF.");
       renderResultsPanel(json);
+      goToWizardStep(3);
     } else {
       throw new Error(json.msg);
     }
-  } catch (err) {
     alert("Error al procesar: " + err.message);
     log("[!] Error: " + err.message);
     btn.disabled = false;
