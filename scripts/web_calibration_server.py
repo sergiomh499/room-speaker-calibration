@@ -3728,14 +3728,28 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                     right_spatial_avg=d_avg.get("smooth_r"),
                 )
                 
+                layout_str = req_data.get("layout", "STEREO_2_0")
+                active_channels = po.route_multichannel_layout(layout_str)
+                channel_results = {}
+                for ch in active_channels:
+                    ch_lower = ch.lower()
+                    if ch_lower in ("front_l", "left"):
+                        channel_results[ch] = opt.get("channels", {}).get("left", [])
+                    elif ch_lower in ("front_r", "right"):
+                        channel_results[ch] = opt.get("channels", {}).get("right", [])
+                    else:
+                        # Shared timbre match from reference front response
+                        channel_results[ch] = opt.get("channels", {}).get("left", [])
+                
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     "ok": True,
                     "profile_key": profile,
-                    "layout": req_data.get("layout", "STEREO_2_0"),
-                    "results": opt.get("channels", {}),
+                    "layout": layout_str,
+                    "active_channels": active_channels,
+                    "results": channel_results,
                     "metrics": opt.get("metrics", {})
                 }).encode("utf-8"))
             except Exception as e:

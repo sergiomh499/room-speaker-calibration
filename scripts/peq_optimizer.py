@@ -145,23 +145,73 @@ def generate_bookshelf_target_curve(
 def route_multichannel_layout(layout: str = "STEREO_2_0") -> List[str]:
     """
     Returns the list of active audio channels for a given speaker layout configuration.
-    Supports: STEREO_2_0, STEREO_2_1, SURROUND_5_1, SURROUND_7_1.
+    Supports all standard stereo, surround, height/presence, and immersive 3D/Atmos topologies:
+    - 1.0 (Mono), 2.0 (Stereo), 2.1, 2.2, 3.0, 3.1
+    - 4.0 (Quadraphonic), 4.1
+    - 5.0, 5.1, 5.2
+    - 7.0, 7.1, 7.2
+    - 5.1.2, 5.2.2 (Presence/Top Front)
+    - 7.1.2, 7.2.2 (Surround Back + Presence)
+    - 5.1.4, 7.1.4, 9.1.6, 11.2 (Extended AVR processor / Auro3D / Atmos topologies)
     """
-    layout_up = layout.upper().strip()
-    if layout_up in ("STEREO_2_0", "2.0"):
-        return ["Front_L", "Front_R"]
-    elif layout_up in ("STEREO_2_1", "2.1"):
-        return ["Front_L", "Front_R", "Subwoofer"]
-    elif layout_up in ("SURROUND_5_1", "5.1"):
-        return ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Subwoofer"]
-    elif layout_up in ("SURROUND_7_1", "7.1"):
-        return [
-            "Front_L", "Front_R", "Center",
-            "Surround_L", "Surround_R",
-            "Surround_Back_L", "Surround_Back_R",
-            "Subwoofer",
-        ]
-    return ["Front_L", "Front_R"]
+    normalized = layout.upper().strip().replace("-", "_").replace(".", "_")
+    
+    # Mapping of all standard consumer and pro multichannel audio topologies
+    layouts = {
+        # Mono & Basic Stereo
+        "1_0": ["Center"],
+        "MONO": ["Center"],
+        "2_0": ["Front_L", "Front_R"],
+        "STEREO": ["Front_L", "Front_R"],
+        "STEREO_2_0": ["Front_L", "Front_R"],
+        "2_1": ["Front_L", "Front_R", "Subwoofer"],
+        "STEREO_2_1": ["Front_L", "Front_R", "Subwoofer"],
+        "2_2": ["Front_L", "Front_R", "Subwoofer_1", "Subwoofer_2"],
+        "STEREO_2_2": ["Front_L", "Front_R", "Subwoofer_1", "Subwoofer_2"],
+        
+        # Front Stage / LCR
+        "3_0": ["Front_L", "Front_R", "Center"],
+        "LCR": ["Front_L", "Front_R", "Center"],
+        "3_1": ["Front_L", "Front_R", "Center", "Subwoofer"],
+        
+        # Quadraphonic
+        "4_0": ["Front_L", "Front_R", "Surround_L", "Surround_R"],
+        "QUAD": ["Front_L", "Front_R", "Surround_L", "Surround_R"],
+        "QUADRAPHONIC": ["Front_L", "Front_R", "Surround_L", "Surround_R"],
+        "4_1": ["Front_L", "Front_R", "Surround_L", "Surround_R", "Subwoofer"],
+        
+        # 5.x Surround
+        "5_0": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R"],
+        "5_1": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Subwoofer"],
+        "SURROUND_5_1": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Subwoofer"],
+        "5_2": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Subwoofer_1", "Subwoofer_2"],
+        
+        # 7.x Traditional Surround
+        "7_0": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R"],
+        "7_1": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Subwoofer"],
+        "SURROUND_7_1": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Subwoofer"],
+        "7_2": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Subwoofer_1", "Subwoofer_2"],
+        
+        # 5.x.y Immersive Height / Presence (Dolby Atmos / Yamaha Presence / DTS:X)
+        "5_1_2": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Front_Presence_L", "Front_Presence_R", "Subwoofer"],
+        "5_2_2": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Front_Presence_L", "Front_Presence_R", "Subwoofer_1", "Subwoofer_2"],
+        "5_1_4": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Front_Presence_L", "Front_Presence_R", "Rear_Presence_L", "Rear_Presence_R", "Subwoofer"],
+        "5_2_4": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Front_Presence_L", "Front_Presence_R", "Rear_Presence_L", "Rear_Presence_R", "Subwoofer_1", "Subwoofer_2"],
+        
+        # 7.x.y Immersive Height / Presence
+        "7_1_2": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Front_Presence_L", "Front_Presence_R", "Subwoofer"],
+        "7_2_2": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Front_Presence_L", "Front_Presence_R", "Subwoofer_1", "Subwoofer_2"],
+        "7_1_4": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Front_Presence_L", "Front_Presence_R", "Rear_Presence_L", "Rear_Presence_R", "Subwoofer"],
+        "7_2_4": ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Front_Presence_L", "Front_Presence_R", "Rear_Presence_L", "Rear_Presence_R", "Subwoofer_1", "Subwoofer_2"],
+        
+        # 9.x.y & Extended Ultra-Immersive / Auro3D Topologies
+        "9_1_2": ["Front_L", "Front_R", "Center", "Front_Wide_L", "Front_Wide_R", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Front_Presence_L", "Front_Presence_R", "Subwoofer"],
+        "9_1_4": ["Front_L", "Front_R", "Center", "Front_Wide_L", "Front_Wide_R", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Front_Presence_L", "Front_Presence_R", "Rear_Presence_L", "Rear_Presence_R", "Subwoofer"],
+        "9_1_6": ["Front_L", "Front_R", "Center", "Front_Wide_L", "Front_Wide_R", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Front_Presence_L", "Front_Presence_R", "Top_Middle_L", "Top_Middle_R", "Rear_Presence_L", "Rear_Presence_R", "Subwoofer"],
+        "9_2_6": ["Front_L", "Front_R", "Center", "Front_Wide_L", "Front_Wide_R", "Surround_L", "Surround_R", "Surround_Back_L", "Surround_Back_R", "Front_Presence_L", "Front_Presence_R", "Top_Middle_L", "Top_Middle_R", "Rear_Presence_L", "Rear_Presence_R", "Subwoofer_1", "Subwoofer_2"],
+    }
+    
+    return layouts.get(normalized, layouts["2_0"])
 
 
 def load_hardware_profile(
