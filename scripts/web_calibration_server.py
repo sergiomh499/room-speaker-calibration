@@ -775,33 +775,50 @@ HTML_CONTENT = """<!DOCTYPE html>
     </div>
   </div>
 
-  <details class="info-accordion" style="margin-top: 14px;">
-    <summary>ℹ️ Geometría del Cluster Estrecho (15-20 cm)</summary>
-    <div class="info-accordion-content">
-      5 puntos de medición confinados a un radio de <b>15-20 cm</b> alrededor del oído del oyente. El Punto 1 recibe el 70% del peso en el algoritmo acústico:
-      <pre style="font-family: monospace; font-size: 0.64rem; color: #fcd34d; background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px; margin: 8px 0 0 0; overflow-x: auto;">
-       [ Punto 5: +15 cm Arriba ]
-                   |
-[ P2: -15 cm Izq ] -- [ P1: SWEET SPOT ] -- [ P3: +15 cm Der ]
-                   |
-       [ Punto 4: +15 cm Delante ]
-      </pre>
+  <div style="margin-top: 14px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border); border-radius: 10px; padding: 12px;">
+    <div style="font-size: 0.76rem; font-weight: 600; color: #f8fafc; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+      <span>📍 Esquema de Colocación del Micrófono (Cluster 15-20 cm)</span>
+      <span class="status-badge ok" style="font-size: 0.65rem;">90° VERTICAL</span>
     </div>
-  </details>
+    <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 10px;">
+      Medición concentrada en la cabeza del oyente. El Punto 1 (Sweet Spot) manda con un 70% de ponderación.
+    </div>
+    
+    <!-- SVG Gráfico Vectorial Interactivo del Cluster -->
+    <div style="display: flex; justify-content: center; background: #080c14; border-radius: 8px; padding: 10px; border: 1px solid #1e293b;">
+      <svg viewBox="0 0 280 160" style="width: 100%; max-width: 280px; height: auto;">
+        <!-- Líneas guía orbitales -->
+        <circle cx="140" cy="80" r="50" fill="none" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="4 4" />
+        <line x1="140" y1="30" x2="140" y2="130" stroke="#1e293b" stroke-width="1.5" />
+        <line x1="90" y1="80" x2="190" y2="80" stroke="#1e293b" stroke-width="1.5" />
+        
+        <!-- P5: Cenital / Arriba -->
+        <circle cx="140" cy="30" r="14" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" />
+        <text x="140" y="34" font-size="10" font-family="sans-serif" font-weight="bold" fill="#38bdf8" text-anchor="middle">P5</text>
+        <text x="140" y="14" font-size="8.5" font-family="sans-serif" fill="#94a3b8" text-anchor="middle">+15cm Arriba</text>
 
-  <details class="info-accordion">
-    <summary>📊 Diagnóstico Modal y Ondas Estacionarias</summary>
-    <div class="info-accordion-content">
-      <div id="modal-symmetry-content" style="font-size: 0.72rem; color: #cbd5e1;">
-        Cargando telemetría electroacústica...
-      </div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-        <button class="btn-test-curve" onclick="loadModalDiagnosticsUI()" style="background:#7c3aed; padding: 5px 10px;">
-          🔄 Actualizar Diagnóstico
-        </button>
-      </div>
+        <!-- P2: Izquierda -->
+        <circle cx="90" cy="80" r="14" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" />
+        <text x="90" y="84" font-size="10" font-family="sans-serif" font-weight="bold" fill="#38bdf8" text-anchor="middle">P2</text>
+        <text x="50" y="83" font-size="8.5" font-family="sans-serif" fill="#94a3b8" text-anchor="middle">-15cm Izq</text>
+
+        <!-- P1: Central (Sweet Spot) -->
+        <circle cx="140" cy="80" r="20" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2" />
+        <text x="140" y="84" font-size="11" font-family="sans-serif" font-weight="bold" fill="#34d399" text-anchor="middle">P1</text>
+        <text x="140" y="108" font-size="8" font-family="sans-serif" font-weight="bold" fill="#10b981" text-anchor="middle">SWEET SPOT (70%)</text>
+
+        <!-- P3: Derecha -->
+        <circle cx="190" cy="80" r="14" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" />
+        <text x="190" y="84" font-size="10" font-family="sans-serif" font-weight="bold" fill="#38bdf8" text-anchor="middle">P3</text>
+        <text x="230" y="83" font-size="8.5" font-family="sans-serif" fill="#94a3b8" text-anchor="middle">+15cm Der</text>
+
+        <!-- P4: Delante -->
+        <circle cx="140" cy="130" r="14" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" />
+        <text x="140" y="134" font-size="10" font-family="sans-serif" font-weight="bold" fill="#38bdf8" text-anchor="middle">P4</text>
+        <text x="140" y="152" font-size="8.5" font-family="sans-serif" fill="#94a3b8" text-anchor="middle">+15cm Frente</text>
+      </svg>
     </div>
-  </details>
+  </div>
 </div>
 
   <div class="wizard-nav-bar">
@@ -916,6 +933,22 @@ HTML_CONTENT = """<!DOCTYPE html>
     Filtros paramétricos optimizados para la física real de la sala. Se actualizan dinámicamente según el perfil elegido arriba:
   </div>
   <div id="selected-peq-table-container"></div>
+  <details class="info-accordion" style="margin-top: 14px;">
+    <summary>📊 Diagnóstico Modal y Ondas Estacionarias (L vs R)</summary>
+    <div class="info-accordion-content">
+      <div style="font-size:0.72rem; color:#94a3b8; margin-bottom: 8px;">
+        Análisis de resonancias modales en sala antes y después de aplicar los filtros PEQ quirúrgicos:
+      </div>
+      <div id="modal-symmetry-content" style="font-size: 0.72rem; color: #cbd5e1;">
+        Cargando telemetría electroacústica...
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+        <button class="btn-test-curve" onclick="loadModalDiagnosticsUI()" style="background:#7c3aed; padding: 5px 10px;">
+          🔄 Actualizar Diagnóstico
+        </button>
+      </div>
+    </div>
+  </details>
 
   <div class="wizard-nav-bar">
     <button class="btn-wizard-nav" onclick="goToWizardStep(2)">◀ Volver a Medición</button>
@@ -1400,6 +1433,7 @@ async function applyFinalCalibration() {
     } else {
       throw new Error(json.msg);
     }
+  } catch (err) {
     alert("Error al procesar: " + err.message);
     log("[!] Error: " + err.message);
     btn.disabled = false;

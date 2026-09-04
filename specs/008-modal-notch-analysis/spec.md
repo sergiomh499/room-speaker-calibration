@@ -15,6 +15,8 @@
 - Q: ¿Cuál es la prioridad visual y de flujo principal para reorganizar la interfaz web móvil? → A: Wizard guiado minimalista: una sola tarjeta o bloque de enfoque por paso, tipografía responsive sin truncamientos de texto ni desbordes, botones táctiles amplios orientados a la acción y eliminación de tarjetas o paneles redundantes en la vista activa.
 - Q: ¿Qué paleta y estilo visual prefieres para la interfaz móvil? → A: Dark Moderno Studio: fondos grafito oscuro/carbón (#090d16), tarjetas con bordes sutiles (#1e293b), contraste refinado sin fatiga visual, acentos cian/esmeralda y tipografía sans-serif limpia y adaptativa de alta legibilidad técnica.
 - Q: ¿Cómo prefieres que se presenten las explicaciones acústicas y técnicas en cada paso para evitar saturación de texto en el móvil? → A: Resumen ejecutivo de 1 o 2 líneas concisas con orientación directa a la acción y un contenedor desplegable colapsable opcional ('ℹ️ Detalles Técnicos y Acústicos') para consultar la teoría de sala sin congestionar la vista vertical en el móvil.
+- Q: ¿Dónde debe ubicarse el diagnóstico de resonancias modales en la interfaz web y cómo deben presentarse los esquemas espaciales? → A: El diagnóstico de resonancias modales pertenece conceptualmente al Paso 3 (Optimización y Resultados) tras haber medido la sala, no en la preparación inicial de hardware (Paso 1). Asimismo, cualquier representación espacial o geométrica debe realizarse mediante gráficos vectoriales modernos (SVG interactivo/limpio) y nunca con diagramas de texto ASCII.
+- Q: ¿Por qué fallaba el botón 'Continuar a Medición' en el móvil y cuál es la solución requerida? → A: Un error sintáctico de bloque en el manejador asíncrono de finalización (`try` sin `catch`/`finally`) invalidaba el script de navegación en el navegador móvil al cargar la página. La corrección restablece la ejecución completa del JavaScript y garantiza navegación fluida e inmediata entre pasos.
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Physical Acoustic Analysis of Front L 125 Hz Room Mode vs Front R Asymmetry (Priority: P1 MVP)
@@ -102,6 +104,9 @@ As an audio calibrator using the system, I want the manual PEQ filters to be com
 - **FR-009**: System MUST ensure stereo band alignment between Left and Right channels, assigning coordinated center frequencies for shared modal resonances and pairing asymmetric modes with neutral 0.0 dB settings on the opposing channel to maintain physical stereo invariance.
 - **FR-010**: The web dashboard MUST implement a modular paginated wizard architecture dividing the workflow into navigable phases (1. Preparación, 2. Medición Multipunto, 3. Optimización PEQ, 4. Grabación Receptor, 5. Verificación Acústica, 6. Informes y Exportación).
 - **FR-011**: The paginated wizard MUST support non-destructive individual point repetition, enabling the user to re-record any specific measurement point (1 to 5) or re-run any individual validation sweep without clearing previous valid points.
+- **FR-012**: The modal resonance and standing wave diagnostic panel MUST be located in Step 3 (Optimization and Profiles) rather than initial hardware setup, reflecting post-measurement empirical data.
+- **FR-013**: Spatial and physical arrangements (such as microphone placement cluster) MUST be illustrated using clean, modern vector graphics (SVG) instead of ASCII character art.
+- **FR-014**: The client-side wizard script MUST maintain strict syntactic validity in all asynchronous execution paths, ensuring uninterrupted navigation across all wizard steps.
 
 ### Success Criteria *(measurable & technology-agnostic)*
 
