@@ -18,13 +18,62 @@
     "ideal_for": "Música Hi-Fi (Tidal, Spotify, FLAC, Vinilo), Jazz, Acústica, Rock, Pop y audición equilibrada 24/7.",
     "recommended_scene": "SCENE 1 (Música Hi-Fi)",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Preservación anecoica" },
-      "Band 2": { "freq": 125.0, "q_l": 4.0, "q_r": 1.26, "gain_l": -2.5, "gain_r": 0.0, "desc": "Notch modal quirúrgico Front L (119-125 Hz)" },
-      "Band 3": { "freq": 157.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 0.0, "gain_r": 0.0, "desc": "Transición neutra" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Límite Schroeder transparente" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Preservación tímbrica anecoica" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.26, "q_r": 1.26, "gain_l": 1.5, "gain_r": 2.0, "desc": "Compensación de cruce y claridad vocal" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Transparencia y aire fuera de eje" }
+      "Band 1": {
+        "freq": 157.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -1.5,
+        "gain_r": 0.0,
+        "desc": "Modo modal Front L (157.5 Hz) con pase neutro en R"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 0.63,
+        "q_r": 0.63,
+        "gain_l": 0.0,
+        "gain_r": -2.0,
+        "desc": "Modo modal Front R (198.4 Hz) con pase neutro en L"
+      },
+      "Band 3": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 1.5,
+        "gain_r": 2.0,
+        "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
+      },
+      "Band 4": {
+        "freq": 31.3,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
+      },
+      "Band 5": {
+        "freq": 39.4,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
+      },
+      "Band 6": {
+        "freq": 49.6,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (49.6 Hz)"
+      },
+      "Band 7": {
+        "freq": 62.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (62.5 Hz)"
+      }
     }
   },
   "bk_1974": {
@@ -46,13 +95,62 @@
     "ideal_for": "Música acústica, clásica orquestal, vinilos, jazz íntimo, grabaciones de los 60s/70s y música nocturna.",
     "recommended_scene": "SCENE 1 (Música Hi-Fi) alternativa",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 1.5, "gain_r": 1.5, "desc": "Calidez y extensión suave de graves" },
-      "Band 2": { "freq": 125.0, "q_l": 2.52, "q_r": 1.26, "gain_l": -3.5, "gain_r": 0.0, "desc": "Notch modal Front L imprescindible" },
-      "Band 3": { "freq": 157.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 1.0, "gain_r": 1.0, "desc": "Cuerpo y peso en medios bajos" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.26, "q_r": 1.26, "gain_l": 0.5, "gain_r": 0.5, "desc": "Presencia suave B&K" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": -1.5, "gain_r": -1.5, "desc": "Roll-off B&K en agudos para eliminar fatiga" }
+      "Band 1": {
+        "freq": 198.4,
+        "q_l": 0.794,
+        "q_r": 0.794,
+        "gain_l": 0.0,
+        "gain_r": -2.0,
+        "desc": "Modo modal Front R (198.4 Hz) con pase neutro en L"
+      },
+      "Band 2": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 0.5,
+        "gain_r": 0.5,
+        "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
+      },
+      "Band 3": {
+        "freq": 10080.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -1.5,
+        "gain_r": -1.5,
+        "desc": "Compensación de cruce y directividad del altavoz (10080.0 Hz)"
+      },
+      "Band 4": {
+        "freq": 31.3,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
+      },
+      "Band 5": {
+        "freq": 39.4,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
+      },
+      "Band 6": {
+        "freq": 49.6,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (49.6 Hz)"
+      },
+      "Band 7": {
+        "freq": 62.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (62.5 Hz)"
+      }
     }
   },
   "dirac_live": {
@@ -73,13 +171,62 @@
     "ideal_for": "Música moderna, electrónica, pop, bandas sonoras dinámicas y uso polivalente.",
     "recommended_scene": "SCENE 1 (Música Hi-Fi)",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 2.0, "gain_r": 2.0, "desc": "Rampa de graves Dirac Live" },
-      "Band 2": { "freq": 125.0, "q_l": 2.52, "q_r": 1.26, "gain_l": -3.5, "gain_r": 0.0, "desc": "Notch modal Front L" },
-      "Band 3": { "freq": 157.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 0.5, "gain_r": 0.5, "desc": "Articulación de graves medios" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.26, "q_r": 1.26, "gain_l": 1.0, "gain_r": 1.0, "desc": "Linealidad en medios altos" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": -0.5, "gain_r": -0.5, "desc": "Atenuación suave Dirac" }
+      "Band 1": {
+        "freq": 62.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 2.0,
+        "gain_r": 2.0,
+        "desc": "Rampa de graves Dirac Live"
+      },
+      "Band 2": {
+        "freq": 125.0,
+        "q_l": 2.52,
+        "q_r": 1.26,
+        "gain_l": -3.5,
+        "gain_r": 0.0,
+        "desc": "Notch modal Front L"
+      },
+      "Band 3": {
+        "freq": 157.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 0.5,
+        "gain_r": 0.5,
+        "desc": "Articulación de graves medios"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 6": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 1.0,
+        "gain_r": 1.0,
+        "desc": "Linealidad en medios altos"
+      },
+      "Band 7": {
+        "freq": 10100.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -0.5,
+        "gain_r": -0.5,
+        "desc": "Atenuación suave Dirac"
+      }
     }
   },
   "cinema_blockbuster": {
@@ -101,13 +248,62 @@
     "ideal_for": "Películas de acción, ciencia ficción, thrillers, videojuegos y contenido multicanal reproducido en 2.0.",
     "recommended_scene": "SCENE 2 (Cine y Películas)",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 2.5, "gain_r": 2.5, "desc": "Pegada subgrave cinematográfica" },
-      "Band 2": { "freq": 125.0, "q_l": 2.52, "q_r": 1.26, "gain_l": -3.5, "gain_r": 0.0, "desc": "Notch modal Front L imprescindible" },
-      "Band 3": { "freq": 157.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 1.0, "gain_r": 1.0, "desc": "Cuerpo en efectos sonoros" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.26, "q_r": 1.26, "gain_l": 2.0, "gain_r": 2.0, "desc": "Realce vocal en diálogos de cine" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": -1.5, "gain_r": -1.5, "desc": "Atenuación de agudos a alto volumen" }
+      "Band 1": {
+        "freq": 62.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 2.5,
+        "gain_r": 2.5,
+        "desc": "Pegada subgrave cinematográfica"
+      },
+      "Band 2": {
+        "freq": 125.0,
+        "q_l": 2.52,
+        "q_r": 1.26,
+        "gain_l": -3.5,
+        "gain_r": 0.0,
+        "desc": "Notch modal Front L imprescindible"
+      },
+      "Band 3": {
+        "freq": 157.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 1.0,
+        "gain_r": 1.0,
+        "desc": "Cuerpo en efectos sonoros"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 6": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 2.0,
+        "gain_r": 2.0,
+        "desc": "Realce vocal en diálogos de cine"
+      },
+      "Band 7": {
+        "freq": 10100.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -1.5,
+        "gain_r": -1.5,
+        "desc": "Atenuación de agudos a alto volumen"
+      }
     }
   },
   "vocal_clarity": {
@@ -128,13 +324,62 @@
     "ideal_for": "Series dramáticas, YouTube, podcasts, documentales, noticias y visionado nocturno.",
     "recommended_scene": "SCENE 3 (TV y Series)",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.0, "q_r": 1.0, "gain_l": -1.5, "gain_r": -1.5, "desc": "Corte de retumbos nocturnos" },
-      "Band 2": { "freq": 125.0, "q_l": 2.52, "q_r": 1.26, "gain_l": -4.0, "gain_r": -0.5, "desc": "Atenuación modal de caja hueca" },
-      "Band 3": { "freq": 157.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.26, "q_r": 1.26, "gain_l": 2.5, "gain_r": 2.5, "desc": "Proyección máxima de consonantes y habla" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Aire natural en sibilancias" }
+      "Band 1": {
+        "freq": 62.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -1.5,
+        "gain_r": -1.5,
+        "desc": "Corte de retumbos nocturnos"
+      },
+      "Band 2": {
+        "freq": 125.0,
+        "q_l": 2.52,
+        "q_r": 1.26,
+        "gain_l": -4.0,
+        "gain_r": -0.5,
+        "desc": "Atenuación modal de caja hueca"
+      },
+      "Band 3": {
+        "freq": 157.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 6": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 2.5,
+        "gain_r": 2.5,
+        "desc": "Proyección máxima de consonantes y habla"
+      },
+      "Band 7": {
+        "freq": 10100.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Aire natural en sibilancias"
+      }
     }
   },
   "x_curve_cinema": {
@@ -155,13 +400,62 @@
     "ideal_for": "Sesiones de cine a volumen muy alto, películas de terror o bélicas con efectos punzantes.",
     "recommended_scene": "SCENE 2 (Cine y Películas) alternativa",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 1.5, "gain_r": 1.5, "desc": "Extensión de subgraves de sala" },
-      "Band 2": { "freq": 125.0, "q_l": 2.52, "q_r": 1.26, "gain_l": -3.5, "gain_r": 0.0, "desc": "Notch modal Front L" },
-      "Band 3": { "freq": 157.5, "q_l": 1.26, "q_r": 1.26, "gain_l": 0.5, "gain_r": 0.5, "desc": "Medios bajos controlados" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Paso neutro" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.26, "q_r": 1.26, "gain_l": 0.0, "gain_r": 0.0, "desc": "Inicio de caída X-Curve" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": -2.5, "gain_r": -2.5, "desc": "Caída pronunciada ISO 2969 para alto SPL" }
+      "Band 1": {
+        "freq": 62.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 1.5,
+        "gain_r": 1.5,
+        "desc": "Extensión de subgraves de sala"
+      },
+      "Band 2": {
+        "freq": 125.0,
+        "q_l": 2.52,
+        "q_r": 1.26,
+        "gain_l": -3.5,
+        "gain_r": 0.0,
+        "desc": "Notch modal Front L"
+      },
+      "Band 3": {
+        "freq": 157.5,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 0.5,
+        "gain_r": 0.5,
+        "desc": "Medios bajos controlados"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Paso neutro"
+      },
+      "Band 6": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Inicio de caída X-Curve"
+      },
+      "Band 7": {
+        "freq": 10100.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -2.5,
+        "gain_r": -2.5,
+        "desc": "Caída pronunciada ISO 2969 para alto SPL"
+      }
     }
   },
   "audiophile_flat": {
@@ -182,13 +476,62 @@
     "ideal_for": "Salas con tratamiento acústico pasivo completo, audición analítica y producción musical.",
     "recommended_scene": "SCENE 1 (Música Hi-Fi) analítica",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Plano" },
-      "Band 2": { "freq": 125.0, "q_l": 2.52, "q_r": 1.26, "gain_l": -3.5, "gain_r": 0.0, "desc": "Notch modal Front L indispensable" },
-      "Band 3": { "freq": 157.5, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Plano" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Plano" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Plano" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Plano" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Plano" }
+      "Band 1": {
+        "freq": 62.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Plano"
+      },
+      "Band 2": {
+        "freq": 125.0,
+        "q_l": 2.52,
+        "q_r": 1.26,
+        "gain_l": -3.5,
+        "gain_r": 0.0,
+        "desc": "Notch modal Front L indispensable"
+      },
+      "Band 3": {
+        "freq": 157.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Plano"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Plano"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Plano"
+      },
+      "Band 6": {
+        "freq": 2520.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Plano"
+      },
+      "Band 7": {
+        "freq": 10100.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Plano"
+      }
     }
   },
   "ypao_flat": {
@@ -210,13 +553,62 @@
     "ideal_for": "Solo como referencia de comparación para notar la superioridad de la calibración multipunto manual.",
     "recommended_scene": "Ninguna recomendada",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "YPAO Auto" },
-      "Band 2": { "freq": 125.0, "q_l": 1.0, "q_r": 1.0, "gain_l": -1.0, "gain_r": 0.0, "desc": "YPAO Auto" },
-      "Band 3": { "freq": 157.5, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "YPAO Auto" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "YPAO Auto" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "YPAO Auto" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.5, "gain_r": 0.5, "desc": "YPAO Auto" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": -0.5, "gain_r": -0.5, "desc": "YPAO Auto" }
+      "Band 1": {
+        "freq": 62.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "YPAO Auto"
+      },
+      "Band 2": {
+        "freq": 125.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -1.0,
+        "gain_r": 0.0,
+        "desc": "YPAO Auto"
+      },
+      "Band 3": {
+        "freq": 157.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "YPAO Auto"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "YPAO Auto"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "YPAO Auto"
+      },
+      "Band 6": {
+        "freq": 2520.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.5,
+        "gain_r": 0.5,
+        "desc": "YPAO Auto"
+      },
+      "Band 7": {
+        "freq": 10100.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -0.5,
+        "gain_r": -0.5,
+        "desc": "YPAO Auto"
+      }
     }
   },
   "through_bypass": {
@@ -238,13 +630,62 @@
     "ideal_for": "Medición de referencia (baseline) y comparación A/B para demostrar cuánto mejora la sala con PEQ activo.",
     "recommended_scene": "SCENE 4 (Pure Direct)",
     "bands": {
-      "Band 1": { "freq": 62.5, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Bypass" },
-      "Band 2": { "freq": 125.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Bypass" },
-      "Band 3": { "freq": 157.5, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Bypass" },
-      "Band 4": { "freq": 250.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Bypass" },
-      "Band 5": { "freq": 500.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Bypass" },
-      "Band 6": { "freq": 2520.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Bypass" },
-      "Band 7": { "freq": 10100.0, "q_l": 1.0, "q_r": 1.0, "gain_l": 0.0, "gain_r": 0.0, "desc": "Bypass" }
+      "Band 1": {
+        "freq": 62.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Bypass"
+      },
+      "Band 2": {
+        "freq": 125.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Bypass"
+      },
+      "Band 3": {
+        "freq": 157.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Bypass"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Bypass"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Bypass"
+      },
+      "Band 6": {
+        "freq": 2520.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Bypass"
+      },
+      "Band 7": {
+        "freq": 10100.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Bypass"
+      }
     }
   }
 }

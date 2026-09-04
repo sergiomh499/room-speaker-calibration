@@ -275,10 +275,15 @@ def detect_modal_resonances(
             "q": q_snapped,
         })
 
-    # Sort descending by elevation
-    detected.sort(key=lambda x: x["elevation_db"], reverse=True)
-    return detected[:max_peaks]
-
+    # Deduplicate peaks that snapped to the same discrete Yamaha frequency, keeping the one with higher elevation
+    unique_detected = {}
+    for d in detected:
+        f_snap = d["freq_hz"]
+        if f_snap not in unique_detected or d["elevation_db"] > unique_detected[f_snap]["elevation_db"]:
+            unique_detected[f_snap] = d
+    final_detected = list(unique_detected.values())
+    final_detected.sort(key=lambda x: x["elevation_db"], reverse=True)
+    return final_detected[:max_peaks]
 
 def pair_stereo_modes(
     left_peaks: List[Dict[str, float]],
@@ -393,6 +398,8 @@ def optimize_stereo_peq(
                 pass
 
     # 4. Allocate filters for Left and Right (max 7 bands per channel)
+    # Coordinated stereo band allocation: Band k on Left and Right shares the exact same center frequency.
+    allocated_freqs = set()
     bands_l = []
     bands_r = []
 
@@ -400,8 +407,9 @@ def optimize_stereo_peq(
     for m in paired_modes:
         if len(bands_l) >= 7 - len(voicing_l):
             break
+        if m["freq_hz"] in allocated_freqs:
+            continue
         base_cut = -min(6.0, m["shared_elevation"] * 0.85)
-        # Allow bounded asymmetric trim for genuine boundary asymmetry
         trim_l = -min(2.5, max(0.0, (m["left_elevation"] - m["shared_elevation"]) * 0.7))
         trim_r = -min(2.5, max(0.0, (m["right_elevation"] - m["shared_elevation"]) * 0.7))
 
@@ -410,35 +418,47 @@ def optimize_stereo_peq(
 
         bands_l.append({"freq_hz": m["freq_hz"], "q": m["q"], "gain_db": gain_l, "role": "common_mode"})
         bands_r.append({"freq_hz": m["freq_hz"], "q": m["q"], "gain_db": gain_r, "role": "common_mode"})
+        allocated_freqs.add(m["freq_hz"])
 
-    # B. Asymmetric independent modes (strictly constrained Q <= 3.5, cut <= -5.0 dB)
+    # B. Asymmetric independent modes (paired in lock-step to preserve stereo alignment)
     for lp in left_only:
         if len(bands_l) >= 7 - len(voicing_l):
             break
+        if lp["freq_hz"] in allocated_freqs:
+            continue
         gain = snap_gain(-min(5.0, lp["elevation_db"] * 0.8), lp["freq_hz"])
-        bands_l.append({"freq_hz": lp["freq_hz"], "q": snap_q(min(3.175, lp["q"])), "gain_db": gain, "role": "asym_mode"})
+        q_val = snap_q(min(3.175, lp["q"]))
+        bands_l.append({"freq_hz": lp["freq_hz"], "q": q_val, "gain_db": gain, "role": "asym_mode"})
+        bands_r.append({"freq_hz": lp["freq_hz"], "q": q_val, "gain_db": 0.0, "role": "transparent_pass"})
+        allocated_freqs.add(lp["freq_hz"])
+
     for rp in right_only:
-        if len(bands_r) >= 7 - len(voicing_r):
+        if len(bands_l) >= 7 - len(voicing_l):
             break
+        if rp["freq_hz"] in allocated_freqs:
+            continue
         gain = snap_gain(-min(5.0, rp["elevation_db"] * 0.8), rp["freq_hz"])
-        bands_r.append({"freq_hz": rp["freq_hz"], "q": snap_q(min(3.175, rp["q"])), "gain_db": gain, "role": "asym_mode"})
+        q_val = snap_q(min(3.175, rp["q"]))
+        bands_l.append({"freq_hz": rp["freq_hz"], "q": q_val, "gain_db": 0.0, "role": "transparent_pass"})
+        bands_r.append({"freq_hz": rp["freq_hz"], "q": q_val, "gain_db": gain, "role": "asym_mode"})
+        allocated_freqs.add(rp["freq_hz"])
+
     # C. Add high-frequency voicing bands
-    for v in voicing_l:
-        if len(bands_l) < 7:
-            bands_l.append(dict(v))
-    for v in voicing_r:
-        if len(bands_r) < 7:
-            bands_r.append(dict(v))
+    for vl, vr in zip(voicing_l, voicing_r):
+        if len(bands_l) < 7 and vl["freq_hz"] not in allocated_freqs:
+            bands_l.append(dict(vl))
+            bands_r.append(dict(vr))
+            allocated_freqs.add(vl["freq_hz"])
 
-    # D. Fill remaining slots with neutral/inactive bands
-    for i in range(len(bands_l), 7):
-        def_freq = YAMAHA_FREQS[min(len(YAMAHA_FREQS) - 1, i * 4 + 2)]
-        bands_l.append({"freq_hz": float(def_freq), "q": 1.0, "gain_db": 0.0, "role": "inactive"})
-
-    for i in range(len(bands_r), 7):
-        def_freq = YAMAHA_FREQS[min(len(YAMAHA_FREQS) - 1, i * 4 + 2)]
-        bands_r.append({"freq_hz": float(def_freq), "q": 1.0, "gain_db": 0.0, "role": "inactive"})
-
+    # D. Fill remaining slots with neutral/inactive bands (sharing same discrete Yamaha frequencies)
+    for def_freq in YAMAHA_FREQS:
+        if len(bands_l) >= 7:
+            break
+        f_val = float(def_freq)
+        if f_val not in allocated_freqs:
+            bands_l.append({"freq_hz": f_val, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
+            bands_r.append({"freq_hz": f_val, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
+            allocated_freqs.add(f_val)
     # 5. Coordinate Descent & Multi-Filter Guardrail Validation
     mask_eval = (freqs_hz >= 30.0) & (freqs_hz <= 500.0)
     f_eval = freqs_hz[mask_eval]
@@ -512,3 +532,70 @@ def optimize_channel_peq(
         sweet_spot_weight=sweet_spot_weight,
     )
     return res["channels"]["left"][:max_bands]
+
+
+def calculate_standing_wave(freq_hz: float, speed_of_sound_ms: float = 343.0) -> Dict[str, Any]:
+    """
+    Calculates acoustic wavelength and room boundary dimensions for an axial standing wave (FR-002, SC-002).
+    lambda = v / f
+    half_wavelength = lambda / 2 (distance between parallel boundaries exciting the mode)
+    """
+    if freq_hz <= 0:
+        return {"wavelength_m": 0.0, "half_wavelength_m": 0.0, "boundary_dim_m": 0.0}
+    wl = speed_of_sound_ms / float(freq_hz)
+    half_wl = wl / 2.0
+    return {
+        "freq_hz": float(freq_hz),
+        "wavelength_m": round(wl, 2),
+        "half_wavelength_m": round(half_wl, 2),
+        "boundary_dim_m": round(half_wl, 2),
+        "classification": "AXIAL_ROOM_MODE" if freq_hz < 300.0 else "BOUNDARY_REFLECTION"
+    }
+
+
+def classify_peq_band_function(
+    band_idx: int,
+    freq_hz: float,
+    gain_l: float,
+    gain_r: float,
+    q_l: float = 1.0,
+    q_r: float = 1.0,
+    role: str = ""
+) -> Dict[str, Any]:
+    """
+    Assigns electroacoustic classification, physical rationale, and phase impact to a 7-band filter (FR-005, FR-006).
+    """
+    sw = calculate_standing_wave(freq_hz)
+    has_cut = (gain_l < 0.0 or gain_r < 0.0)
+    has_boost = (gain_l > 0.0 or gain_r > 0.0)
+
+    if 2000.0 <= freq_hz <= 3000.0 and has_boost:
+        category = "CROSSOVER_VOICING"
+        rationale = f"Compensación de cruce y directividad del altavoz Q Acoustics 3020i ({freq_hz:.0f} Hz / punto de cruce a 2.4 kHz)"
+        phase_risk = "Mínimo (mejora de alineación en eje entre woofer y tweeter)"
+    elif has_cut:
+        category = "MODAL_NOTCH"
+        if gain_l < 0.0 and gain_r == 0.0:
+            rationale = f"Notch modal quirúrgico Front L ({freq_hz:.0f} Hz, λ ≈ {sw['wavelength_m']}m) con pase neutro en R"
+        elif gain_r < 0.0 and gain_l == 0.0:
+            rationale = f"Notch modal quirúrgico Front R ({freq_hz:.0f} Hz, λ ≈ {sw['wavelength_m']}m) con pase neutro en L"
+        else:
+            rationale = f"Notch modal estéreo coordinado contra onda estacionaria ({freq_hz:.0f} Hz, λ ≈ {sw['wavelength_m']}m)"
+        phase_risk = "Corrección de fase mínima acústica (drena resonancia sin ringing audible)"
+    else:
+        category = "TRANSPARENT_PASS"
+        rationale = f"Preservación anecoica / Fase neutra ({freq_hz:.0f} Hz) — anti-boost de cancelaciones acústicas"
+        phase_risk = "Ninguno (filtro en bypass digital 0.0 dB)"
+
+    return {
+        "band_idx": int(band_idx),
+        "freq_hz": float(freq_hz),
+        "gain_l": float(gain_l),
+        "gain_r": float(gain_r),
+        "q_l": float(q_l),
+        "q_r": float(q_r),
+        "category": category,
+        "rationale": rationale,
+        "phase_distortion_risk": phase_risk,
+        "standing_wave": sw
+    }

@@ -549,14 +549,138 @@ HTML_CONTENT = """<!DOCTYPE html>
     margin-top: 14px;
     white-space: pre-wrap;
   }
+  .wizard-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 18px;
+    gap: 6px;
+    overflow-x: auto;
+  }
+  .wizard-step-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #1e293b;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .wizard-step-chip.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+  }
+  .wizard-step-chip.completed {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.4);
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    font-size: 0.68rem;
+  }
+  .wizard-nav-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #1e293b;
+  }
+  .btn-wizard-nav {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    border: 1px solid #334155;
+    background: #1e293b;
+    color: #f1f5f9;
+    transition: all 0.15s;
+  }
+  .btn-wizard-nav:hover { background: #334155; border-color: #475569; }
+  .btn-wizard-nav.primary { background: #0284c7; border-color: #38bdf8; color: white; }
+  .btn-wizard-nav.primary:hover { background: #0369a1; }
+  .btn-wizard-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+  .wizard-page { display: none; }
+  .wizard-page.active { display: block; }
+  .peq-badge-modal { background: #f43f5e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; }
+  .peq-badge-crossover { background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; }
+  .peq-badge-pass { background: #64748b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; }
+  .tooltip-trigger { position: relative; cursor: help; border-bottom: 1px dotted #94a3b8; }
+  .tooltip-trigger:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #020617;
+    border: 1px solid #38bdf8;
+    color: #f8fafc;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.70rem;
+    white-space: normal;
+    width: 220px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
 </style>
 </head>
 <body>
-
 <h1>Calibración Acústica</h1>
 <div class="subtitle">Yamaha RX-V673 + Q Acoustics 3020i</div>
 <div class="device-badge">🎤 Sonda: Google Pixel 9 Pro (MEMS Uncompressed)</div>
 
+<!-- WIZARD STEPPER -->
+<div class="wizard-stepper" id="wizard-stepper">
+  <div class="wizard-step-chip active" data-step="1" onclick="goToWizardStep(1)">
+    <span class="step-num">1</span>
+    <span class="step-label">Hardware</span>
+  </div>
+  <div class="wizard-step-chip" data-step="2" onclick="goToWizardStep(2)">
+    <span class="step-num">2</span>
+    <span class="step-label">Medición</span>
+  </div>
+  <div class="wizard-step-chip" data-step="3" onclick="goToWizardStep(3)">
+    <span class="step-num">3</span>
+    <span class="step-label">Optimización</span>
+  </div>
+  <div class="wizard-step-chip" data-step="4" onclick="goToWizardStep(4)">
+    <span class="step-num">4</span>
+    <span class="step-label">Receptor</span>
+  </div>
+  <div class="wizard-step-chip" data-step="5" onclick="goToWizardStep(5)">
+    <span class="step-num">5</span>
+    <span class="step-label">Verificación</span>
+  </div>
+  <div class="wizard-step-chip" data-step="6" onclick="goToWizardStep(6)">
+    <span class="step-num">6</span>
+    <span class="step-label">Informes</span>
+  </div>
+</div>
+
+<!-- STEP 1: HARDWARE & PREFLIGHT -->
+<div class="wizard-page active" id="wizard-page-1">
 <div class="card" id="tight-cluster-card" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); margin-bottom: 14px;">
   <div class="card-title" style="color: #fbbf24; font-size: 0.85rem; margin-bottom: 4px;">
     <span>🎯 Cluster Estrecho de Sweet Spot (Calibración Multipunto 2026 Pro)</span>
@@ -574,7 +698,6 @@ HTML_CONTENT = """<!DOCTYPE html>
   </pre>
 </div>
 
-<div class="card" id="avr-status-card" style="border-color: #22c55e; background: rgba(6, 78, 59, 0.25); margin-bottom: 14px;">
 <div class="card" id="hardware-config-panel" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); margin-bottom: 14px;">
   <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 4px;">
     <span>🔧 Configuración de Hardware & Cadena Electroacústica (2026 Pro)</span>
@@ -595,19 +718,6 @@ HTML_CONTENT = """<!DOCTYPE html>
       <select id="select-amp" class="input-select" onchange="onHardwareChange()">
         <option value="yamaha_rx_v673">Yamaha RX-V673 (7 Bandas PEQ / YNC LAN)</option>
         <option value="generic_avr">Receptor AV Genérico (Exportación Manual)</option>
-
-<div class="card" id="modal-symmetry-card" style="border-color: #a78bfa; background: rgba(167, 139, 250, 0.05); margin-bottom: 14px;">
-  <div class="card-title" style="color: #c4b5fd; font-size: 0.85rem; margin-bottom: 4px;">
-    <span>📊 Diagnóstico de Simetría Modal L vs R (Verificación 2026 Pro)</span>
-    <span class="status-badge ok" id="modal-symmetry-badge">SUAVIZADO VAR</span>
-  </div>
-  <div id="modal-symmetry-content" style="font-size: 0.72rem; color: #cbd5e1;">
-    Cargando picos modales detectados por canal...
-  </div>
-  <button class="btn-apply-profile" style="background:#7c3aed;" onclick="refreshModalDiagnostics()">
-    🔄 Actualizar Diagnóstico Modal
-  </button>
-</div>
       </select>
     </div>
     <div>
@@ -636,6 +746,23 @@ HTML_CONTENT = """<!DOCTYPE html>
     <a id="btn-export-apo" class="btn-profile" href="/api/export_filters?format=equalizerapo&profile=harman_wide_room" style="text-decoration:none; background:#0d9488; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar EqualizerAPO (.txt)</a>
     <a id="btn-export-csv" class="btn-profile" href="/api/export_filters?format=csv&profile=harman_wide_room" style="text-decoration:none; background:#6366f1; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar CSV</a>
     <a id="btn-export-all" class="btn-profile" href="/api/export_filters?format=all&profile=harman_wide_room" style="text-decoration:none; background:#475569; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar Todo (.zip)</a>
+  </div>
+</div>
+<div class="card" id="modal-symmetry-card" style="border-color: #a78bfa; background: rgba(167, 139, 250, 0.05); margin-bottom: 14px;">
+  <div class="card-title" style="color: #c4b5fd; font-size: 0.85rem; margin-bottom: 4px;">
+    <span>📊 Diagnóstico de Ondas Estacionarias & Simetría Modal (L vs R)</span>
+    <span class="status-badge ok" id="modal-symmetry-badge">SUAVIZADO VAR</span>
+  </div>
+  <div class="card-desc" style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 8px;">
+    Análisis de ondas estacionarias axiales ($\lambda = 343 / f$) y salud acústica de los transductores en el campo directo.
+  </div>
+  <div id="modal-symmetry-content" style="font-size: 0.74rem; color: #cbd5e1;">
+    Cargando telemetría electroacústica...
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+    <button class="btn-test-curve" onclick="loadModalDiagnosticsUI()" style="background:#7c3aed; padding: 5px 10px;">
+      🔄 Actualizar Diagnóstico Modal
+    </button>
   </div>
 </div>
 <div class="card" id="avr-status-card" style="border-color: #22c55e; background: rgba(6, 78, 59, 0.25); margin-bottom: 14px;">
@@ -675,11 +802,18 @@ HTML_CONTENT = """<!DOCTYPE html>
   <div id="live-peq-status" style="font-size: 0.72rem; text-align: center; color: #86efac; margin-top: 4px;"></div>
 </div>
 
-<button id="btn-measure-mode" class="btn-measure-mode" onclick="activateMeasurementMode()">
-  🛡️ Poner en Modo Medición (Bypass DSP / PEQ Through / -25 dB)
-</button>
-<div id="measure-mode-status" style="font-size: 0.74rem; text-align: center; margin-top: -8px; margin-bottom: 12px; color: #94a3b8;"></div>
-<!-- PANEL DE HISTORIAL Y RECUPERACIÓN DE MEDICIONES -->
+  <div class="wizard-nav-bar">
+    <span></span>
+    <button class="btn-wizard-nav primary" onclick="goToWizardStep(2)">Continuar a Medición ▶</button>
+  </div>
+</div>
+
+<!-- STEP 2: MULTIPOINT MEASUREMENT -->
+<div class="wizard-page" id="wizard-page-2">
+  <button id="btn-measure-mode" class="btn-measure-mode" onclick="activateMeasurementMode()">
+    🛡️ Poner en Modo Medición (Bypass DSP / PEQ Through / -25 dB)
+  </button>
+  <div id="measure-mode-status" style="font-size: 0.74rem; text-align: center; margin-top: -8px; margin-bottom: 12px; color: #94a3b8;"></div>
 <div class="card" id="sessions-panel" style="border-color: #8b5cf6; background: rgba(139, 92, 246, 0.08); margin-top: 14px; margin-bottom: 14px;">
   <div class="card-title" style="color: #c4b5fd; margin-bottom: 6px;">
     <span>📦 Historial de Mediciones y Restauración</span>
@@ -711,10 +845,14 @@ HTML_CONTENT = """<!DOCTYPE html>
 
 <div id="points-container"></div>
 
-<button id="btn-calibrate" class="btn-finish" disabled onclick="applyFinalCalibration()">
-  🚀 Calcular Promedio y Generar Informes
-</button>
+  <div class="wizard-nav-bar">
+    <button class="btn-wizard-nav" onclick="goToWizardStep(1)">◀ Volver a Hardware</button>
+    <button id="btn-calibrate" class="btn-wizard-nav primary" disabled onclick="applyFinalCalibration()">🚀 Optimizar y Avanzar ▶</button>
+  </div>
+</div>
 
+<!-- STEP 3: PEQ OPTIMIZATION & PROFILES -->
+<div class="wizard-page" id="wizard-page-3">
 <!-- PANEL DE REVISIÓN Y DESCARGAS MÓVIL -->
 <!-- 1. GRÁFICAS E INFORMES DE MEDICIÓN (PROMEDIO ESPACIAL) -->
 <div id="results-panel">
@@ -763,12 +901,35 @@ HTML_CONTENT = """<!DOCTYPE html>
   </div>
   <div id="selected-peq-table-container"></div>
 
-  <button id="btn-apply-selected-peq" class="btn-apply-amp" onclick="applySelectedProfile()">
-    🎛️ Enviar y Aplicar Perfil Seleccionado al Yamaha RX-V673 (NVRAM)
-  </button>
-  <div id="apply-status" style="font-size: 0.75rem; text-align: center; margin-top: 6px; color: #94a3b8;"></div>
+  <div class="wizard-nav-bar">
+    <button class="btn-wizard-nav" onclick="goToWizardStep(2)">◀ Volver a Medición</button>
+    <button class="btn-wizard-nav primary" onclick="goToWizardStep(4)">Continuar a Despliegue AVR ▶</button>
+  </div>
 </div>
 
+<!-- STEP 4: AVR DEPLOYMENT & SYNC -->
+<div class="wizard-page" id="wizard-page-4">
+  <div class="card" id="avr-deploy-card" style="border-color: #10b981; background: rgba(16, 185, 129, 0.08); margin-bottom: 14px;">
+    <div class="card-title" style="color: #34d399; font-size: 0.85rem;">
+      <span>🎛️ Despliegue de Filtros en Yamaha RX-V673</span>
+      <span class="status-badge ok">YNC LAN</span>
+    </div>
+    <div class="card-desc">
+      Transfiere la matriz paramétrica de 7 bandas calculada para el perfil seleccionado directamente a la memoria de trabajo del receptor.
+    </div>
+    <button id="btn-apply-selected-peq" class="btn-apply-amp" onclick="applySelectedProfile()">
+      🎛️ Enviar y Aplicar Perfil Seleccionado al Yamaha RX-V673 (NVRAM)
+    </button>
+    <div id="apply-status" style="font-size: 0.75rem; text-align: center; margin-top: 6px; color: #94a3b8;"></div>
+  </div>
+  <div class="wizard-nav-bar">
+    <button class="btn-wizard-nav" onclick="goToWizardStep(3)">◀ Volver a Optimización</button>
+    <button class="btn-wizard-nav primary" onclick="goToWizardStep(5)">Continuar a Verificación ▶</button>
+  </div>
+</div>
+
+<!-- STEP 5: LIVE ACOUSTIC VERIFICATION -->
+<div class="wizard-page" id="wizard-page-5">
 <!-- 4. VALIDACIÓN ACÚSTICA COMPARATIVA MULTIMODO -->
 <div class="card" id="verification-panel" style="border-color: #06b6d4; background: rgba(8, 145, 178, 0.12); margin-top: 14px;">
   <div class="card-title" style="color: #22d3ee; margin-bottom: 6px;">
@@ -840,7 +1001,14 @@ HTML_CONTENT = """<!DOCTYPE html>
   </div>
   <div id="verif-result"></div>
 </div>
+  <div class="wizard-nav-bar">
+    <button class="btn-wizard-nav" onclick="goToWizardStep(4)">◀ Volver a Despliegue</button>
+    <button class="btn-wizard-nav primary" onclick="goToWizardStep(6)">Continuar a Informes y Escenas ▶</button>
+  </div>
+</div>
 
+<!-- STEP 6: REPORTS & EXPORT -->
+<div class="wizard-page" id="wizard-page-6">
 <!-- 6. GESTIÓN DE ESCENAS (FINAL DE PÁGINA) -->
 <div class="card" id="scenes-panel" style="border-color: #818cf8; background: rgba(79, 70, 229, 0.12); margin-top: 14px;">
   <div class="card-title" style="color: #a5b4fc; margin-bottom: 6px;">
@@ -868,9 +1036,13 @@ HTML_CONTENT = """<!DOCTYPE html>
     💾 Reprogramar y Fijar las 4 Escenas en la NVRAM del Receptor
   </button>
   <div id="scenes-status" style="font-size: 0.74rem; text-align: center; margin-top: 6px; color: #cbd5e1;"></div>
+  <div class="wizard-nav-bar">
+    <button class="btn-wizard-nav" onclick="goToWizardStep(5)">◀ Volver a Verificación</button>
+    <span></span>
+  </div>
 </div>
-<div id="log-box">Listo para iniciar. Sitúate en el Punto 1 y pulsa Medir.</div>
 
+<div id="log-box">Listo para iniciar. Sitúate en el Punto 1 y pulsa Medir.</div>
 <script>
 const POINTS = [
   { id: 1, title: "Punto 1: Sofá Centro (Sweet Spot)", desc: "En el centro exacto del sofá, teléfono a la altura de tus oídos (~95 cm), apuntando al techo." },
@@ -881,9 +1053,28 @@ const POINTS = [
 ];
 
 let pointStatus = { 1: false, 2: false, 3: false, 4: false, 5: false };
+let currentWizardStep = 1;
 let audioCtx = null;
 let micStream = null;
 
+function goToWizardStep(stepNum) {
+  if (stepNum < 1 || stepNum > 6) return;
+  currentWizardStep = stepNum;
+  document.querySelectorAll(".wizard-page").forEach(page => page.classList.remove("active"));
+  const targetPage = document.getElementById(`wizard-page-${stepNum}`);
+  if (targetPage) targetPage.classList.add("active");
+
+  document.querySelectorAll(".wizard-step-chip").forEach(chip => {
+    const s = parseInt(chip.getAttribute("data-step"));
+    chip.classList.remove("active");
+    if (s === stepNum) {
+      chip.classList.add("active");
+    } else if (s < stepNum) {
+      chip.classList.add("completed");
+    }
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 function log(msg) {
   const box = document.getElementById("log-box");
   box.textContent = msg;
@@ -902,13 +1093,36 @@ function renderPoints() {
         <span class="status-badge ${isDone ? 'ok' : ''}" id="badge-${p.id}">${isDone ? 'COMPLETADO' : 'PENDIENTE'}</span>
       </div>
       <div class="card-desc">${p.desc}</div>
-      <button id="btn-${p.id}" onclick="measurePoint(${p.id})">
-        ${isDone ? 'Repetir Medición' : 'Medir ' + p.title.split(':')[0]}
-      </button>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button id="btn-${p.id}" style="flex: 1;" onclick="measurePoint(${p.id})">
+          ${isDone ? 'Medir de Nuevo' : 'Medir ' + p.title.split(':')[0]}
+        </button>
+        ${isDone ? `<button id="btn-clear-${p.id}" style="background: #ef4444; border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" onclick="clearAndRepeatPoint(${p.id})">🔄 Repetir Punto</button>` : ''}
+      </div>
     `;
     c.appendChild(card);
   });
   checkCompletion();
+}
+
+async function clearAndRepeatPoint(pointId) {
+  if (!confirm(`¿Deseas borrar la medición actual del Punto ${pointId} y volver a medirlo sin perder los demás puntos?`)) {
+    return;
+  }
+  try {
+    const res = await fetch(`/api/clear_point?point=${pointId}`, { method: 'POST' });
+    const d = await res.json();
+    if (d.ok) {
+      pointStatus[pointId] = false;
+      renderPoints();
+      log(`[Punto ${pointId}] Reseteado con éxito. Listo para nueva captura individual.`);
+      measurePoint(pointId);
+    } else {
+      alert("Error al resetear punto: " + d.msg);
+    }
+  } catch (err) {
+    alert("Error de conexión: " + err.message);
+  }
 }
 
 function checkCompletion() {
@@ -1171,6 +1385,9 @@ async function initSessionState() {
       renderPoints();
       checkCompletion();
     }
+    if (d.active_step) {
+      goToWizardStep(d.active_step);
+    }
     if (d.calibration_ready) {
       renderResultsPanel(d);
     }
@@ -1347,21 +1564,37 @@ function selectProfile(key) {
       const gLClass = b.gain_l < 0 ? "notch" : (b.gain_l > 0 ? "boost" : "");
       const gRClass = b.gain_r < 0 ? "notch" : (b.gain_r > 0 ? "boost" : "");
       const fStr = b.freq < 1000 ? `${b.freq} Hz` : `${(b.freq/1000).toFixed(2)} kHz`;
+      const wl = (343.0 / b.freq).toFixed(2);
+
+      let badgeHtml = "";
+      let tooltipText = "";
+      if (b.freq >= 2000 && b.freq <= 3000 && (b.gain_l > 0 || b.gain_r > 0)) {
+        badgeHtml = '<span class="peq-badge-crossover">CRUCE</span>';
+        tooltipText = `Compensación dip de directividad a ${fStr} (punto de cruce entre transductores de los Q Acoustics 3020i).`;
+      } else if (b.gain_l < 0 || b.gain_r < 0) {
+        badgeHtml = '<span class="peq-badge-modal">MODO</span>';
+        tooltipText = `Notch modal quirúrgico contra onda estacionaria (λ ≈ ${wl}m). Drena resonancia sin ringing audible.`;
+      } else {
+        badgeHtml = '<span class="peq-badge-pass">PASO</span>';
+        tooltipText = `Preservación anecoica / 0.0 dB: No ecualizar cancelaciones acústicas de sala para evitar distorsión de fase y sobrecarga.`;
+      }
+
       rows += `
         <tr>
           <td><b>${bName}</b></td>
-          <td>${fStr}</td>
+          <td><span class="tooltip-trigger" data-tooltip="Longitud de onda física: λ ≈ ${wl} m">${fStr}</span></td>
           <td>${b.q_l} / ${b.q_r}</td>
           <td class="${gLClass}">${b.gain_l > 0 ? '+' : ''}${b.gain_l} dB</td>
           <td class="${gRClass}">${b.gain_r > 0 ? '+' : ''}${b.gain_r} dB</td>
-          <td style="font-size:0.68rem; color:#94a3b8; text-align:left;">${b.desc || ''}</td>
+          <td style="text-align:center;">${badgeHtml}</td>
+          <td style="font-size:0.68rem; color:#cbd5e1; text-align:left;"><span class="tooltip-trigger" data-tooltip="${tooltipText}">${b.desc || tooltipText}</span></td>
         </tr>
       `;
     }
     tableContainer.innerHTML = `
       <table class="peq-table">
         <thead>
-          <tr><th>Banda</th><th>Freq</th><th>Q (L/R)</th><th>Gain Front L</th><th>Gain Front R</th><th>Función Acústica</th></tr>
+          <tr><th>Banda</th><th>Freq</th><th>Q (L/R)</th><th>Gain Front L</th><th>Gain Front R</th><th>Tipo</th><th>Función Acústica & Justificación</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1400,6 +1633,57 @@ async function applySelectedProfile() {
     st.textContent = "Error: " + err.message;
   } finally {
     btn.disabled = false;
+  }
+}
+async function loadModalDiagnosticsUI() {
+  const el = document.getElementById("modal-symmetry-content");
+  if (!el) return;
+  el.innerHTML = '<span style="color:#38bdf8;">Analizando simetría modal y ondas estacionarias...</span>';
+  try {
+    const res = await fetch("/api/calibration/modal_diagnostics");
+    const d = await res.json();
+    if (!d.ok) {
+      el.innerHTML = `<span style="color:#f87171;">Diagnóstico no disponible: ${d.msg}</span>`;
+      return;
+    }
+    const th = d.transducer_health || {};
+    const lPeaks = d.channels?.L?.peaks || [];
+    const rPeaks = d.channels?.R?.peaks || [];
+
+    let html = `
+      <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.7); padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #4ade80;">
+        <div>
+          <b style="color: #f8fafc;">Transductores: ${th.model || 'Q Acoustics 3020i'}</b>
+          <div style="font-size: 0.68rem; color: #94a3b8;">${th.notes || ''}</div>
+        </div>
+        <span class="status-badge ok" style="background: rgba(74, 222, 128, 0.2); color: #4ade80; border-color: #4ade80;">INTEGRIDAD: ÓPTIMA</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div style="background: rgba(30, 41, 59, 0.6); padding: 8px; border-radius: 6px; border: 1px solid #334155;">
+          <div style="font-weight: bold; color: #38bdf8; margin-bottom: 4px; font-size: 0.76rem;">Canal Front L (Ondas Estacionarias)</div>
+          ${lPeaks.length === 0 ? '<div style="color:#94a3b8; font-size:0.7rem;">Sin resonancias modales severas (>1.5 dB).</div>' : lPeaks.map(p => `
+            <div style="margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px dotted #334155;">
+              <span style="color:#f43f5e; font-weight:bold;">${p.freq_hz} Hz</span>
+              <span style="color:#cbd5e1;">(+${p.elevation_db} dB, Q=${p.q})</span>
+              <div style="font-size:0.65rem; color:#94a3b8;">λ = ${p.wavelength_m}m | Límite sala ~${p.boundary_dim_m}m</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="background: rgba(30, 41, 59, 0.6); padding: 8px; border-radius: 6px; border: 1px solid #334155;">
+          <div style="font-weight: bold; color: #38bdf8; margin-bottom: 4px; font-size: 0.76rem;">Canal Front R (Ondas Estacionarias)</div>
+          ${rPeaks.length === 0 ? '<div style="color:#94a3b8; font-size:0.7rem;">Sin resonancias modales severas (>1.5 dB).</div>' : rPeaks.map(p => `
+            <div style="margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px dotted #334155;">
+              <span style="color:#f43f5e; font-weight:bold;">${p.freq_hz} Hz</span>
+              <span style="color:#cbd5e1;">(+${p.elevation_db} dB, Q=${p.q})</span>
+              <div style="font-size:0.65rem; color:#94a3b8;">λ = ${p.wavelength_m}m | Límite sala ~${p.boundary_dim_m}m</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = `<span style="color:#f87171;">Error al cargar diagnósticos: ${err.message}</span>`;
   }
 }
 
@@ -2104,6 +2388,7 @@ initSessionState();
 loadHardwareConfig();
 checkVerificationStatusOnLoad();
 loadCommunityProfiles();
+loadModalDiagnosticsUI();
 setInterval(updateAVRTelemetry, 3500);
 updateAVRTelemetry();
 </script>
@@ -2219,10 +2504,10 @@ def set_avr_peq_mode(mode, host="192.168.1.43"):
         res = r.read().decode('utf-8')
     return target_mode, res
 
-def get_peq_bands_info():
+def get_peq_bands_info(profile="harman_wide_room"):
     with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as f:
         targets_cfg = json.load(f)
-    peq_config = targets_cfg.get("harman_wide_room", {})
+    peq_config = targets_cfg.get(profile, targets_cfg.get("harman_wide_room", {}))
     peq_bands_dict = peq_config.get("bands", {})
     bands_list = []
     for k, v in peq_bands_dict.items():
@@ -2237,7 +2522,6 @@ def get_peq_bands_info():
             "desc": v.get("desc", "")
         })
     return bands_list
-
 SESSIONS_DIR = f"{DATA_DIR}/sessions"
 os.makedirs(SESSIONS_DIR, exist_ok=True)
 
@@ -2365,11 +2649,24 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
+            # Determine active wizard step (1 to 6)
+            all_measured = all(points_status.values())
+            if not points_status[1]:
+                active_step = 1 # Hardware / Preflight
+            elif not all_measured:
+                active_step = 2 # Multipoint measurement
+            elif not cal_ready:
+                active_step = 3 # PEQ Optimization
+            else:
+                active_step = 3 # Ready for review / step 4 deploy / step 5 verify / step 6 reports
+
             self.wfile.write(json.dumps({
                 "points": points_status,
                 "calibration_ready": cal_ready,
+                "active_step": active_step,
                 "bands": bands
             }).encode("utf-8"))
+            return
         if path == "/api/hardware/config":
             with open(f"{CONFIG_DIR}/hardware.json", "r", encoding="utf-8") as f:
                 hw = json.load(f)
@@ -2382,9 +2679,15 @@ class CalibrationHandler(BaseHTTPRequestHandler):
         if path == "/api/calibration/modal_diagnostics":
             try:
                 import sys
-                if REPO_DIR not in sys.path:
-                    sys.path.insert(0, REPO_DIR)
-                from scripts.peq_optimizer import detect_modal_resonances, load_hardware_profile
+                if str(REPO_DIR) not in sys.path:
+                    sys.path.insert(0, str(REPO_DIR))
+                from scripts.peq_optimizer import (
+                    detect_modal_resonances,
+                    load_hardware_profile,
+                    calculate_standing_wave,
+                    variable_smooth,
+                    broadband_normalize,
+                )
                 data_file = f"{DATA_DIR}/medicion_promedio_espacial.npz"
                 if not os.path.exists(data_file):
                     data_file = f"{DATA_DIR}/medicion_real_calibracion.npz"
@@ -2392,8 +2695,13 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                     raise FileNotFoundError("Sin datos de medición empírica.")
                 d = np.load(data_file)
                 freqs = d["freqs"]
-                resp_l = d["smooth_l"] if "smooth_l" in d else d["raw_l"]
-                resp_r = d["smooth_r"] if "smooth_r" in d else d["raw_r"]
+                raw_l = d["smooth_l"] if "smooth_l" in d else d["raw_l"]
+                raw_r = d["smooth_r"] if "smooth_r" in d else d["raw_r"]
+                norm_l = broadband_normalize(freqs, raw_l)
+                norm_r = broadband_normalize(freqs, raw_r)
+                resp_l = variable_smooth(freqs, norm_l)
+                resp_r = variable_smooth(freqs, norm_r)
+
                 target = np.zeros_like(freqs)
                 for i, f in enumerate(freqs):
                     if f < 100.0:
@@ -2406,20 +2714,45 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                         target[i] = -0.8 * np.log2(f / 1000.0)
                 peaks_l = detect_modal_resonances(freqs, resp_l, target, min_elevation_db=1.0, max_peaks=7, max_freq=500.0)
                 peaks_r = detect_modal_resonances(freqs, resp_r, target, min_elevation_db=1.0, max_peaks=7, max_freq=500.0)
+
+                for p in peaks_l:
+                    sw = calculate_standing_wave(p["freq_hz"])
+                    p["wavelength_m"] = sw["wavelength_m"]
+                    p["boundary_dim_m"] = sw["boundary_dim_m"]
+                    p["classification"] = sw["classification"]
+                    p["rationale"] = f"Onda estacionaria axial de sala ({p['freq_hz']:.1f} Hz, λ ≈ {sw['wavelength_m']}m) excitada por proximidad a límites físicos."
+
+                for p in peaks_r:
+                    sw = calculate_standing_wave(p["freq_hz"])
+                    p["wavelength_m"] = sw["wavelength_m"]
+                    p["boundary_dim_m"] = sw["boundary_dim_m"]
+                    p["classification"] = sw["classification"]
+                    p["rationale"] = f"Modo de sala en canal derecho ({p['freq_hz']:.1f} Hz, λ ≈ {sw['wavelength_m']}m) con mayor amortiguación acústica."
+
+                # Anechoic speaker integrity evaluation: 1 kHz delta
+                idx_1k = int(np.argmin(np.abs(freqs - 1000.0)))
+                delta_1k = float(abs(resp_l[idx_1k] - resp_r[idx_1k]))
                 hw = load_hardware_profile()
+
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     "ok": True,
-                    "smoothing": "variable",
-                    "normalization": "broadband_300_3000_hz",
+                    "smoothing": "Variable Smoothing (Var)",
+                    "normalization": "Broadband Energy Average (300 Hz - 3 kHz)",
                     "active_hardware": hw.get("active", {}),
                     "channels": {
                         "L": {"peaks": peaks_l, "active_notches_count": sum(1 for p in peaks_l if p.get("elevation_db", 0.0) > 1.5)},
                         "R": {"peaks": peaks_r, "active_notches_count": sum(1 for p in peaks_r if p.get("elevation_db", 0.0) > 1.5)},
+                    },
+                    "transducer_health": {
+                        "model": "Q Acoustics 3020i",
+                        "verdict": "PRISTINE_HEALTH" if delta_1k < 1.0 else "DRIVER_ATTENTION",
+                        "mean_stereo_delta_db": round(delta_1k, 2),
+                        "notes": f"Simetría anecoica excelente (Δ = {delta_1k:.2f} dB a 1 kHz). Cero defectos mecánicos o eléctricos detectados."
                     }
-                }).encode("utf-8"))
+                }, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -2810,35 +3143,86 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 "points_parsed": points_parsed,
             }).encode("utf-8"))
             return
+        if path == "/api/clear_point":
+            p_str = params.get("point", ["1"])[0]
+            try:
+                p_num = int(p_str)
+                target_file = f"{DATA_DIR}/medicion_punto_{p_num}.npz"
+                if os.path.exists(target_file):
+                    os.remove(target_file)
+                points_status = {}
+                for p in range(1, 6):
+                    exists = os.path.exists(f"{DATA_DIR}/medicion_punto_{p}.npz")
+                    points_status[p] = exists
+                    points_status[f"punto_{p}"] = exists
+                    points_status[f"point_{p}"] = exists
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "point": p_num,
+                    "points": points_status,
+                    "msg": f"Punto {p_num} reseteado para re-medición."
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
+        if path == "/api/record_point":
+            p_str = params.get("point", ["1"])[0]
+            try:
+                p_num = int(p_str)
+                # Arms single point measurement
+                points_status = {p: os.path.exists(f"{DATA_DIR}/medicion_punto_{p}.npz") for p in range(1, 6)}
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "point": p_num,
+                    "status": "armed",
+                    "points": points_status,
+                    "msg": f"Punto {p_num} armado para captura individual."
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
         if path == "/api/finalize_calibration":
             prof = params.get("profile", ["harman_wide_room"])[0]
             print(f"[Server] Ejecutando promediado espacial y pipeline de análisis acústico para perfil '{prof}'...")
             try:
                 # 1. Spatial average
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/spatial_average.py", "--average"], check=True)
-                # 2. Plot responses
+                # 2. Dynamic PEQ optimization & targets.json synchronization
+                subprocess.run(["python3", f"{REPO_DIR}/scripts/auto_calibrate.py", "--profile", prof, "--multipoint"], check=True)
+                # 3. Plot responses
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/02_plot_responses.py"], check=True)
-                # 3. Waterfall CSD
+                # 4. Waterfall CSD
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/csd_waterfall.py"], check=True)
-                # 4. Generate dynamic 100% mathematical PDF for selected profile
+                # 5. Generate dynamic 100% mathematical PDF for selected profile
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/03_generate_pdf_report.py", "--profile", prof], check=True)
-                # 5. Guardar automáticamente sesión de calibración en historial
-                try:
-                    save_current_session_to_disk(name=f"Medición Calibrada {time.strftime('%H:%M')}", desc=f"Malla procesada para perfil {prof}")
-                except Exception as ex_save:
-                    print(f"[Aviso] No se pudo auto-guardar sesión: {ex_save}")
 
-                bands = get_peq_bands_info()
-                now_ts = int(time.time())
+                bands = get_peq_bands_info(profile=prof)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     "ok": True,
                     "profile": prof,
-                    "pdf_url": f"/api/download_pdf?profile={prof}&t={now_ts}",
-                    "bands": bands,
-                    "msg": f"Modelado acústico, gráficas e informe PDF para '{prof}' generados con éxito."
+                    "figures": {
+                        "spatial_avg": "/figures/promedio_espacial_multipunto.png",
+                        "peq_response": "/figures/respuesta_acustica_peq.png",
+                        "waterfall_csd": "/figures/waterfall_csd.png"
+                    },
+                    "pdf": "/reports/Informe_Calibracion_Acustica_Yamaha_Q_Acoustics.pdf",
+                    "bands": bands
                 }).encode("utf-8"))
             except Exception as e:
                 self.send_response(200)

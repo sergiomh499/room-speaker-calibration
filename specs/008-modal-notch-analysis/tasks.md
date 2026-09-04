@@ -17,17 +17,12 @@ description: "Task list for Modal Notch Diagnostic, Dynamic PEQ Synchronization,
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Verify existing test environment, baseline configuration, and data assets.
-
-- [ ] T001 Verify existing test fixtures, empirical data files in `data/`, and active community targets in `config/targets.json`
+- [X] T001 Verify existing test fixtures, empirical data files in `data/`, and active community targets in `config/targets.json`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
-
-**Purpose**: Core mathematical and data model prerequisites required across all user stories.
-
-- [ ] T002 Verify discrete Yamaha RX-V673 frequency and Q snapping arrays in `scripts/peq_optimizer.py` and create backup baseline for `config/targets.json`
+- [X] T002 Verify discrete Yamaha RX-V673 frequency and Q snapping arrays in `scripts/peq_optimizer.py` and create backup baseline for `config/targets.json`
 
 **Checkpoint**: Foundation ready - user story implementation can begin.
 

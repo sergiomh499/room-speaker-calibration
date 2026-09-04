@@ -47,8 +47,10 @@ def run_calibration(
     use_spatial_avg: bool = True,
     push_yamaha: bool = False,
     sweet_spot_weight: float = 0.7,
+    config_path: str = None,
 ) -> dict:
-    targets = load_json(CONFIG_DIR / "targets.json")
+    cfg_path = Path(config_path or (CONFIG_DIR / "targets.json"))
+    targets = load_json(cfg_path)
     if target_key not in targets:
         print(f"[!] Target profile '{target_key}' not found. Available: {list(targets.keys())}")
         sys.exit(1)
@@ -145,6 +147,7 @@ def run_calibration(
         right_spatial_avg=spatial_r,
         sweet_spot_weight=sweet_spot_weight,
         target_key=target_key,
+        config_path=str(cfg_path),
     )
 
     left_bands = opt_result["channels"]["left"]
@@ -161,6 +164,42 @@ def run_calibration(
     print(f"Reducción RMS estimada: {opt_result['metrics']['predicted_rms_reduction_db']:.2f} dB")
     print(f"Atenuación modal pico:  {opt_result['metrics']['predicted_modal_attenuation_db']:.2f} dB")
     print(f"Tiempo de cómputo:      {opt_result['metrics']['execution_time_ms']:.1f} ms")
+
+    # 4. Synchronize dynamically optimized bands back to targets.json
+    bands_dict = {}
+    for bl, br in zip(left_bands, right_bands):
+        b_idx = bl["band"]
+        if bl.get("role") == "common_mode":
+            desc = f"Modo modal compartido ({bl['freq_hz']} Hz)"
+        elif bl.get("gain_db", 0.0) < 0 and br.get("gain_db", 0.0) == 0:
+            desc = f"Modo modal Front L ({bl['freq_hz']} Hz) con pase neutro en R"
+        elif br.get("gain_db", 0.0) < 0 and bl.get("gain_db", 0.0) == 0:
+            desc = f"Modo modal Front R ({br['freq_hz']} Hz) con pase neutro en L"
+        elif bl.get("role") == "voicing":
+            desc = f"Compensación de cruce y directividad del altavoz ({bl['freq_hz']} Hz)"
+        else:
+            desc = f"Preservación anecoica / Fase neutra ({bl['freq_hz']} Hz)"
+
+        bands_dict[f"Band {b_idx}"] = {
+            "freq": float(bl["freq_hz"]),
+            "q_l": float(bl["q"]),
+            "q_r": float(br["q"]),
+            "gain_l": float(bl["gain_db"]),
+            "gain_r": float(br["gain_db"]),
+            "desc": desc
+        }
+
+    if cfg_path.exists():
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f_in:
+                all_targets = json.load(f_in)
+            if target_key in all_targets:
+                all_targets[target_key]["bands"] = bands_dict
+                with open(cfg_path, "w", encoding="utf-8") as f_out:
+                    json.dump(all_targets, f_out, indent=2, ensure_ascii=False)
+                print(f"[✓] Perfil '{target_key}' sincronizado con 7 bandas calculadas dinámicamente en targets.json.")
+        except Exception as e_sync:
+            print(f"[!] Error al sincronizar targets.json: {e_sync}")
 
     # 4. Optional Hardware Deployment
     if push_yamaha:

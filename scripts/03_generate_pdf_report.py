@@ -28,12 +28,13 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 
 REPO_DIR = Path(__file__).resolve().parent.parent
+if str(REPO_DIR) not in sys.path:
+    sys.path.insert(0, str(REPO_DIR))
 DATA_DIR = REPO_DIR / "data"
 CONFIG_DIR = REPO_DIR / "config"
 REPORT_DIR = REPO_DIR / "reports"
 FIG_DIR = REPO_DIR / "figures"
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
-
 
 def peq_transfer(f_grid: np.ndarray, f0: float, q: float, gain_db: float) -> np.ndarray:
     """Calculates continuous analogue-equivalent PEQ transfer curve."""
@@ -279,53 +280,53 @@ def generate_pdf_report(
         ("TOPPADDING", (0, 0), (-1, -1), 1.0),
     ]))
 
-    # TABLE 3: Exact PEQ Bands
+    # TABLE 3: Exact PEQ Bands with Electroacoustic Rationale and Physical Wavelength
+    from scripts.peq_optimizer import classify_peq_band_function, calculate_standing_wave
     peq_detail_data = [
         [
             Paragraph("<b>Banda</b>", body_bold),
-            Paragraph("<b>Frecuencia</b>", body_bold),
+            Paragraph("<b>Freq (λ)</b>", body_bold),
             Paragraph("<b>Factor Q (L / R)</b>", body_bold),
             Paragraph("<b>Ganancia L</b>", body_bold),
             Paragraph("<b>Ganancia R</b>", body_bold),
-            Paragraph("<b>Tipo Filtro</b>", body_bold),
-            Paragraph("<b>Función Algorítmica Asignada</b>", body_bold)
+            Paragraph("<b>Categoría</b>", body_bold),
+            Paragraph("<b>Justificación Electroacústica</b>", body_bold)
         ]
     ]
 
-    for b_name, b_info in peq_bands_dict.items():
+    for idx, (b_name, b_info) in enumerate(peq_bands_dict.items(), start=1):
         f_val = float(b_info.get("freq", 100.0))
-        f_str = f"{f_val:.1f} Hz" if f_val < 1000.0 else f"{f_val/1000.0:.2f} kHz"
         g_l = float(b_info.get("gain_l", 0.0))
         g_r = float(b_info.get("gain_r", 0.0))
         ql = float(b_info.get("q_l", 1.0))
         qr = float(b_info.get("q_r", 1.0))
-        if g_l < 0 or g_r < 0:
-            ftype = "NOTCH"
-        elif g_l > 0 or g_r > 0:
-            ftype = "PEAK"
-        else:
-            ftype = "FLAT"
+        classified = classify_peq_band_function(idx, f_val, g_l, g_r, ql, qr)
+        sw = classified["standing_wave"]
+        wl_str = f" ({sw['wavelength_m']}m)" if sw['wavelength_m'] > 0 else ""
+        f_str = f"{f_val:.1f} Hz{wl_str}" if f_val < 1000.0 else f"{f_val/1000.0:.2f} kHz{wl_str}"
+        cat_str = classified["category"]
+        rationale_str = b_info.get("desc") or classified["rationale"]
+
         peq_detail_data.append([
             b_name,
             f_str,
             f"{ql:.3f} / {qr:.3f}",
             f"{g_l:+.1f} dB",
             f"{g_r:+.1f} dB",
-            ftype,
-            b_info.get("desc", f"Ajuste {prof_name}")
+            cat_str,
+            rationale_str
         ])
 
-    t_peq_detail = Table(peq_detail_data, colWidths=[1.7*cm, 2.0*cm, 2.5*cm, 2.0*cm, 2.0*cm, 1.8*cm, 5.8*cm])
+    t_peq_detail = Table(peq_detail_data, colWidths=[1.5*cm, 2.5*cm, 2.1*cm, 1.8*cm, 1.8*cm, 2.5*cm, 5.6*cm])
     t_peq_detail.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8f5e9")),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#c8e6c9")),
-        ("FONTSIZE", (0, 0), (-1, -1), 5.7),
+        ("FONTSIZE", (0, 0), (-1, -1), 5.3),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (0, 1), (5, -1), "CENTER"),
+        ("ALIGN", (0, 1), (4, -1), "CENTER"),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 1.0),
         ("TOPPADDING", (0, 0), (-1, -1), 1.0),
     ]))
-
     # Story assembly
     story = [
         Paragraph("DOCUMENTACIÓN TÉCNICA MAESTRA: CALIBRACIÓN Y CORRECCIÓN ELECTROACÚSTICA", title_style),
@@ -370,8 +371,12 @@ def generate_pdf_report(
         # PÁGINA 3
         Paragraph(f"5. Tabla Maestra de Ajuste Fino PEQ - {prof_name} (Manual Setup -> Equalizer)", h1_style),
         t_peq_detail,
-        Spacer(1, 3),
-
+        Spacer(1, 2),
+        Paragraph(
+            "<b>Justificación Electroacústica de Bandas Inactivas (0.0 dB):</b> Las bandas con ganancia neutra (0.0 dB) preservan la integridad temporal y linealidad de fase del sistema. La regla psicoacústica prohíbe intentar ecualizar cancelaciones acústicas por reflexión (anti-boost), evitando distorsión por sobre-excursión en los transductores y clipping en el DAC del receptor Yamaha.",
+            callout_style
+        ),
+        Spacer(1, 2),
         Paragraph("6. Programación y Asignación de Escenas en el Receptor", h1_style),
         Paragraph("<b>SCENE 1 (Música Hi-Fi):</b> Entrada: <code>AV4 (TV ARC)</code> &bull; Modo: <code>Straight</code> &bull; Adaptive DRC: <code>Off</code> &bull; PEQ: <code>Manual</code> &bull; <i>Fidelidad estéreo de referencia con notch modal activo en Front L</i>.", body_style),
         Spacer(1, 1.5),

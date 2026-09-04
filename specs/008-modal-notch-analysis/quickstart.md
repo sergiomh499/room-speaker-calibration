@@ -53,9 +53,9 @@ Test the live API endpoint for modal diagnostics:
 
 ```bash
 curl -s http://127.0.0.1:53317/api/calibration/modal_diagnostics | jq .
+```
 
 ## 4. Verify Dynamic PEQ Optimizer Execution and targets.json Sync
-Validate that running `auto_calibrate.py` dynamically updates the 7 biquad bands with real room measurements:
 
 ```bash
 python3 scripts/auto_calibrate.py --target harman_wide_room --spatial-avg
