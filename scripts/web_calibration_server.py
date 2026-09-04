@@ -2730,6 +2730,32 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 "freqs": freqs
             }
 
+            if "L" in point_buffers[point_id] and "R" in point_buffers[point_id]:
+                out_data = {
+                    "freqs": freqs,
+                    "raw_l": point_buffers[point_id]["L"]["raw"],
+                    "smooth_l": point_buffers[point_id]["L"]["smooth"],
+                    "ir_l": point_buffers[point_id]["L"]["ir"],
+                    "raw_r": point_buffers[point_id]["R"]["raw"],
+                    "smooth_r": point_buffers[point_id]["R"]["smooth"],
+                    "ir_r": point_buffers[point_id]["R"]["ir"]
+                }
+                ts_str = time.strftime("%Y%m%d_%H%M%S")
+                np.savez(f"{DATA_DIR}/medicion_punto_{point_id}_{ts_str}.npz", **out_data)
+                np.savez(f"{DATA_DIR}/medicion_punto_{point_id}.npz", **out_data)
+                print(f"[Server] Guardado medicion_punto_{point_id}.npz con éxito.")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "snr": f"{snr_db:.1f}",
+                "peak_dbfs": f"{peak_dbfs:.1f}",
+                "channel": channel
+            }).encode("utf-8"))
+            return
+
         if path == "/api/hardware/select":
             content_length = int(self.headers.get("Content-Length", 0))
             raw = self.rfile.read(content_length) if content_length > 0 else b"{}"
@@ -2784,33 +2810,6 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 "points_parsed": points_parsed,
             }).encode("utf-8"))
             return
-
-            if "L" in point_buffers[point_id] and "R" in point_buffers[point_id]:
-                out_data = {
-                    "freqs": freqs,
-                    "raw_l": point_buffers[point_id]["L"]["raw"],
-                    "smooth_l": point_buffers[point_id]["L"]["smooth"],
-                    "ir_l": point_buffers[point_id]["L"]["ir"],
-                    "raw_r": point_buffers[point_id]["R"]["raw"],
-                    "smooth_r": point_buffers[point_id]["R"]["smooth"],
-                    "ir_r": point_buffers[point_id]["R"]["ir"]
-                }
-                ts_str = time.strftime("%Y%m%d_%H%M%S")
-                np.savez(f"{DATA_DIR}/medicion_punto_{point_id}_{ts_str}.npz", **out_data)
-                np.savez(f"{DATA_DIR}/medicion_punto_{point_id}.npz", **out_data)
-                print(f"[Server] Guardado medicion_punto_{point_id}.npz con éxito.")
-
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({
-                "ok": True,
-                "snr": f"{snr_db:.1f}",
-                "peak_dbfs": f"{peak_dbfs:.1f}",
-                "channel": channel
-            }).encode("utf-8"))
-            return
-
         if path == "/api/finalize_calibration":
             prof = params.get("profile", ["harman_wide_room"])[0]
             print(f"[Server] Ejecutando promediado espacial y pipeline de análisis acústico para perfil '{prof}'...")
