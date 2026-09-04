@@ -638,7 +638,7 @@ HTML_CONTENT = """<!DOCTYPE html>
     <a id="btn-export-all" class="btn-profile" href="/api/export_filters?format=all&profile=harman_wide_room" style="text-decoration:none; background:#475569; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar Todo (.zip)</a>
   </div>
 </div>
-
+<div class="card" id="avr-status-card" style="border-color: #22c55e; background: rgba(6, 78, 59, 0.25); margin-bottom: 14px;">
   <div class="card-title" style="color: #4ade80; font-size: 0.85rem; margin-bottom: 2px;">
     <span>🛡️ Telemetría AVR Protegida</span>
     <span class="status-badge ok" id="avr-peq-badge">COMPROBANDO...</span>
@@ -2022,78 +2022,8 @@ async function saveCurrentSessionPrompt() {
       if (sel) sel.value = json.session.id;
       onSessionSelectChange();
     } else {
-async function loadHardwareConfig() {
- try {
- const res = await fetch('/api/hardware/config');
- const hw = await res.json();
- if (hw && hw.active) {
- const selMic = document.getElementById('select-mic');
- const selAmp = document.getElementById('select-amp');
- const selSp = document.getElementById('select-speakers');
- if (selMic) selMic.value = hw.active.microphone;
- if (selAmp) selAmp.value = hw.active.amplifier;
- if (selSp) selSp.value = hw.active.speakers;
- }
- } catch (err) {
- console.warn('No se pudo cargar hardware.json:', err);
- }
-}
-
-async function refreshModalDiagnostics() {
- const content = document.getElementById('modal-symmetry-content');
- const badge = document.getElementById('modal-symmetry-badge');
- if (badge) { badge.className = 'status-badge active'; badge.textContent = 'CALCULANDO...'; }
- if (content) content.textContent = '⏳ Ejecutando detección modal con suavizado Variable Smoothing (Var)...';
- try {
- const res = await fetch('/api/calibration/modal_diagnostics');
- const json = await res.json();
- if (!json.ok) throw new Error(json.msg || 'Error desconocido');
- const renderPeaks = (peaks) => {
- if (!peaks || peaks.length === 0) return '<div style="color:#94a3b8;">Sin picos modales detectados</div>';
- return peaks.map(p => `<div>↳ <b>${p.freq_hz} Hz</b> | +${p.elevation_db} dB | Q: ${p.q} | BW: ${p.bandwidth_hz} Hz</div>`).join('');
- };
- content.innerHTML = `
- <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
- <div><b style="color:#f87171;">Front L — Picos modales (${json.channels.L.active_notches_count} activos)</b><br>${renderPeaks(json.channels.L.peaks)}</div>
- <div><b style="color:#60a5fa;">Front R — Picos modales (${json.channels.R.active_notches_count} activos)</b><br>${renderPeaks(json.channels.R.peaks)}</div>
- </div>
- <div style="margin-top: 6px; font-size: 0.65rem; color: #64748b;">Smoothing: ${json.smoothing} | Normalización: ${json.normalization}</div>
- `;
- if (badge) { badge.className = 'status-badge ok'; badge.textContent = 'COMPLETADO'; }
- } catch (err) {
- if (content) content.innerHTML = `<div style="color:#f87171;">❌ Error: ${err.message}</div>`;
- if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
- }
-}
-
-
-async function onHardwareChange() {
- const mic = document.getElementById('select-mic').value;
- const amp = document.getElementById('select-amp').value;
- const sp = document.getElementById('select-speakers').value;
- const badge = document.getElementById('hardware-status-badge');
- if (badge) { badge.className = 'status-badge active'; badge.textContent = 'GUARDANDO...'; }
- try {
- const res = await fetch('/api/hardware/select', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({ microphone: mic, amplifier: amp, speakers: sp })
- });
- const json = await res.json();
- if (json.ok) {
- if (badge) { badge.className = 'status-badge ok'; badge.textContent = 'ACTIVO'; }
- } else {
- if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
- alert('Error: ' + json.msg);
- }
- } catch (err) {
- if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
- console.error(err);
- }
-
-initSessionState();
-loadHardwareConfig();
-checkVerificationStatusOnLoad();
+      throw new Error(json.msg || "Error desconocido");
+    }
   } catch (err) {
     alert("Error al guardar sesión: " + err.message);
     st.style.color = "#f87171";
@@ -2101,9 +2031,77 @@ checkVerificationStatusOnLoad();
   }
 }
 
+async function loadHardwareConfig() {
+  try {
+    const res = await fetch('/api/hardware/config');
+    const hw = await res.json();
+    if (hw && hw.active) {
+      const selMic = document.getElementById('select-mic');
+      const selAmp = document.getElementById('select-amp');
+      const selSp = document.getElementById('select-speakers');
+      if (selMic) selMic.value = hw.active.microphone;
+      if (selAmp) selAmp.value = hw.active.amplifier;
+      if (selSp) selSp.value = hw.active.speakers;
+    }
+  } catch (err) {
+    console.warn('No se pudo cargar hardware.json:', err);
+  }
+}
 
+async function refreshModalDiagnostics() {
+  const content = document.getElementById('modal-symmetry-content');
+  const badge = document.getElementById('modal-symmetry-badge');
+  if (badge) { badge.className = 'status-badge active'; badge.textContent = 'CALCULANDO...'; }
+  if (content) content.textContent = '⏳ Ejecutando detección modal con suavizado Variable Smoothing (Var)...';
+  try {
+    const res = await fetch('/api/calibration/modal_diagnostics');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.msg || 'Error desconocido');
+    const renderPeaks = (peaks) => {
+      if (!peaks || peaks.length === 0) return '<div style="color:#94a3b8;">Sin picos modales detectados</div>';
+      return peaks.map(p => `<div>↳ <b>${p.freq_hz} Hz</b> | +${p.elevation_db} dB | Q: ${p.q} | BW: ${p.bandwidth_hz} Hz</div>`).join('');
+    };
+    content.innerHTML = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div><b style="color:#f87171;">Front L — Picos modales (${json.channels.L.active_notches_count} activos)</b><br>${renderPeaks(json.channels.L.peaks)}</div>
+        <div><b style="color:#60a5fa;">Front R — Picos modales (${json.channels.R.active_notches_count} activos)</b><br>${renderPeaks(json.channels.R.peaks)}</div>
+      </div>
+      <div style="margin-top: 6px; font-size: 0.65rem; color: #64748b;">Smoothing: ${json.smoothing} | Normalización: ${json.normalization}</div>
+    `;
+    if (badge) { badge.className = 'status-badge ok'; badge.textContent = 'COMPLETADO'; }
+  } catch (err) {
+    if (content) content.innerHTML = `<div style="color:#f87171;">❌ Error: ${err.message}</div>`;
+    if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
+  }
+}
+
+async function onHardwareChange() {
+  const mic = document.getElementById('select-mic').value;
+  const amp = document.getElementById('select-amp').value;
+  const sp = document.getElementById('select-speakers').value;
+  const badge = document.getElementById('hardware-status-badge');
+  if (badge) { badge.className = 'status-badge active'; badge.textContent = 'GUARDANDO...'; }
+  try {
+    const res = await fetch('/api/hardware/select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ microphone: mic, amplifier: amp, speakers: sp })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      if (badge) { badge.className = 'status-badge ok'; badge.textContent = 'ACTIVO'; }
+    } else {
+      if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
+      alert('Error: ' + json.msg);
+    }
+  } catch (err) {
+    if (badge) { badge.className = 'status-badge fail'; badge.textContent = 'ERROR'; }
+    console.error(err);
+  }
+}
 
 initSessionState();
+loadHardwareConfig();
 checkVerificationStatusOnLoad();
 loadCommunityProfiles();
 setInterval(updateAVRTelemetry, 3500);
