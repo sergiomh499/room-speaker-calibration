@@ -8,6 +8,11 @@
 
 **Input**: User description: "sigue sin estar bien calculados los peq manuales, tienes que validar uno a uno que los calculos que se realizan para el calculo de los mismos son correctos, empieza haciendolos desde cero y no tengas en cuenta precepciones anteriores, consulta en internet en perplexity cada una de ellas para cercionarte de que son los adecuados y optimos, y no se estan realizando invenciones o erratas y que se corresponden a los calculos adecuados para llegar a la curva deseada partiendo de las mediciones realizadas y fijadas en el workflow establecido. ademas dale una vuelta y revisa que los perfiles que estan cargados efectivamente a agosto de 2026 son los mejores para un consumo de musica y cine, con un sistema 2.0 o similar al que está actualmente montado, valorando el ajuste en funcion de la configuracion de altavoces que hay. estudia como hacen los calculos ypao y audissey y otras empresas para la calibracion y obtencion de los presets y usa esas mismas tecnicas y mejoradas para obtener una experiencia perfecta"
 
+## Clarifications
+
+### Session 2026-09-04
+
+- Q: ¿Cómo debe diseñarse el soporte para calibraciones futuras multicanal (2.1, 5.1, 7.1, etc.) en la arquitectura de optimización y comunicación con el amplificador? → A: Arquitectura escalable desacoplada por canales: el modelo de datos, la rutina de barrido/medición y el optimizador matemático tratan cada canal como una entidad parametrizable independiente (`L`, `R`, `C`, `SW`, `SL`, `SR`, `SBL`, `SBR`). Para el hardware activo (2.0), el pipeline opera en estéreo (L/R) con protección de driver sin subwoofer; cuando el usuario seleccione o añada canales (2.1, 5.1 o 7.1), el sistema activa los slots correspondientes, ajusta el crossover de gestión de graves para subwoofers y envía las tramas PEQ a los registros de canal respectivos del receptor Yamaha RX-V673 sin reescribir el motor matemático central.
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Ground-Truth Mathematical Derivation of 7-Band Manual PEQ Filters (Priority: P1 MVP)
@@ -74,6 +79,7 @@ As an audiophile, I want the calibration engine to implement multi-pass optimiza
 - **FR-005**: System MUST implement peak-priority modal damping (YPAO/Audyssey paradigm), giving highest priority to resonant peaks with $Q \ge 2.0$ while strictly prohibiting positive boosting of non-minimum-phase acoustic cancellation nulls.
 - **FR-006**: System MUST ensure stereo band alignment between Left and Right channels, pairing independent asymmetric modes with transparent 0.0 dB settings on the opposing channel to maintain stereo phase coherence.
 - **FR-007**: System MUST provide transparent verification metrics for each calculated band, reporting exact center frequency, attenuation depth, filter bandwidth, and predicted residual RMS error reduction.
+- **FR-008**: System architecture MUST support multichannel speaker topologies (2.0, 2.1, 5.1, 7.1, and future setups supported by the AVR) by parameterizing PEQ channel slots (`L`, `R`, `C`, `SW`, `SL`, `SR`, `SBL`, `SBR`) as independent modular pipelines, automatically adjusting bass management crossover handling when a subwoofer channel (`SW`) is activated.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -92,8 +98,7 @@ As an audiophile, I want the calibration engine to implement multi-pass optimiza
 - **SC-005**: Full stereo optimization and dynamic coefficient calculation completes in under 100 milliseconds.
 
 ## Assumptions
-
-- Target listening system is configured in pure 2.0 stereo (Yamaha RX-V673 amplifier with Front speakers set to Large, Subwoofer set to None).
-- Q Acoustics 3020i physical specifications ($F_3 \approx 64\text{ Hz}$, 5-inch bass driver, 0.9-inch decoupled tweeter, 6-ohm nominal impedance) represent the physical acoustic constraint for low-frequency extension.
+- Target listening system currently active is configured in pure 2.0 stereo (Yamaha RX-V673 amplifier with Front speakers set to Large, Subwoofer set to None), but data models and calibration routes support multichannel layouts (2.1, 5.1, 7.1).
+- Q Acoustics 3020i physical specifications ($F_3 \approx 64\text{ Hz}$, 5-inch bass driver, 0.9-inch decoupled tweeter, 6-ohm nominal impedance) represent the physical acoustic constraint for low-frequency extension in 2.0 mode; in 2.1+ configurations, the high-pass boundary shifts to the configured subwoofer crossover frequency (e.g. 80 Hz).
 - Speed of sound in room environment is assumed to be $343\text{ m/s}$ ($20^\circ\text{C}$ air temperature).
-- Yamaha RX-V673 discrete frequency table spans 28 discrete frequencies per band (31.3 Hz to 16.0 kHz) and discrete Q factors spanning 0.500 to 10.08.
+- Yamaha RX-V673 discrete frequency table spans 28 discrete frequencies per band (31.3 Hz to 16.0 kHz) and discrete Q factors spanning 0.500 to 10.08 across all supported amplifier channels.
