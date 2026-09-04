@@ -881,6 +881,7 @@ HTML_CONTENT = """<!DOCTYPE html>
     <button class="btn-wizard-nav primary" onclick="goToWizardStep(4)">Continuar a Despliegue AVR ▶</button>
   </div>
 </div>
+</div>
 
 <!-- STEP 4: AVR DEPLOYMENT & SYNC -->
 <div class="wizard-page" id="wizard-page-4">
@@ -1081,6 +1082,7 @@ HTML_CONTENT = """<!DOCTYPE html>
     <button class="btn-wizard-nav" onclick="goToWizardStep(5)">◀ Volver a Verificación</button>
     <span></span>
   </div>
+</div>
 </div>
 
 <div id="log-box">Listo para iniciar. Sitúate en el Punto 1 y pulsa Medir.</div>
