@@ -186,9 +186,18 @@ def deploy_peq_matrix_with_readback(
             return f"{val:.2f} kHz" if (val * 10) % 1 != 0 else f"{val:.1f} kHz"
         return f"{f_hz:.1f} Hz"
 
-    # 2. Build XML for Front_L and Front_R
-    ch_map = {"left": "Front_L", "right": "Front_R"}
-    for ch_key, ch_tag in ch_map.items():
+    # 2. Build XML for channels (supports stereo and multichannel extensions)
+    ch_map = {
+        "left": "Front_L",
+        "right": "Front_R",
+        "center": "Center",
+        "surround_l": "Surround_L",
+        "surround_r": "Surround_R",
+        "surround_back_l": "Surround_Back_L",
+        "surround_back_r": "Surround_Back_R",
+        "subwoofer": "Subwoofer",
+    }
+    for ch_key, ch_tag in list(ch_map.items()):
         bands = peq_matrix.get(ch_key, [])
         if not bands:
             continue

@@ -95,6 +95,74 @@ def broadband_normalize(
     baseline = np.mean(response_db[mask])
     return response_db - baseline
 
+def generate_bookshelf_target_curve(
+    freqs_hz: np.ndarray,
+    target_key: str = "harman_wide_room",
+    fc_hz: float = 64.0,
+    subwoofer_crossover_hz: Optional[float] = None,
+) -> np.ndarray:
+    """
+    Generates ground-truth acoustic target curve tailored for small bookshelf speakers (e.g. Q Acoustics 3020i).
+    - Applies natural Butterworth high-pass cutoff (fc=64 Hz for 2.0; or subwoofer_crossover_hz if 2.1+).
+    - Applies standard psychoacoustic target curve (Harman, B&K 1974, Dirac) with treble roll-off.
+    """
+    freqs_hz = np.asarray(freqs_hz, dtype=np.float64)
+    cutoff = subwoofer_crossover_hz if subwoofer_crossover_hz and subwoofer_crossover_hz > 0 else fc_hz
+    hpf_mag = 1.0 / np.sqrt(1.0 + (cutoff / np.maximum(freqs_hz, 1.0)) ** 4)
+    hpf_db = 20.0 * np.log10(np.maximum(hpf_mag, 1e-3))
+
+    k = (target_key or "").lower()
+    target_curve = np.zeros_like(freqs_hz)
+    if "bk" in k or "1974" in k:
+        for i, f in enumerate(freqs_hz):
+            if f < 100.0:
+                target_curve[i] = 3.0
+            elif f < 400.0:
+                target_curve[i] = 3.0 * (1.0 - (f - 100.0) / 300.0)
+            else:
+                target_curve[i] = -0.9 * np.log2(f / 400.0)
+    elif "dirac" in k:
+        for i, f in enumerate(freqs_hz):
+            if f < 120.0:
+                target_curve[i] = 2.0
+            elif f < 250.0:
+                target_curve[i] = 2.0 * (1.0 - (f - 120.0) / 130.0)
+            else:
+                target_curve[i] = -0.6 * np.log2(f / 1000.0)
+    else:
+        # Harman / Floyd Toole standard in-room curve
+        for i, f in enumerate(freqs_hz):
+            if f < 120.0:
+                target_curve[i] = 2.5
+            elif f < 200.0:
+                target_curve[i] = 2.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
+            else:
+                target_curve[i] = -0.8 * np.log2(f / 200.0)
+
+    return target_curve + hpf_db
+
+
+def route_multichannel_layout(layout: str = "STEREO_2_0") -> List[str]:
+    """
+    Returns the list of active audio channels for a given speaker layout configuration.
+    Supports: STEREO_2_0, STEREO_2_1, SURROUND_5_1, SURROUND_7_1.
+    """
+    layout_up = layout.upper().strip()
+    if layout_up in ("STEREO_2_0", "2.0"):
+        return ["Front_L", "Front_R"]
+    elif layout_up in ("STEREO_2_1", "2.1"):
+        return ["Front_L", "Front_R", "Subwoofer"]
+    elif layout_up in ("SURROUND_5_1", "5.1"):
+        return ["Front_L", "Front_R", "Center", "Surround_L", "Surround_R", "Subwoofer"]
+    elif layout_up in ("SURROUND_7_1", "7.1"):
+        return [
+            "Front_L", "Front_R", "Center",
+            "Surround_L", "Surround_R",
+            "Surround_Back_L", "Surround_Back_R",
+            "Subwoofer",
+        ]
+    return ["Front_L", "Front_R"]
+
 
 def load_hardware_profile(
     config_path: str = "config/hardware.json",
@@ -143,6 +211,41 @@ def snap_gain(gain_db: float, freq_hz: float, allow_voicing_boost: bool = False)
     if not allow_voicing_boost and freq_hz > SCHROEDER_FREQ_HZ and stepped > 0.0:
         stepped = 0.0
     return float(stepped)
+
+@dataclasses.dataclass
+class BiquadFilter:
+    """
+    Represents a digital second-order IIR biquad filter (RBJ Audio EQ Cookbook).
+    """
+    f0: float
+    gain_db: float
+    q: float
+    fs: float = 48000.0
+
+    def get_coefficients(self) -> Tuple[float, float, float, float, float, float]:
+        if abs(self.gain_db) < 0.001:
+            return 1.0, 0.0, 0.0, 1.0, 0.0, 0.0
+        A = 10.0 ** (self.gain_db / 40.0)
+        w0 = 2.0 * np.pi * self.f0 / self.fs
+        alpha = np.sin(w0) / (2.0 * max(0.01, self.q))
+        b0 = 1.0 + alpha * A
+        b1 = -2.0 * np.cos(w0)
+        b2 = 1.0 - alpha * A
+        a0 = 1.0 + alpha / A
+        a1 = -2.0 * np.cos(w0)
+        a2 = 1.0 - alpha / A
+        return b0, b1, b2, a0, a1, a2
+
+    def evaluate_response(self, freqs_hz: np.ndarray) -> np.ndarray:
+        return biquad_peaking_response(freqs_hz, self.f0, self.q, self.gain_db, fs=self.fs)
+
+
+def evaluate_biquad_cascade(filters: List[BiquadFilter], freqs_hz: np.ndarray, fs: float = 48000.0) -> np.ndarray:
+    """Computes total cascaded magnitude response (in dB) of a chain of BiquadFilter objects."""
+    total_db = np.zeros_like(freqs_hz, dtype=np.float64)
+    for f in filters:
+        total_db += f.evaluate_response(freqs_hz)
+    return total_db
 
 def biquad_peaking_response(
     freqs_hz: np.ndarray,

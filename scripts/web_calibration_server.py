@@ -3699,6 +3699,52 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
+        if path in ("/api/calibration/solve_peq", "/api/solve_peq"):
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                req_data = {}
+                if content_length > 0:
+                    raw_body = self.rfile.read(content_length)
+                    req_data = json.loads(raw_body.decode("utf-8"))
+                profile = req_data.get("profile_key", req_data.get("profile", "harman_wide_room"))
+                
+                # Load real empirical dataset
+                p1 = f"{DATA_DIR}/medicion_punto_1.npz"
+                p_avg = f"{DATA_DIR}/medicion_promedio_espacial.npz"
+                if not os.path.exists(p_avg):
+                    p_avg = p1
+                d_sweet = np.load(p1)
+                d_avg = np.load(p_avg)
+                freqs = d_sweet["freqs"]
+                
+                import scripts.peq_optimizer as po
+                opt = po.optimize_stereo_peq(
+                    freqs_hz=freqs,
+                    left_sweet_spot=d_sweet["smooth_l"],
+                    right_sweet_spot=d_sweet["smooth_r"],
+                    target_db=np.zeros_like(freqs),
+                    target_key=profile,
+                    left_spatial_avg=d_avg.get("smooth_l"),
+                    right_spatial_avg=d_avg.get("smooth_r"),
+                )
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "profile_key": profile,
+                    "layout": req_data.get("layout", "STEREO_2_0"),
+                    "results": opt.get("channels", {}),
+                    "metrics": opt.get("metrics", {})
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
 
         if path == "/api/deploy_peq":
             print("[Server] Desplegando filtros PEQ con verificación atómica Write-Commit-Readback...")
