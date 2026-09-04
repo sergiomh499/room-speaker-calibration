@@ -17,6 +17,12 @@ Enable multi-target validation and interactive comparative overlays across all g
 2. Expand the target validation engine so that any verification measurement or comparison plot can dynamically evaluate and display deviation metrics (RMS error, maximum deviation, S-TIER score) against multiple selectable target curves.
 3. Allow users in the web calibration dashboard and verification reports to toggle or overlay alternative target curves to see how closely each acoustic preset resembles both its native target and alternative acoustic references.
 
+
+## Clarifications
+
+### Session 2026-09-04
+- Q: ¿Cómo prefieres estructurar el flujo de calibración y validación simplificado para cada curva? → A: Opción A enriquecida con C: Flujo profesional 1 a 1 donde cada preset tiene su calibración, testeo directo y visualización de 3 métricas útiles (reducción modal en graves, simetría estéreo |L-R| y adherencia al target), permitiendo además consultar verificaciones históricas y precargar presets ya guardados en el receptor o en disco.
+
 ---
 
 ## 2. User Scenarios & Testing Flows
@@ -38,6 +44,22 @@ Enable multi-target validation and interactive comparative overlays across all g
 - **And** outputs a comparative matrix showing which preset best satisfies each target curve standard.
 
 ### Scenario 3: Interactive Multi-Target Curve Overlay in Web UI
+
+### Scenario 4: Professional 1-to-1 Calibration & Dedicated Verification Workflow
+- **Given** an acoustic profile selected by the user (e.g. `bk_1974`),
+- **When** the user clicks "Calibrar y Testear",
+- **Then** the system deploys the preset PEQ filters to the Yamaha AVR, executes a dedicated verification log-sweep, and displays:
+  - A clean 1-to-1 acoustic plot: **Antes (Through)** vs **Después (PEQ Medido)** vs **Target Nativo del Preset** (línea dorada).
+  - Exactly 3 actionable engineering metrics:
+    1. **Reducción del Pico Modal en Graves (dB y % energía)** ($< 400\text{ Hz}$).
+    2. **Simetría Estéreo \|L - R\| (dB)** (corrección de desbalance por paredes laterales).
+    3. **Adherencia al Target (%)** en el rango vocal y modal ($60\text{ Hz} - 5\text{ kHz}$).
+
+### Scenario 5: Historical Verification Explorer & Preset Preload
+- **Given** historical calibration sessions and sweeps stored in `data/sessions/`,
+- **When** the user explores past verifications,
+- **Then** the interface allows pre-loading any saved preset directly into the active PEQ slots of the AVR and reloading its corresponding verification curve without requiring a new measurement.
+
 - **Given** the web calibration graph interface (`/api/calibration_status` and `/` dashboard),
 - **When** the user views the post-calibration verification frequency response curve,
 - **Then** the user can select from a dropdown or checkbox list of available reference targets (Harman, B&K 1974, Dirac Live, Cinema Blockbuster, Audiophile Flat),
@@ -61,6 +83,12 @@ Enable multi-target validation and interactive comparative overlays across all g
 - **FR-007**: The web server API MUST provide an endpoint (`/api/targets` or `/api/validation_targets`) returning the mathematical target vectors across the active frequency grid for all available profiles.
 - **FR-008**: The web dashboard graph canvas MUST support toggling secondary target curves as reference dashed lines to allow immediate visual comparison of measured responses against alternative standards.
 - **FR-009**: PDF and image report generators (`scripts/verify_calibration.py`) MUST support an optional multi-target comparison plot displaying the measured response alongside the native target and secondary reference curves.
+
+### 3.4 Professional 1-to-1 Calibration & Historic Preset Explorer
+- **FR-010**: The web dashboard MUST provide a direct 1-to-1 workflow per preset: deploy PEQ $\rightarrow$ sweep verification $\rightarrow$ render single-preset plot (Through vs PEQ vs Native Target) with the 3 primary engineering metrics.
+- **FR-011**: The system MUST support browsing and reloading historical verification runs (`/api/sessions`) with full preset parameter pre-loading directly to the AVR hardware.
+- **FR-012**: Complex multi-target comparative matrices MUST remain collapsible or secondary so they do not clutter the default professional 1-to-1 view.
+
 
 ---
 
