@@ -172,60 +172,60 @@
     "recommended_scene": "SCENE 1 (Música Hi-Fi)",
     "bands": {
       "Band 1": {
-        "freq": 62.5,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 2.0,
-        "gain_r": 2.0,
-        "desc": "Rampa de graves Dirac Live"
+        "freq": 315.0,
+        "q_l": 0.5,
+        "q_r": 0.5,
+        "gain_l": -1.5,
+        "gain_r": -2.5,
+        "desc": "Modo modal compartido (315.0 Hz)"
       },
       "Band 2": {
-        "freq": 125.0,
-        "q_l": 2.52,
-        "q_r": 1.26,
-        "gain_l": -3.5,
-        "gain_r": 0.0,
-        "desc": "Notch modal Front L"
-      },
-      "Band 3": {
-        "freq": 157.5,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 0.5,
-        "gain_r": 0.5,
-        "desc": "Articulación de graves medios"
-      },
-      "Band 4": {
-        "freq": 250.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Paso neutro"
-      },
-      "Band 5": {
-        "freq": 500.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Paso neutro"
-      },
-      "Band 6": {
         "freq": 2520.0,
         "q_l": 1.26,
         "q_r": 1.26,
         "gain_l": 1.0,
         "gain_r": 1.0,
-        "desc": "Linealidad en medios altos"
+        "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
       },
-      "Band 7": {
-        "freq": 10100.0,
+      "Band 3": {
+        "freq": 10080.0,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": -0.5,
         "gain_r": -0.5,
-        "desc": "Atenuación suave Dirac"
+        "desc": "Compensación de cruce y directividad del altavoz (10080.0 Hz)"
+      },
+      "Band 4": {
+        "freq": 31.3,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
+      },
+      "Band 5": {
+        "freq": 39.4,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
+      },
+      "Band 6": {
+        "freq": 49.6,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (49.6 Hz)"
+      },
+      "Band 7": {
+        "freq": 62.5,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (62.5 Hz)"
       }
     }
   },
