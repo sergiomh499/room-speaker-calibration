@@ -1,0 +1,25 @@
+# EqualizerAPO Configuration
+# Generated: 2026-09-04 07:43:58
+# Target Profile: harman_wide_room
+# System: pixel_9_pro_calibrated / yamaha_rx_v673 / q_acoustics_3020i
+
+# Headroom digital para prevenir clipping (max boost: +2.0 dB)
+Preamp: -2.0 dB
+
+Channel: L
+Filter 1: ON PK Fc 2520.0 Hz Gain +1.5 dB Q 1.260
+Filter 2: ON PK Fc 125.0 Hz Gain +0.0 dB Q 1.000
+Filter 3: ON PK Fc 315.0 Hz Gain +0.0 dB Q 1.000
+Filter 4: ON PK Fc 793.7 Hz Gain +0.0 dB Q 1.000
+Filter 5: ON PK Fc 2000.0 Hz Gain +0.0 dB Q 1.000
+Filter 6: ON PK Fc 5040.0 Hz Gain +0.0 dB Q 1.000
+Filter 7: ON PK Fc 12700.0 Hz Gain +0.0 dB Q 1.000
+
+Channel: R
+Filter 1: ON PK Fc 198.4 Hz Gain -2.0 dB Q 0.500
+Filter 2: ON PK Fc 2520.0 Hz Gain +2.0 dB Q 1.260
+Filter 3: ON PK Fc 315.0 Hz Gain +0.0 dB Q 1.000
+Filter 4: ON PK Fc 793.7 Hz Gain +0.0 dB Q 1.000
+Filter 5: ON PK Fc 2000.0 Hz Gain +0.0 dB Q 1.000
+Filter 6: ON PK Fc 5040.0 Hz Gain +0.0 dB Q 1.000
+Filter 7: ON PK Fc 12700.0 Hz Gain +0.0 dB Q 1.000

@@ -623,6 +623,22 @@ HTML_CONTENT = """<!DOCTYPE html>
     Los cambios NO escriben en el receptor. Se reflejan en la Tabla 1 del informe PDF y en los límites del optimizador.
   </div>
 </div>
+<div class="card" id="export-filters-card" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); margin-bottom: 14px;">
+  <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 4px;">
+    <span>📦 Exportar Filtros PEQ (Multi-Formato)</span>
+    <span class="status-badge ok" id="export-status-badge">DISPONIBLE</span>
+  </div>
+  <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 8px;">
+    Descarga la solución paramétrica de 7 bandas optimizada para REW, EqualizerAPO o análisis en CSV.
+  </div>
+  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+    <a id="btn-export-rew" class="btn-profile" href="/api/export_filters?format=rew&profile=harman_wide_room" style="text-decoration:none; background:#0284c7; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar REW (.zip)</a>
+    <a id="btn-export-apo" class="btn-profile" href="/api/export_filters?format=equalizerapo&profile=harman_wide_room" style="text-decoration:none; background:#0d9488; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar EqualizerAPO (.txt)</a>
+    <a id="btn-export-csv" class="btn-profile" href="/api/export_filters?format=csv&profile=harman_wide_room" style="text-decoration:none; background:#6366f1; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar CSV</a>
+    <a id="btn-export-all" class="btn-profile" href="/api/export_filters?format=all&profile=harman_wide_room" style="text-decoration:none; background:#475569; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color: white; display: inline-block;">Descargar Todo (.zip)</a>
+  </div>
+</div>
+
   <div class="card-title" style="color: #4ade80; font-size: 0.85rem; margin-bottom: 2px;">
     <span>🛡️ Telemetría AVR Protegida</span>
     <span class="status-badge ok" id="avr-peq-badge">COMPROBANDO...</span>
@@ -1314,6 +1330,15 @@ function selectProfile(key) {
     btn.href = `/api/download_pdf?profile=${encodeURIComponent(key)}&t=${Date.now()}`;
     btn.textContent = `📄 Descargar Informe Técnico PDF (${(p.name || key).split('(')[0].trim()})`;
   });
+  // Update export buttons to match active profile
+  const exportRew = document.getElementById("btn-export-rew");
+  const exportApo = document.getElementById("btn-export-apo");
+  const exportCsv = document.getElementById("btn-export-csv");
+  const exportAll = document.getElementById("btn-export-all");
+  if (exportRew) exportRew.href = `/api/export_filters?format=rew&profile=${encodeURIComponent(key)}`;
+  if (exportApo) exportApo.href = `/api/export_filters?format=equalizerapo&profile=${encodeURIComponent(key)}`;
+  if (exportCsv) exportCsv.href = `/api/export_filters?format=csv&profile=${encodeURIComponent(key)}`;
+  if (exportAll) exportAll.href = `/api/export_filters?format=all&profile=${encodeURIComponent(key)}`;
 
   if (tableContainer && p.bands) {
     let rows = "";
@@ -2403,6 +2428,69 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
+
+        if path == "/api/export_filters":
+            prof = params.get("profile", ["harman_wide_room"])[0]
+            fmt = params.get("format", ["all"])[0].lower()
+            channel = params.get("channel", ["L"])[0].upper()
+            try:
+                import sys
+                if str(REPO_DIR) not in sys.path:
+                    sys.path.insert(0, str(REPO_DIR))
+                from scripts.export_filters import build_export_bundle
+                bundle = build_export_bundle(profile=prof)
+
+                if fmt == "csv":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/csv; charset=utf-8")
+                    self.send_header("Content-Disposition", f'attachment; filename="peq_filters_{prof}.csv"')
+                    self.end_headers()
+                    self.wfile.write(bundle["csv"].encode("utf-8"))
+                    return
+
+                if fmt == "equalizerapo":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Disposition", f'attachment; filename="equalizer_apo_{prof}.txt"')
+                    self.end_headers()
+                    self.wfile.write(bundle["equalizer_apo"].encode("utf-8"))
+                    return
+
+                if fmt == "rew":
+                    # Single channel or zip if both
+                    if channel in ("L", "R") and "channel" in params:
+                        rew_txt = bundle["rew_l"] if channel == "L" else bundle["rew_r"]
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/plain; charset=utf-8")
+                        self.send_header("Content-Disposition", f'attachment; filename="filters_{prof}_{channel}.req"')
+                        self.end_headers()
+                        self.wfile.write(rew_txt.encode("utf-8"))
+                        return
+                    # If no specific channel requested, return ZIP with both
+                    zip_buf = io.BytesIO()
+                    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                        zf.writestr(f"filters_{prof}_L.req", bundle["rew_l"])
+                        zf.writestr(f"filters_{prof}_R.req", bundle["rew_r"])
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/zip")
+                    self.send_header("Content-Disposition", f'attachment; filename="filters_{prof}_rew.zip"')
+                    self.end_headers()
+                    self.wfile.write(zip_buf.getvalue())
+                    return
+
+                # Default: format == "all" (complete ZIP bundle)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", f'attachment; filename="filters_{prof}_all.zip"')
+                self.end_headers()
+                self.wfile.write(bundle["zip_bytes"])
+                return
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": f"Error al exportar filtros: {e}"}).encode("utf-8"))
+                return
 
         if path == "/api/community_profiles":
             with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as f:
