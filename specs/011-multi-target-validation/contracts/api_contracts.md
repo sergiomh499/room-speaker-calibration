@@ -88,3 +88,53 @@ Evaluates a specific measurement file or the active session against all defined 
   "best_fit": "harman_wide_room"
 }
 ```
+
+---
+
+## 3. POST `/api/calibration/preload_preset`
+
+Deploys a stored profile or historical session PEQ filter set directly to the Yamaha RX-V673 hardware without repeating the multi-point spatial measurement.
+
+### Request
+```json
+{
+  "profile_id": "bk_1974",
+  "session_id": "sesion_20260904_180309"
+}
+```
+
+### Response
+```json
+{
+  "ok": true,
+  "deployed_profile": "bk_1974",
+  "bands_fl": 7,
+  "bands_fr": 7,
+  "peq_select": "Manual",
+  "verification_curve_available": true,
+  "msg": "Filtros PEQ B&K 1974 cargados en el Yamaha RX-V673 con éxito."
+}
+```
+
+---
+
+## 4. GET `/api/sessions/history`
+
+Lists all historical calibration sessions and available verification sweeps.
+
+### Response
+```json
+{
+  "ok": true,
+  "sessions": [
+    {
+      "session_id": "sesion_20260904_180309",
+      "profile_id": "harman_wide_room",
+      "timestamp": "2026-09-04 18:03:09",
+      "certified": true,
+      "has_verification": true
+    }
+  ]
+}
+```
+

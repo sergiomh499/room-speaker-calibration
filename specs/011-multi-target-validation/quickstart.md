@@ -44,3 +44,16 @@ for t_id, res in benchmark.items():
 curl -s http://127.0.0.1:53317/api/targets | jq .
 curl -s -X POST http://127.0.0.1:53317/api/calibration/multi_target_eval -H 'Content-Type: application/json' -d '{}' | jq .
 ```
+
+## 4. Verify 1-to-1 Professional Calibration & Preset Pre-loading
+
+```bash
+# Preload the B&K 1974 preset directly to the Yamaha RX-V673
+curl -s -X POST http://127.0.0.1:53317/api/calibration/preload_preset \
+  -H 'Content-Type: application/json' \
+  -d '{"profile_id": "bk_1974"}' | jq .
+
+# Query historical sessions
+curl -s http://127.0.0.1:53317/api/sessions/history | jq .
+```
+

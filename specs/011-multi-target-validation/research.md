@@ -56,3 +56,44 @@ The web calibration server UI renders the target curve as a single static green 
 1. Expose `GET /api/targets` returning the vector points $(f, dB)$ for all defined profiles.
 2. In the browser dashboard canvas, add a selector/toggle allowing users to overlay secondary target curves as dashed lines alongside the measured response.
 3. Expose `POST /api/calibration/multi_target_eval` to return on-the-fly cross-target matrix for the current session measurements.
+
+---
+
+## 4. Professional 1-to-1 Calibration & Dedicated Verification Workflow
+
+### Problem
+Displaying massive tables comparing 9 targets simultaneously creates cognitive overload ("circle of confusion") and looks like a generic AI prototype rather than professional audio engineering software (like Dirac Live or REW). Furthermore, testing against multiple curves simultaneously misses the fundamental acoustic fact: each calibration preset was optimized for one specific target.
+
+### Decision
+1. Adopt the industry-standard 1-to-1 workflow: Select profile -> Deploy PEQ to AVR -> Execute Verification Sweep -> Render Dedicated Comparison:
+   - **Before (Through/Uncorrected)**: Baseline room response.
+   - **After (Measured Post-PEQ)**: Empirical response under active filters.
+   - **Target**: The native target curve designed for this specific preset.
+2. Focus telemetry on 3 essential engineering metrics:
+   - **Modal Peak Reduction**: $\Delta\text{dB}$ attenuation of primary room modes ($< 300\text{ Hz}$).
+   - **Stereo Symmetry ($|L - R|$)**: Average deviation between left and right channels ($< 1.5\text{ dB}$ target).
+   - **Target Adherence**: Mid-band RMS deviation ($60\text{ Hz} - 3\text{ kHz}$) and qualitative grade (S-TIER / A / B).
+3. Keep secondary multi-target benchmarking tables collapsed inside an optional "Acoustic Benchmark Matrix" accordion.
+
+---
+
+## 5. Dark Studio Pro Responsive UX Architecture
+
+### Problem
+Previous web UI had smaller buttons, fixed desktop dimensions, and standard web styles that felt like an amateur dashboard or prototype when operated from a smartphone at the listening sweet spot.
+
+### Decision
+1. Implement **Dark Studio Pro** design tokens:
+   - Background: Deep slate/graphite (`#090d16` / `#0f172a` / `#1e293b`).
+   - Accents: Studio Emerald (`#10b981`), Amber Warning (`#f59e0b`), Slate Border (`#334155`), Cyan Highlight (`#06b6d4`).
+   - Typography: Clean sans-serif with tabular numerals for audio telemetry.
+2. Ergonomic Touch Targets:
+   - All primary action buttons (Start Sweep, Calibrate, Preload Preset) have minimum height of $48\text{px}$ with $12\text{px}-16\text{px}$ padding.
+   - Tap states with `:active { transform: scale(0.98); }` and subtle glowing focus borders.
+3. Mobile & Desktop Adaptability:
+   - CSS Grid and Flexbox with media queries breakpoints: Mobile ($< 640\text{px}$), Tablet ($640\text{px} - 1024\text{px}$), Desktop ($> 1024\text{px}$).
+   - Full-width charts on mobile, side-by-side telemetry panels on desktop.
+4. Historic Session & Preset Preload:
+   - Load saved sessions from `data/sessions/` and presets from `config/targets.json`.
+   - One-click "Deploy Preset to Yamaha" button sending PEQ parameters directly via YNC XML without requiring re-computation or re-sweeping.
+
