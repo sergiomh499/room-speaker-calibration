@@ -25,11 +25,11 @@ class TestModalNotchDiagnostic(unittest.TestCase):
         self.assertAlmostEqual(res_198["half_wavelength_m"], 0.86, places=2)
 
     def test_modal_peak_detection_and_q_factor_from_measurement(self):
-        """FR-001, FR-003: Detect resonance peaks on empirical spatial average with Q calculation."""
-        d_spatial = np.load(REPO_DIR / "data" / "medicion_promedio_espacial.npz")
-        freqs = d_spatial["freqs"]
-        norm_l = po.broadband_normalize(freqs, d_spatial["smooth_l"])
-        norm_r = po.broadband_normalize(freqs, d_spatial["smooth_r"])
+        """FR-001, FR-003: Detect resonance peaks on empirical measurement with Q calculation."""
+        d_meas = np.load(REPO_DIR / "data" / "medicion_punto_1.npz")
+        freqs = d_meas["freqs"]
+        norm_l = po.broadband_normalize(freqs, d_meas["smooth_l"])
+        norm_r = po.broadband_normalize(freqs, d_meas["smooth_r"])
         smooth_l = po.variable_smooth(freqs, norm_l)
         smooth_r = po.variable_smooth(freqs, norm_r)
 
@@ -39,7 +39,6 @@ class TestModalNotchDiagnostic(unittest.TestCase):
 
         self.assertTrue(len(peaks_l) >= 1)
         self.assertTrue(len(peaks_r) >= 1)
-
         # Check Q is finite and clamped between 0.5 and 5.04
         for p in peaks_l + peaks_r:
             self.assertGreaterEqual(p["q"], 0.5)

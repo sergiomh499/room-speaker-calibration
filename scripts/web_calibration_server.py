@@ -765,42 +765,6 @@ HTML_CONTENT = """<!DOCTYPE html>
     </button>
   </div>
 </div>
-<div class="card" id="avr-status-card" style="border-color: #22c55e; background: rgba(6, 78, 59, 0.25); margin-bottom: 14px;">
-  <div class="card-title" style="color: #4ade80; font-size: 0.85rem; margin-bottom: 2px;">
-    <span>🛡️ Telemetría AVR Protegida</span>
-    <span class="status-badge ok" id="avr-peq-badge">COMPROBANDO...</span>
-  </div>
-  <div id="avr-details" style="font-size: 0.72rem; color: #cbd5e1; line-height: 1.4;">
-    Conectando con Yamaha RX-V673...
-  </div>
-</div>
-<div class="card" id="peq-live-card" style="border-color: #38bdf8; background: rgba(14, 116, 144, 0.15); margin-bottom: 14px;">
-  <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 2px;">
-    <span>🎛️ Conmutador en Directo de Modos PEQ (Hardware Yamaha)</span>
-    <span class="status-badge ok" id="live-peq-mode-badge">MANUAL</span>
-  </div>
-  <div class="card-desc" style="margin-bottom: 6px;">
-    Cambia instantáneamente la curva de ecualización en la memoria DSP del amplificador para evaluar y comparar el sonido en tiempo real:
-  </div>
-  <div class="peq-switcher-grid">
-    <button id="btn-mode-through" class="btn-peq-live" onclick="setLivePeqMode('Through')">
-      ⚡ Through<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Bypass / Directo</span>
-    </button>
-    <button id="btn-mode-flat" class="btn-peq-live" onclick="setLivePeqMode('Flat')">
-      📏 YPAO Flat<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Automático Plano</span>
-    </button>
-    <button id="btn-mode-front" class="btn-peq-live" onclick="setLivePeqMode('Front')">
-      🎭 YPAO Front<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Frontales Ref.</span>
-    </button>
-    <button id="btn-mode-natural" class="btn-peq-live" onclick="setLivePeqMode('Natural')">
-      ☕ YPAO Natural<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Cálido / Roll-off</span>
-    </button>
-    <button id="btn-mode-manual" class="btn-peq-live" onclick="setLivePeqMode('Manual')">
-      🎯 PEQ Manual<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Harman Calibrado</span>
-    </button>
-  </div>
-  <div id="live-peq-status" style="font-size: 0.72rem; text-align: center; color: #86efac; margin-top: 4px;"></div>
-</div>
 
   <div class="wizard-nav-bar">
     <span></span>
@@ -855,13 +819,13 @@ HTML_CONTENT = """<!DOCTYPE html>
 <div class="wizard-page" id="wizard-page-3">
 <!-- PANEL DE REVISIÓN Y DESCARGAS MÓVIL -->
 <!-- 1. GRÁFICAS E INFORMES DE MEDICIÓN (PROMEDIO ESPACIAL) -->
-<div id="results-panel">
+<div class="card" id="calibration-summary-card" style="border-color: #38bdf8; background: #0d233a; margin-bottom: 14px;">
   <div class="card-title" style="color: #38bdf8; margin-bottom: 8px;">
-    <span>🎉 Calibración y Modelado Acústico Listo</span>
+    <span>🎉 Modelado Acústico y Solución Paramétrica</span>
     <span class="status-badge ok" id="results-badge">PROCESADO</span>
   </div>
   <div class="card-desc">
-    Se han procesado los barridos multipunto (Toole / AES) y la respuesta biquad. Puedes descargar el informe técnico o revisar cada gráfica directamente en tu móvil:
+    Se han procesado los barridos multipunto (Toole / AES) y la respuesta biquad. Puedes descargar el informe técnico o revisar cada gráfica directamente:
   </div>
 
   <a href="/api/download_pdf" download="Informe_Calibracion_Acustica_Yamaha.pdf" class="btn-download-pdf">
@@ -873,7 +837,18 @@ HTML_CONTENT = """<!DOCTYPE html>
   </div>
   
   <div class="fig-grid" id="fig-container">
-    <!-- Generado dinámicamente -->
+    <div class="fig-card">
+      <h4>Promedio Espacial Multipunto</h4>
+      <img src="/figures/promedio_espacial_multipunto.png" alt="Promedio Espacial">
+    </div>
+    <div class="fig-card">
+      <h4>Respuesta Biquad y Modos de Sala</h4>
+      <img src="/figures/respuesta_acustica_peq.png" alt="Respuesta Acústica">
+    </div>
+    <div class="fig-card">
+      <h4>Cascada Espectral Acumulada (Waterfall CSD)</h4>
+      <img src="/figures/waterfall_csd.png" alt="Waterfall CSD">
+    </div>
   </div>
 </div>
 
@@ -909,6 +884,16 @@ HTML_CONTENT = """<!DOCTYPE html>
 
 <!-- STEP 4: AVR DEPLOYMENT & SYNC -->
 <div class="wizard-page" id="wizard-page-4">
+  <div class="card" id="avr-status-card" style="border-color: #22c55e; background: rgba(6, 78, 59, 0.25); margin-bottom: 14px;">
+    <div class="card-title" style="color: #4ade80; font-size: 0.85rem; margin-bottom: 2px;">
+      <span>🛡️ Telemetría AVR Protegida</span>
+      <span class="status-badge ok" id="avr-peq-badge">COMPROBANDO...</span>
+    </div>
+    <div id="avr-details" style="font-size: 0.72rem; color: #cbd5e1; line-height: 1.4;">
+      Conectando con Yamaha RX-V673...
+    </div>
+  </div>
+
   <div class="card" id="avr-deploy-card" style="border-color: #10b981; background: rgba(16, 185, 129, 0.08); margin-bottom: 14px;">
     <div class="card-title" style="color: #34d399; font-size: 0.85rem;">
       <span>🎛️ Despliegue de Filtros en Yamaha RX-V673</span>
@@ -922,6 +907,35 @@ HTML_CONTENT = """<!DOCTYPE html>
     </button>
     <div id="apply-status" style="font-size: 0.75rem; text-align: center; margin-top: 6px; color: #94a3b8;"></div>
   </div>
+
+  <div class="card" id="peq-live-card" style="border-color: #38bdf8; background: rgba(14, 116, 144, 0.15); margin-bottom: 14px;">
+    <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 2px;">
+      <span>🎛️ Conmutador en Directo de Modos PEQ (Hardware Yamaha)</span>
+      <span class="status-badge ok" id="live-peq-mode-badge">MANUAL</span>
+    </div>
+    <div class="card-desc" style="margin-bottom: 6px;">
+      Cambia instantáneamente la curva de ecualización en la memoria DSP del amplificador para evaluar y comparar el sonido en tiempo real:
+    </div>
+    <div class="peq-switcher-grid">
+      <button id="btn-mode-through" class="btn-peq-live" onclick="setLivePeqMode('Through')">
+        ⚡ Through<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Bypass / Directo</span>
+      </button>
+      <button id="btn-mode-flat" class="btn-peq-live" onclick="setLivePeqMode('Flat')">
+        📏 YPAO Flat<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Automático Plano</span>
+      </button>
+      <button id="btn-mode-front" class="btn-peq-live" onclick="setLivePeqMode('Front')">
+        🎭 YPAO Front<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Frontales Ref.</span>
+      </button>
+      <button id="btn-mode-natural" class="btn-peq-live" onclick="setLivePeqMode('Natural')">
+        ☕ YPAO Natural<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Cálido / Roll-off</span>
+      </button>
+      <button id="btn-mode-manual" class="btn-peq-live" onclick="setLivePeqMode('Manual')">
+        🎯 PEQ Manual<br><span style="font-size:0.65rem; font-weight:normal; color:#94a3b8;">Harman Calibrado</span>
+      </button>
+    </div>
+    <div id="live-peq-status" style="font-size: 0.72rem; text-align: center; color: #86efac; margin-top: 4px;"></div>
+  </div>
+
   <div class="wizard-nav-bar">
     <button class="btn-wizard-nav" onclick="goToWizardStep(3)">◀ Volver a Optimización</button>
     <button class="btn-wizard-nav primary" onclick="goToWizardStep(5)">Continuar a Verificación ▶</button>
@@ -994,13 +1008,17 @@ HTML_CONTENT = """<!DOCTYPE html>
 </div>
 
 <!-- 5. INFORME Y GRÁFICAS DE VALIDACIÓN POST-CALIBRACIÓN -->
-<div class="card" id="verification-report-panel" style="border-color: #10b981; background: rgba(16, 185, 129, 0.10); margin-top: 14px; display: none;">
-  <div class="card-title" style="color: #34d399; margin-bottom: 6px;">
-    <span>🛡️ Informe y Gráficas de Validación Acústica</span>
-    <span class="status-badge ok" id="badge-verif-cert">S-TIER</span>
+  <div class="card" id="verification-report-panel" style="border-color: #10b981; background: rgba(16, 185, 129, 0.10); margin-top: 14px;">
+    <div class="card-title" style="color: #34d399; margin-bottom: 6px;">
+      <span>🛡️ Informe y Gráficas de Validación Acústica</span>
+      <span class="status-badge ok" id="badge-verif-cert">CERTIFICACIÓN</span>
+    </div>
+    <div id="verif-result">
+      <div style="font-size:0.75rem; color:#cbd5e1; line-height: 1.5;">
+        Pulsa <b>'Procesar Comparativa Acústica y Certificar'</b> arriba para comparar los modos medidos en el Sweet Spot frente a la curva objetivo de sala.
+      </div>
+    </div>
   </div>
-  <div id="verif-result"></div>
-</div>
   <div class="wizard-nav-bar">
     <button class="btn-wizard-nav" onclick="goToWizardStep(4)">◀ Volver a Despliegue</button>
     <button class="btn-wizard-nav primary" onclick="goToWizardStep(6)">Continuar a Informes y Escenas ▶</button>
@@ -1036,6 +1054,29 @@ HTML_CONTENT = """<!DOCTYPE html>
     💾 Reprogramar y Fijar las 4 Escenas en la NVRAM del Receptor
   </button>
   <div id="scenes-status" style="font-size: 0.74rem; text-align: center; margin-top: 6px; color: #cbd5e1;"></div>
+  <div class="card" id="export-filters-card-step6" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); margin-top: 14px; margin-bottom: 14px;">
+    <div class="card-title" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 4px;">
+      <span>📦 Exportación Multi-Formato de Filtros PEQ</span>
+      <span class="status-badge ok">DESCARGA</span>
+    </div>
+    <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 8px;">
+      Descarga la solución paramétrica de 7 bandas lista para importar en software externo (REW, EqualizerAPO o análisis en CSV):
+    </div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <a id="btn-export-rew-step6" class="btn-profile" href="/api/export_filters?format=rew&profile=harman_wide_room" style="text-decoration:none; background:#0284c7; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color:white; font-weight:600;">
+        📥 REW (.zip)
+      </a>
+      <a id="btn-export-apo-step6" class="btn-profile" href="/api/export_filters?format=equalizerapo&profile=harman_wide_room" style="text-decoration:none; background:#0d9488; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color:white; font-weight:600;">
+        📥 Equalizer APO (.txt)
+      </a>
+      <a id="btn-export-csv-step6" class="btn-profile" href="/api/export_filters?format=csv&profile=harman_wide_room" style="text-decoration:none; background:#6366f1; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color:white; font-weight:600;">
+        📥 CSV (.csv)
+      </a>
+      <a id="btn-export-all-step6" class="btn-profile" href="/api/export_filters?format=all&profile=harman_wide_room" style="text-decoration:none; background:#475569; padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; color:white; font-weight:600;">
+        📥 Todo (.zip)
+      </a>
+    </div>
+  </div>
   <div class="wizard-nav-bar">
     <button class="btn-wizard-nav" onclick="goToWizardStep(5)">◀ Volver a Verificación</button>
     <span></span>
@@ -1557,6 +1598,14 @@ function selectProfile(key) {
   if (exportCsv) exportCsv.href = `/api/export_filters?format=csv&profile=${encodeURIComponent(key)}`;
   if (exportAll) exportAll.href = `/api/export_filters?format=all&profile=${encodeURIComponent(key)}`;
 
+  const exportRew6 = document.getElementById("btn-export-rew-step6");
+  const exportApo6 = document.getElementById("btn-export-apo-step6");
+  const exportCsv6 = document.getElementById("btn-export-csv-step6");
+  const exportAll6 = document.getElementById("btn-export-all-step6");
+  if (exportRew6) exportRew6.href = `/api/export_filters?format=rew&profile=${encodeURIComponent(key)}`;
+  if (exportApo6) exportApo6.href = `/api/export_filters?format=equalizerapo&profile=${encodeURIComponent(key)}`;
+  if (exportCsv6) exportCsv6.href = `/api/export_filters?format=csv&profile=${encodeURIComponent(key)}`;
+  if (exportAll6) exportAll6.href = `/api/export_filters?format=all&profile=${encodeURIComponent(key)}`;
   if (tableContainer && p.bands) {
     let rows = "";
     for (let bName in p.bands) {

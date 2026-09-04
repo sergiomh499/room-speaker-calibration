@@ -19,22 +19,14 @@
     "recommended_scene": "SCENE 1 (Música Hi-Fi)",
     "bands": {
       "Band 1": {
-        "freq": 157.5,
-        "q_l": 1.26,
-        "q_r": 1.26,
+        "freq": 315.0,
+        "q_l": 0.5,
+        "q_r": 0.5,
         "gain_l": -1.5,
-        "gain_r": 0.0,
-        "desc": "Modo modal Front L (157.5 Hz) con pase neutro en R"
+        "gain_r": -2.5,
+        "desc": "Modo modal compartido (315.0 Hz)"
       },
       "Band 2": {
-        "freq": 198.4,
-        "q_l": 0.63,
-        "q_r": 0.63,
-        "gain_l": 0.0,
-        "gain_r": -2.0,
-        "desc": "Modo modal Front R (198.4 Hz) con pase neutro en L"
-      },
-      "Band 3": {
         "freq": 2520.0,
         "q_l": 1.26,
         "q_r": 1.26,
@@ -42,7 +34,7 @@
         "gain_r": 2.0,
         "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
       },
-      "Band 4": {
+      "Band 3": {
         "freq": 31.3,
         "q_l": 1.0,
         "q_r": 1.0,
@@ -50,7 +42,7 @@
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
       },
-      "Band 5": {
+      "Band 4": {
         "freq": 39.4,
         "q_l": 1.0,
         "q_r": 1.0,
@@ -58,7 +50,7 @@
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
       },
-      "Band 6": {
+      "Band 5": {
         "freq": 49.6,
         "q_l": 1.0,
         "q_r": 1.0,
@@ -66,13 +58,21 @@
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (49.6 Hz)"
       },
-      "Band 7": {
+      "Band 6": {
         "freq": 62.5,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (62.5 Hz)"
+      },
+      "Band 7": {
+        "freq": 78.7,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (78.7 Hz)"
       }
     }
   },
@@ -96,12 +96,12 @@
     "recommended_scene": "SCENE 1 (Música Hi-Fi) alternativa",
     "bands": {
       "Band 1": {
-        "freq": 198.4,
-        "q_l": 0.794,
-        "q_r": 0.794,
-        "gain_l": 0.0,
-        "gain_r": -2.0,
-        "desc": "Modo modal Front R (198.4 Hz) con pase neutro en L"
+        "freq": 315.0,
+        "q_l": 0.63,
+        "q_r": 0.63,
+        "gain_l": -3.0,
+        "gain_r": -3.5,
+        "desc": "Modo modal compartido (315.0 Hz)"
       },
       "Band 2": {
         "freq": 2520.0,
