@@ -27,12 +27,21 @@ export interface AVRStatus {
   online?: boolean;
 }
 
+export interface ChannelTelemetry {
+  measured: boolean;
+  spl_db?: number;
+  distance_m?: number;
+  delay_ms?: number;
+  snr_db?: number;
+}
+
 export interface MeasurementPoint {
   id: number;
   label: string;
   sublabel: string;
   measured: boolean;
   active?: boolean;
+  channels?: Record<string, ChannelTelemetry>;
 }
 
 export interface SubwooferConfig {

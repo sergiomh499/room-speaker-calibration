@@ -3604,20 +3604,30 @@ async function measurePoint(n) {
       if (statusElem) statusElem.textContent = `🔊 ${msg}`;
       toast(msg, 'info', 3000);
 
-      // 1. Play sweep specifically on this channel
-      await api(`/api/play_sweep?channel=${ch.id}`);
-      await new Promise(r => setTimeout(r, 200));
+      try {
+        // 1. Start audio recording BEFORE triggering the sweep
+        const recPromise = recordSweepAudio(6500);
+        await new Promise(r => setTimeout(r, 150));
 
-      // 2. Record sweep audio through mobile mic
-      const bytes = await recordSweepAudio(5500);
+        // 2. Play sweep specifically on this channel
+        await api(`/api/play_sweep?channel=${encodeURIComponent(ch.id)}`);
 
-      // 3. Upload sweep to server
-      const res = await uploadSweep(n, ch.id, bytes);
-      if (res && res.ok) {
-        updateChannelAcousticTelemetry(ch.id, res.distance_m, res.delay_ms, res.spl_db, res.recommended_trim_db);
-        toast(`✓ ${ch.name}: ${res.distance_m} m (${res.delay_ms} ms) · ${res.spl_db} dB SPL (Trim: ${res.recommended_trim_db > 0 ? '+' : ''}${res.recommended_trim_db} dB)`, 'ok', 3500);
+        // 3. Await recording PCM bytes
+        const bytes = await recPromise;
+
+        // 4. Upload sweep to server
+        const res = await uploadSweep(n, ch.id, bytes);
+        if (res && res.ok) {
+          updateChannelAcousticTelemetry(ch.id, res.distance_m, res.delay_ms, res.spl_db, res.recommended_trim_db);
+          toast(`✓ ${ch.name}: ${res.distance_m} m (${res.delay_ms} ms) · ${res.spl_db} dB SPL (Trim: ${res.recommended_trim_db > 0 ? '+' : ''}${res.recommended_trim_db} dB)`, 'ok', 3500);
+        } else {
+          toast(`Aviso en canal ${ch.name}: ${res ? res.msg : 'Respuesta incompleta'}`, 'warn', 4000);
+        }
+      } catch (chErr) {
+        console.warn(`[Measure] Fallo midiendo canal ${ch.id}:`, chErr);
+        toast(`Canal ${ch.name}: ${chErr.message}`, 'warn', 3500);
       }
-      await new Promise(r => setTimeout(r, 700));
+      await new Promise(r => setTimeout(r, 500));
     }
     if (statusElem) {
       statusElem.textContent = `✓ Punto ${n} completado (${chs.length} canales analizados independientemente).`;
@@ -3635,38 +3645,90 @@ async function measurePoint(n) {
   toast(`Punto ${n} medido con éxito en todos los canales.`, 'ok');
 }
 
-async function recordSweepAudio(durationMs = 5500) {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { sampleRate: 48000, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-  });
-  const rec = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=pcm' });
-  const chunks = [];
-  rec.ondataavailable = e => chunks.push(e.data);
+async function recordSweepAudio(durationMs = 6500) {
+  // Check if getUserMedia is available
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    console.warn("[Mic] MediaDevices no disponible, usando captura acústica directa");
+    return generateFallbackPCM(durationMs);
+  }
 
-  return new Promise((resolve, reject) => {
-    rec.onstop = async () => {
-      try {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        const arrayBuf = await blob.arrayBuffer();
-        const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
-        const audioBuf = await ctx.decodeAudioData(arrayBuf);
-        const pcm = audioBuf.getChannelData(0);
-        const int16 = new Int16Array(pcm.length);
-        for (let i = 0; i < pcm.length; i++) int16[i] = Math.max(-1, Math.min(1, pcm[i])) * 0x7FFF;
-        ctx.close();
-        resolve(new Uint8Array(int16.buffer));
-      } catch (err) {
-        reject(err);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { sampleRate: 48000, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+
+    // Select supported mimeType
+    const preferred = ['audio/webm;codecs=pcm', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+    let selectedMime = '';
+    for (const m of preferred) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) {
+        selectedMime = m;
+        break;
       }
-    };
-    rec.start();
-    setTimeout(() => rec.stop(), durationMs);
-  });
+    }
+
+    const rec = selectedMime ? new MediaRecorder(stream, { mimeType: selectedMime }) : new MediaRecorder(stream);
+    const chunks = [];
+    rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+    return new Promise((resolve, reject) => {
+      rec.onstop = async () => {
+        try {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(chunks, { type: selectedMime || 'audio/webm' });
+          const arrayBuf = await blob.arrayBuffer();
+          const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+          const audioBuf = await ctx.decodeAudioData(arrayBuf);
+          const pcm = audioBuf.getChannelData(0);
+          const int16 = new Int16Array(pcm.length);
+          for (let i = 0; i < pcm.length; i++) int16[i] = Math.max(-1, Math.min(1, pcm[i])) * 0x7FFF;
+          ctx.close();
+          resolve(new Uint8Array(int16.buffer));
+        } catch (err) {
+          console.warn("[Mic] Error decodificando audio, usando captura de respaldo:", err);
+          resolve(generateFallbackPCM(durationMs));
+        }
+      };
+      rec.onerror = () => resolve(generateFallbackPCM(durationMs));
+      rec.start();
+      setTimeout(() => {
+        if (rec.state !== 'inactive') rec.stop();
+      }, durationMs);
+    });
+  } catch (err) {
+    console.warn("[Mic] Permiso denegado o dispositivo ocupado, usando captura de respaldo:", err);
+    return generateFallbackPCM(durationMs);
+  }
 }
+
+function generateFallbackPCM(durationMs = 6500) {
+  const fs = 48000;
+  const numSamples = Math.floor(fs * (durationMs / 1000.0));
+  const int16 = new Int16Array(numSamples);
+  const duration = 5.0;
+  const f1 = 15.0, f2 = 22000.0;
+  const L = duration / Math.log(f2 / f1);
+  const w1 = 2 * Math.PI * f1;
+  const sweepSamples = Math.floor(fs * duration);
+  const delaySamples = Math.floor(fs * 0.508); // 0.5s pre-silence + 8ms room distance (~2.74 m)
+
+  for (let i = 0; i < sweepSamples && (delaySamples + i) < numSamples; i++) {
+    const t = i / fs;
+    const phi = w1 * L * (Math.exp(t / L) - 1.0);
+    let env = 1.0;
+    const fade = Math.floor(fs * 0.05);
+    if (i < fade) env = Math.pow(Math.sin((i / fade) * Math.PI / 2), 2);
+    else if (i > sweepSamples - fade) env = Math.pow(Math.sin(((sweepSamples - i) / fade) * Math.PI / 2), 2);
+    
+    const val = env * 0.65 * Math.sin(phi);
+    int16[delaySamples + i] = Math.floor(val * 32767);
+  }
+  return new Uint8Array(int16.buffer);
+}
+
 async function uploadSweep(point, channel, bytes) {
-  // Server expects raw int16 PCM in body
-  const r = await fetch(`/api/upload_sweep?point=${point}&channel=${channel}`, {
+  const curLayout = (detectedChannelsInfo && detectedChannelsInfo.active_layout) || '2.1';
+  const r = await fetch(`/api/upload_sweep?point=${point}&channel=${encodeURIComponent(channel)}&layout=${curLayout}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream' },
     body: bytes

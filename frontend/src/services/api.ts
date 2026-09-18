@@ -58,6 +58,18 @@ export const api = {
     return fetchApi<any>(`/api/play_sweep?channel=${encodeURIComponent(channel)}`);
   },
 
+  async uploadSweep(point: number, channel: string, bytes: Uint8Array, layout?: string): Promise<any> {
+    const layoutParam = layout ? `&layout=${encodeURIComponent(layout)}` : '';
+    const res = await fetch(`${BASE_URL}/api/upload_sweep?point=${point}&channel=${encodeURIComponent(channel)}${layoutParam}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: bytes as unknown as BodyInit
+    });
+    if (!res.ok) {
+      throw new Error(`Error en upload: ${res.status} ${res.statusText}`);
+    }
+    return res.json();
+  },
   async configure2_1(crossoverHz: number, phaseDeg: number = 0, subTrimDb: number = 0): Promise<any> {
     return fetchApi<any>('/api/configure_2_1', {
       method: 'POST',

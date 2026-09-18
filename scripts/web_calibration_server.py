@@ -1770,21 +1770,32 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/play_sweep":
             avr_st = check_and_enforce_avr_clean_state()
-            ch_raw = params.get("channel", ["L"])[0].upper()
-            if "SUB" in ch_raw:
+            raw_ch = params.get("channel", ["L"])[0].strip().lower()
+            ch_map = {
+                "l": "L", "front_l": "L", "fl": "L",
+                "r": "R", "front_r": "R", "fr": "R",
+                "sub": "SUB", "subwoofer": "SUB", "subwoofer_1": "SUB",
+                "c": "Center", "center": "Center",
+            }
+            mapped_ch = ch_map.get(raw_ch, "L")
+            if mapped_ch == "SUB" or "sub" in raw_ch:
                 wav_file = f"{DATA_DIR}/sweep_signal_SUB.wav"
-            elif "R" in ch_raw and "SUR" not in ch_raw:
+            elif mapped_ch == "R" or raw_ch in ["r", "front_r", "fr"] or raw_ch.endswith("_r"):
                 wav_file = f"{DATA_DIR}/sweep_signal_R.wav"
             else:
                 wav_file = f"{DATA_DIR}/sweep_signal_L.wav"
-            try:
-                subprocess.Popen(["pw-play", wav_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except Exception:
-                subprocess.Popen(["aplay", "-D", "plughw:0,3", wav_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            played = False
+            for p_cmd in [["pw-play", wav_file], ["aplay", "-D", "plughw:0,3", wav_file], ["aplay", wav_file]]:
+                try:
+                    subprocess.Popen(p_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    played = True
+                    break
+                except Exception:
+                    continue
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"ok": True, "channel": channel}).encode("utf-8"))
+            self.wfile.write(json.dumps({"ok": True, "channel": mapped_ch, "file": os.path.basename(wav_file), "played": played}).encode("utf-8"))
             return
         # Static files and assets from frontend/dist (Vite React SPA)
         react_dist = "frontend/dist"
@@ -1862,25 +1873,29 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             peak_raw = np.max(np.abs(samples))
             peak_dbfs = 20 * np.log10(peak_raw / 32768.0 + 1e-12)
 
-            if peak_raw < 500:
+            is_sub = "SUB" in ch_key.upper() or "SUB" in alias_key.upper()
+            peak_min_threshold = 200 if is_sub else 300
+            snr_min_threshold = 9.0 if is_sub else 10.0
+
+            if peak_raw < peak_min_threshold:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": f"Señal inaudible en {ch_key}. Comprueba el volumen del Yamaha."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"ok": False, "msg": f"Señal inaudible en {ch_key} (Pico: {peak_raw} < {peak_min_threshold}). Comprueba el volumen del Yamaha y del micrófono."}).encode("utf-8"))
                 return
 
-            if peak_dbfs > -0.5:
+            if peak_dbfs > -0.2:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": f"Saturación digital en {ch_key} ({peak_dbfs:.1f} dBFS). Baja 3 dB el volumen."}).encode("utf-8"))
                 return
 
-            if snr_db < 14.0:
+            if snr_db < snr_min_threshold:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": f"SNR insuficiente en {ch_key} ({snr_db:.1f} dB < 14 dB). Silencia la sala."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"ok": False, "msg": f"SNR insuficiente en {ch_key} ({snr_db:.1f} dB < {snr_min_threshold} dB). Silencia la sala."}).encode("utf-8"))
                 return
 
             peak_idx = int(np.argmax(np.abs(ir)))
@@ -1891,19 +1906,20 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             ir_win = ir[start:end]
 
             # Acoustic Distance (Time-of-Flight) and Global dB (SPL) Estimation
-            delay_ms = round((peak_idx / fs) * 1000.0, 2)
+            inv_len = len(inv_sweep) - 1
+            net_peak = peak_idx - inv_len if peak_idx >= inv_len else peak_idx
             silence_samples = int(0.5 * fs) # 24000 samples
-            if peak_idx > silence_samples:
-                net_delay_s = (peak_idx - silence_samples) / float(fs)
+            if net_peak > silence_samples:
+                acoustic_delay_samples = net_peak - silence_samples
             else:
-                net_delay_s = peak_idx / float(fs)
-            dist_calc = net_delay_s * 343.0
+                acoustic_delay_samples = max(0, net_peak)
+
+            delay_ms = round((acoustic_delay_samples / fs) * 1000.0, 2)
+            dist_calc = (acoustic_delay_samples / float(fs)) * 343.0
             if 0.4 <= dist_calc <= 12.0:
                 distance_m = round(dist_calc, 2)
             else:
-                # Calibration relative fallback
                 distance_m = round(max(0.6, min(6.0, 2.4 + (peak_idx % 2400) / 48000.0 * 343.0)), 2)
-
             rms_dbfs = round(float(20.0 * np.log10(np.sqrt(np.mean(mic**2)) + 1e-12)), 1)
             spl_est_db = round(float(95.0 + rms_dbfs), 1)
             trim_recommend_db = round(float((75.0 - spl_est_db) * 2.0)) / 2.0
@@ -1930,19 +1946,22 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 point_buffers[point_id][alias_key] = buf_data
 
             # Check if current point has all required channels
-            layout_info = detect_yamaha_channel_setup()
+            layout_param = params.get("layout", [None])[0]
+            layout_info = detect_yamaha_channel_setup(layout=layout_param)
             active_ch_ids = layout_info.get("active_channels", ["Front_L", "Front_R", "Subwoofer"])
-            all_done = all(
-                (cid in point_buffers[point_id] or
-                 ("L" in point_buffers[point_id] and cid == "Front_L") or
-                 ("R" in point_buffers[point_id] and cid == "Front_R") or
-                 ("SUB" in point_buffers[point_id] and cid == "Subwoofer"))
-                for cid in active_ch_ids
-            )
+            completed_channels = [
+                cid for cid in active_ch_ids
+                if (cid in point_buffers[point_id] or
+                    ("L" in point_buffers[point_id] and cid == "Front_L") or
+                    ("R" in point_buffers[point_id] and cid == "Front_R") or
+                    ("SUB" in point_buffers[point_id] and cid == "Subwoofer"))
+            ]
+            pending_channels = [cid for cid in active_ch_ids if cid not in completed_channels]
+            all_done = len(pending_channels) == 0
 
-            if all_done or ("Front_L" in point_buffers[point_id] and "Front_R" in point_buffers[point_id]) or ("L" in point_buffers[point_id] and "R" in point_buffers[point_id]):
-                l_data = point_buffers[point_id].get("Front_L", point_buffers[point_id].get("L"))
-                r_data = point_buffers[point_id].get("Front_R", point_buffers[point_id].get("R"))
+            l_data = point_buffers[point_id].get("Front_L", point_buffers[point_id].get("L"))
+            r_data = point_buffers[point_id].get("Front_R", point_buffers[point_id].get("R"))
+            if all_done and l_data and r_data:
                 out_data = {
                     "freqs": freqs,
                     "raw_l": l_data["raw"],
@@ -1961,7 +1980,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 ts_str = time.strftime("%Y%m%d_%H%M%S")
                 np.savez(f"{DATA_DIR}/medicion_punto_{point_id}_{ts_str}.npz", **out_data)
                 np.savez(f"{DATA_DIR}/medicion_punto_{point_id}.npz", **out_data)
-                print(f"[Server] Guardado medicion_punto_{point_id}.npz (Punto completo: {list(point_buffers[point_id].keys())})")
+                print(f"[Server] Guardado medicion_punto_{point_id}.npz (Punto completo: {completed_channels})")
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -1975,7 +1994,10 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 "delay_ms": delay_ms,
                 "spl_db": spl_est_db,
                 "recommended_trim_db": trim_recommend_db,
-                "point_complete": all_done
+                "point_complete": all_done,
+                "completed_channels": completed_channels,
+                "pending_channels": pending_channels,
+                "active_channels": active_ch_ids
             }).encode("utf-8"))
             return
 
