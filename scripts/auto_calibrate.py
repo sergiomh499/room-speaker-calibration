@@ -8,6 +8,7 @@ measurements using non-linear least squares and modal resonance detection.
 Zero hardcoded tables.
 """
 
+from typing import Optional, Dict, Any
 import os
 import sys
 import json
@@ -20,6 +21,7 @@ sys.path.insert(0, str(REPO_DIR))
 
 from scripts.peq_optimizer import (
     optimize_stereo_peq,
+    optimize_subwoofer_peq,
     multi_filter_response,
     YAMAHA_FREQS,
     YAMAHA_QS,
@@ -48,6 +50,7 @@ def run_calibration(
     push_yamaha: bool = False,
     sweet_spot_weight: float = 0.7,
     config_path: str = None,
+    subwoofer_crossover_hz: Optional[float] = None,
 ) -> dict:
     cfg_path = Path(config_path or (CONFIG_DIR / "targets.json"))
     targets = load_json(cfg_path)
@@ -56,6 +59,11 @@ def run_calibration(
         sys.exit(1)
         
     target_info = targets[target_key]
+    if subwoofer_crossover_hz is None and "yamaha_config" in target_info:
+        cfg_xo = target_info.get("yamaha_config", {}).get("crossover_hz")
+        if cfg_xo:
+            subwoofer_crossover_hz = float(cfg_xo)
+
     
     # 1. Load empirical measurements (Authoritative Sweet Spot Punto 1 + Spatial Average)
     sweet_spot_file = DATA_DIR / "medicion_punto_1.npz"
@@ -90,43 +98,14 @@ def run_calibration(
         sp_r = variable_smooth(sp_f, sp_r)
         spatial_l = np.interp(freqs, sp_f, sp_l)
         spatial_r = np.interp(freqs, sp_f, sp_r)
-    # 2. Build mathematical target curve
-    target_curve = np.zeros_like(freqs)
-    # Acoustic high-pass filter representing Q Acoustics 3020i (64 Hz -3 dB)
-    f_c = 64.0
-    hpf_mag = 1.0 / np.sqrt(1.0 + (f_c / np.maximum(freqs, 1.0))**4)
-    hpf_db = 20.0 * np.log10(np.maximum(hpf_mag, 1e-3))
-
-    k = (target_key or "").lower()
-    if "bk" in k or "1974" in k:
-        for i, f in enumerate(freqs):
-            if f < 150.0:
-                target_curve[i] = 3.0
-            elif f < 200.0:
-                target_curve[i] = 3.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 150.0) / 50.0))
-            else:
-                target_curve[i] = -0.9 * np.log2(f / 200.0)
-    elif "dirac" in k:
-        for i, f in enumerate(freqs):
-            if f < 120.0:
-                target_curve[i] = 2.0
-            elif f < 200.0:
-                target_curve[i] = 2.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
-            elif f <= 1000.0:
-                target_curve[i] = 0.0
-            else:
-                target_curve[i] = -0.6 * np.log2(f / 1000.0)
-    else:  # Harman target
-        for i, f in enumerate(freqs):
-            if f < 100.0:
-                target_curve[i] = 4.5
-            elif f < 200.0:
-                target_curve[i] = 4.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 100.0) / 100.0))
-            elif f <= 1000.0:
-                target_curve[i] = 0.0
-            else:
-                target_curve[i] = -0.8 * np.log2(f / 1000.0)
-    target_curve = target_curve + hpf_db
+    # 2. Build mathematical target curve using central peq_optimizer definition
+    from scripts.peq_optimizer import generate_bookshelf_target_curve
+    target_curve = generate_bookshelf_target_curve(
+        freqs,
+        target_key=target_key,
+        fc_hz=64.0,
+        subwoofer_crossover_hz=subwoofer_crossover_hz,
+    )
 
     print("=== MOTOR DE OPTIMIZACIÓN ACÚSTICA DINÁMICA REAL ===")
     print(f"Perfil Objetivo:   {target_info['name']}")
@@ -153,6 +132,27 @@ def run_calibration(
     left_bands = opt_result["channels"]["left"]
     right_bands = opt_result["channels"]["right"]
 
+    # 3b. Subwoofer PEQ Optimization (if 2.1 crossover is configured)
+    if subwoofer_crossover_hz and subwoofer_crossover_hz > 0:
+        sub_file = DATA_DIR / "medicion_sub.npz"
+        if sub_file.exists():
+            d_sub = np.load(sub_file)
+            f_sub_meas = d_sub["freqs"]
+            raw_sub = d_sub["resp"] if "resp" in d_sub else (d_sub["smooth"] if "smooth" in d_sub else d_sub["raw_l"])
+            sub_resp = np.interp(freqs, f_sub_meas, raw_sub)
+        else:
+            raw_sl = d_sweet["smooth_l"] if "smooth_l" in d_sweet else d_sweet["raw_l"]
+            raw_sr = d_sweet["smooth_r"] if "smooth_r" in d_sweet else d_sweet["raw_r"]
+            sub_resp = broadband_normalize(freqs, 0.5 * (raw_sl + raw_sr))
+
+        sub_bands = optimize_subwoofer_peq(
+            freqs_hz=freqs,
+            response_db=sub_resp,
+            crossover_hz=subwoofer_crossover_hz,
+            max_bands=3,
+        )
+        opt_result["channels"]["subwoofer"] = sub_bands
+
     print("\n" + "="*85)
     print("TABLA DE PARÁMETROS PEQ OPTIMIZADOS MATEMÁTICAMENTE (YAMAHA RX-V673)")
     print("="*85)
@@ -164,6 +164,17 @@ def run_calibration(
     print(f"Reducción RMS estimada: {opt_result['metrics']['predicted_rms_reduction_db']:.2f} dB")
     print(f"Atenuación modal pico:  {opt_result['metrics']['predicted_modal_attenuation_db']:.2f} dB")
     print(f"Tiempo de cómputo:      {opt_result['metrics']['execution_time_ms']:.1f} ms")
+
+    if "subwoofer" in opt_result["channels"]:
+        sub_bands = opt_result["channels"]["subwoofer"]
+        print("\n" + "="*60)
+        print(f"TABLA PEQ SUBWOOFER FOCAL CUB EVO (XO = {subwoofer_crossover_hz:.1f} Hz)")
+        print("="*60)
+        print("Banda  | Frecuencia | Q       | Ganancia")
+        print("-"*60)
+        for sb in sub_bands:
+            print(f"Band {sb['band']} | {sb['freq_hz']:>8.1f} Hz | {sb['q']:>7.3f} | {sb['gain_db']:>+8.1f} dB")
+        print("="*60)
 
     # 4. Synchronize dynamically optimized bands back to targets.json
     bands_dict = {}
@@ -188,6 +199,18 @@ def run_calibration(
             "gain_r": float(br["gain_db"]),
             "desc": desc
         }
+    sub_bands_dict = {}
+    if "subwoofer" in opt_result["channels"]:
+        for sb in opt_result["channels"]["subwoofer"]:
+            b_idx = sb["band"]
+            sub_bands_dict[f"Band {b_idx}"] = {
+                "freq": float(sb["freq_hz"]),
+                "q": float(sb["q"]),
+                "gain": float(sb["gain_db"]),
+                "role": sb.get("role", "sub_modal_resonance"),
+                "desc": f"Modo modal Subwoofer Focal Cub Evo ({sb['freq_hz']} Hz)"
+            }
+
 
     if cfg_path.exists():
         try:
@@ -195,17 +218,22 @@ def run_calibration(
                 all_targets = json.load(f_in)
             if target_key in all_targets:
                 all_targets[target_key]["bands"] = bands_dict
+                if sub_bands_dict or "sub_bands" in all_targets[target_key]:
+                    all_targets[target_key]["sub_bands"] = sub_bands_dict
                 with open(cfg_path, "w", encoding="utf-8") as f_out:
                     json.dump(all_targets, f_out, indent=2, ensure_ascii=False)
-                print(f"[✓] Perfil '{target_key}' sincronizado con 7 bandas calculadas dinámicamente en targets.json.")
+                print(f"[✓] Perfil '{target_key}' sincronizado con bandas calculadas dinámicamente en targets.json.")
         except Exception as e_sync:
             print(f"[!] Error al sincronizar targets.json: {e_sync}")
 
     # 4. Optional Hardware Deployment
     if push_yamaha:
         print("\n[*] Enviando matriz PEQ al receptor Yamaha RX-V673 con verificación de lectura...")
+        deploy_matrix = {"left": left_bands, "right": right_bands}
+        if "subwoofer" in opt_result["channels"]:
+            deploy_matrix["subwoofer"] = opt_result["channels"]["subwoofer"]
         success, errors = deploy_peq_matrix_with_readback(
-            {"left": left_bands, "right": right_bands},
+            deploy_matrix,
             verify_readback=True,
         )
         if success:
@@ -228,10 +256,11 @@ if __name__ == "__main__":
     parser.add_argument("--no-spatial", action="store_true", help="Disable spatial averaging")
     parser.add_argument("--push", action="store_true", help="Push to Yamaha AVR via YNC")
     parser.add_argument("--dry-run", action="store_true", help="Simulate optimization without pushing to AVR")
+    parser.add_argument("--sub-crossover", type=float, default=None, help="Subwoofer crossover frequency in Hz (e.g. 80.0)")
     args = parser.parse_args()
-
     run_calibration(
         target_key=args.profile,
         use_spatial_avg=not args.no_spatial,
         push_yamaha=args.push,
+        subwoofer_crossover_hz=args.sub_crossover,
     )

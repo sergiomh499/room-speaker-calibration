@@ -111,33 +111,66 @@ def generate_bookshelf_target_curve(
     hpf_mag = 1.0 / np.sqrt(1.0 + (cutoff / np.maximum(freqs_hz, 1.0)) ** 4)
     hpf_db = 20.0 * np.log10(np.maximum(hpf_mag, 1e-3))
 
-    k = (target_key or "").lower()
+    k = (target_key or "").lower().strip()
     target_curve = np.zeros_like(freqs_hz)
-    if "bk" in k or "1974" in k:
-        for i, f in enumerate(freqs_hz):
-            if f < 100.0:
-                target_curve[i] = 3.0
-            elif f < 400.0:
-                target_curve[i] = 3.0 * (1.0 - (f - 100.0) / 300.0)
-            else:
-                target_curve[i] = -0.9 * np.log2(f / 400.0)
+    f = np.maximum(freqs_hz, 1.0)
+
+    if "through" in k or "bypass" in k:
+        pass  # 0.0 dB flat bypass
+    elif "flat" in k or "diffuse" in k:
+        pass  # EBU Tech 3276 / Studio Monitor flat reference (0.0 dB)
+    elif "ypao" in k:
+        # Yamaha YPAO factory curve simulation (+0.5 dB presence above 2 kHz)
+        target_curve += np.where(f > 2000.0, 0.5, 0.0)
+    elif "bass_boost" in k:
+        # Harman In-Room Bass+ (+4.0 dB shelf 50-105 Hz for punchy modern genres, subsonic roll-off < 50 Hz)
+        target_curve += np.where(f < 50.0, 4.0 * (f / 50.0), np.where(f < 105.0, 4.0, np.where(f < 200.0, 4.0 * 0.5 * (1.0 + np.cos(np.pi * (f - 105.0) / 95.0)), 0.0)))
+        target_curve += np.where(f >= 200.0, -0.8 * np.log2(f / 200.0), 0.0)
+    elif "bk" in k or "1974" in k:
+        # Brüel & Kjær 1974 legendary warm curve (+3.0 dB <100Hz, -0.9 dB/oct above 400Hz)
+        target_curve += np.where(f < 100.0, 3.0, np.where(f < 400.0, 3.0 * (1.0 - (f - 100.0) / 300.0), -0.9 * np.log2(np.maximum(f / 400.0, 1.0))))
     elif "dirac" in k:
-        for i, f in enumerate(freqs_hz):
-            if f < 120.0:
-                target_curve[i] = 2.0
-            elif f < 250.0:
-                target_curve[i] = 2.0 * (1.0 - (f - 120.0) / 130.0)
-            else:
-                target_curve[i] = -0.6 * np.log2(f / 1000.0)
+        # Dirac Live Modern Stereo (+2.0 dB <120Hz, tight slope to 250Hz, -0.6 dB/oct above 1kHz)
+        target_curve += np.where(f < 120.0, 2.0, np.where(f < 250.0, 2.0 * (1.0 - (f - 120.0) / 130.0), np.where(f <= 1000.0, 0.0, -0.6 * np.log2(f / 1000.0))))
+    elif "bbc" in k or "gundry" in k:
+        # BBC Dip / Gundry Curve: Harman bass + intentional -2.2 dB dip at 2.8 kHz (LS3/5a fatigue-free)
+        target_curve += np.where(f < 120.0, 2.2, np.where(f < 200.0, 2.2 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0)), -0.8 * np.log2(np.maximum(f / 200.0, 1.0))))
+        target_curve += -2.2 * np.exp(-0.5 * ((np.log2(f / 2800.0) / 0.55) ** 2))
+    elif "blockbuster" in k or "cinema" in k:
+        # Cinema Blockbuster Impact (+3.5 dB 50-120Hz for tactile movie sound, subsonic protection < 50Hz, -1.0 dB/oct above 220Hz)
+        target_curve += np.where(f < 50.0, 3.5 * (f / 50.0), np.where(f < 120.0, 3.5, np.where(f < 220.0, 3.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 100.0)), 0.0)))
+        target_curve += np.where(f >= 220.0, -1.0 * np.log2(f / 220.0), 0.0)
+    elif "x_curve" in k:
+        # ISO 2969 / SMPTE 202M Modified X-Curve (flat to 2 kHz, -3.0 dB/octave above 2 kHz)
+        target_curve += np.where(f <= 2000.0, 0.0, -3.0 * np.log2(f / 2000.0))
+    elif "vocal" in k:
+        # Vocal Clarity: tames muddy sub-bass, boosts speech intelligibility in 1.5 - 3.5 kHz (+1.8 dB)
+        target_curve += np.where(f < 100.0, -1.5, 0.0)
+        target_curve += 1.8 * np.exp(-0.5 * ((np.log2(f / 2500.0) / 0.6) ** 2))
+        target_curve += np.where(f > 8000.0, -0.8 * np.log2(f / 8000.0), 0.0)
+    elif "vintage" in k or "japanese" in k:
+        # Warm Vintage Japanese 70s (Sansui/Marantz warm mids +1.0 dB @ 1.1 kHz, velvety top end)
+        target_curve += np.where(f < 150.0, 2.0, np.where(f < 300.0, 2.0 * (1.0 - (f - 150.0) / 150.0), 0.0))
+        target_curve += 1.0 * np.exp(-0.5 * ((np.log2(f / 1100.0) / 0.8) ** 2))
+        target_curve += np.where(f > 6000.0, -1.5 * np.log2(f / 6000.0), 0.0)
+    elif "gaming" in k or "spatial" in k:
+        # Gaming & Atmos Virtualization (+2.0 dB punch @ 65Hz, -1.5 dB un-muddy @ 250Hz, +1.6 dB spatial cues @ 4.2kHz)
+        target_curve += np.where(f < 80.0, 2.0, 0.0)
+        target_curve += -1.5 * np.exp(-0.5 * ((np.log2(f / 250.0) / 0.4) ** 2))
+        target_curve += 1.6 * np.exp(-0.5 * ((np.log2(f / 4200.0) / 0.5) ** 2))
+    elif "whisper" in k or "night" in k:
+        # Late Night Whisper (steep low cut <80Hz, +2.5 dB dialogue boost @ 2.4kHz, tamed highs)
+        target_curve += np.where(f < 80.0, -6.0 * np.log2(80.0 / f), 0.0)
+        target_curve += 2.5 * np.exp(-0.5 * ((np.log2(f / 2400.0) / 0.7) ** 2))
+        target_curve += np.where(f > 7000.0, -2.0 * np.log2(f / 7000.0), 0.0)
+    elif "acoustic" in k or "unplugged" in k:
+        # Acoustic & Vocal Intimate (box anti-resonance cut -1.5 dB @ 160Hz, +1.2 dB airy top above 10kHz)
+        target_curve += -1.5 * np.exp(-0.5 * ((np.log2(f / 160.0) / 0.45) ** 2))
+        target_curve += np.where(f > 10000.0, 1.2 * (1.0 - np.exp(-(f - 10000.0) / 4000.0)), 0.0)
     else:
-        # Harman / Floyd Toole standard in-room curve
-        for i, f in enumerate(freqs_hz):
-            if f < 120.0:
-                target_curve[i] = 2.5
-            elif f < 200.0:
-                target_curve[i] = 2.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0))
-            else:
-                target_curve[i] = -0.8 * np.log2(f / 200.0)
+        # Default Harman / Floyd Toole standard in-room curve (+2.5 dB <120Hz, -0.8 dB/oct above 200Hz)
+        target_curve += np.where(f < 120.0, 2.5, np.where(f < 200.0, 2.5 * 0.5 * (1.0 + np.cos(np.pi * (f - 120.0) / 80.0)), 0.0))
+        target_curve += np.where(f >= 200.0, -0.8 * np.log2(f / 200.0), 0.0)
 
     return target_curve + hpf_db
 
@@ -603,16 +636,57 @@ def optimize_stereo_peq(
             bands_r.append(dict(vr))
             allocated_freqs.add(vl["freq_hz"])
 
-    # D. Fill remaining slots with neutral/inactive bands (sharing same discrete Yamaha frequencies)
-    for def_freq in YAMAHA_FREQS:
-        if len(bands_l) >= 7:
-            break
-        f_val = float(def_freq)
-        if f_val not in allocated_freqs:
-            bands_l.append({"freq_hz": f_val, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
-            bands_r.append({"freq_hz": f_val, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
-            allocated_freqs.add(f_val)
-    # 5. Coordinate Descent & Multi-Filter Guardrail Validation
+    # D. Fill remaining slots respecting Yamaha RX-V673 hardware topology:
+    # Bands 1-4 allow any frequency (31.3 Hz - 16 kHz).
+    # Bands 5-7 strictly require frequency >= 500 Hz (min 500.0 Hz).
+    def is_slot_freq_allowed(slot_idx: int, f: float) -> bool:
+        if slot_idx >= 5: # 1-indexed Band 5, 6, 7
+            return f >= 500.0
+        return True
+
+    # Re-order existing bands so that bands < 500 Hz occupy slots 1 to 4
+    # and bands >= 500 Hz occupy slots 5 to 7 whenever possible
+    sub_500 = []
+    gte_500 = []
+    for bl, br in zip(bands_l, bands_r):
+        if bl["freq_hz"] < 500.0:
+            sub_500.append((bl, br))
+        else:
+            gte_500.append((bl, br))
+
+    arranged_l = []
+    arranged_r = []
+
+    # Place up to 4 sub-500 Hz filters in bands 1-4
+    while sub_500 and len(arranged_l) < 4:
+        bl, br = sub_500.pop(0)
+        arranged_l.append(bl)
+        arranged_r.append(br)
+
+    # Place gte-500 Hz filters
+    while gte_500 and len(arranged_l) < 7:
+        bl, br = gte_500.pop(0)
+        arranged_l.append(bl)
+        arranged_r.append(br)
+
+    # Any remaining sub-500 can go into remaining slots 1-4 if available
+    while sub_500 and len(arranged_l) < 4:
+        bl, br = sub_500.pop(0)
+        arranged_l.append(bl)
+        arranged_r.append(br)
+
+    # Fill empty slots with valid neutral bands
+    allocated_freqs = set(b["freq_hz"] for b in arranged_l)
+    while len(arranged_l) < 7:
+        slot_num = len(arranged_l) + 1
+        valid_pool = [f for f in YAMAHA_FREQS if (float(f) >= 500.0 if slot_num >= 5 else True) and float(f) not in allocated_freqs]
+        chosen_freq = float(valid_pool[0]) if valid_pool else (1000.0 if slot_num >= 5 else 62.5)
+        allocated_freqs.add(chosen_freq)
+        arranged_l.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
+        arranged_r.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
+
+    bands_l = arranged_l
+    bands_r = arranged_r
     mask_eval = (freqs_hz >= 30.0) & (freqs_hz <= 500.0)
     f_eval = freqs_hz[mask_eval]
 
@@ -687,6 +761,52 @@ def optimize_channel_peq(
     return res["channels"]["left"][:max_bands]
 
 
+def optimize_subwoofer_peq(
+    freqs_hz: np.ndarray,
+    response_db: np.ndarray,
+    target_db: Optional[np.ndarray] = None,
+    crossover_hz: float = 80.0,
+    max_bands: int = 3,
+) -> List[Dict[str, Any]]:
+    """
+    Subwoofer PEQ optimization engine for Yamaha RX-V673.
+    Targets room modal resonances in sub-bass / subwoofer band (< crossover_hz * 1.5).
+    Generates complementary 2nd-order Butterworth low-pass target curve if target_db is None.
+    Snaps parameters to discrete Yamaha constraints.
+    """
+    freqs_hz = np.asarray(freqs_hz, dtype=np.float64)
+    response_db = np.asarray(response_db, dtype=np.float64)
+    if target_db is None:
+        lpf_mag = 1.0 / np.sqrt(1.0 + (freqs_hz / max(crossover_hz, 1.0)) ** 4)
+        target_db = 20.0 * np.log10(np.maximum(lpf_mag, 1e-3))
+    else:
+        target_db = np.asarray(target_db, dtype=np.float64)
+
+    max_freq = min(float(crossover_hz) * 1.5, 200.0)
+    peaks = detect_modal_resonances(
+        freqs_hz,
+        response_db,
+        target_db,
+        min_elevation_db=1.5,
+        max_peaks=max_bands,
+        max_freq=max_freq,
+    )
+
+    bands = []
+    for idx, p in enumerate(peaks, start=1):
+        f_snap = snap_frequency(p["freq_hz"])
+        q_snap = snap_q(p["q"])
+        gain = snap_gain(-min(8.0, p["elevation_db"] * 0.85), f_snap, allow_voicing_boost=False)
+        bands.append({
+            "band": idx,
+            "freq_hz": f_snap,
+            "q": q_snap,
+            "gain_db": gain,
+            "role": "sub_modal_resonance",
+        })
+
+    return bands
+
 def calculate_standing_wave(freq_hz: float, speed_of_sound_ms: float = 343.0) -> Dict[str, Any]:
     """
     Calculates acoustic wavelength and room boundary dimensions for an axial standing wave (FR-002, SC-002).
@@ -752,3 +872,111 @@ def classify_peq_band_function(
         "phase_distortion_risk": phase_risk,
         "standing_wave": sw
     }
+
+def calculate_subwoofer_phase_alignment(
+    freqs_hz: np.ndarray,
+    front_mag_db: np.ndarray,
+    sub_mag_db: np.ndarray,
+    crossover_hz: float = 80.0,
+    sub_distance_m: float = 3.65,
+    front_distance_m: float = 2.40,
+) -> Dict[str, Any]:
+    """
+    Automatic Subwoofer Phase Alignment (0° Normal vs 180° Reverse).
+    Evaluates acoustic summation across the crossover transition band [0.6*fc, 1.4*fc].
+    Computes constructive vs destructive acoustic interference and Time-of-Flight delay.
+    """
+    f_min = crossover_hz * 0.6
+    f_max = crossover_hz * 1.4
+    mask = (freqs_hz >= f_min) & (freqs_hz <= f_max)
+
+    if not np.any(mask):
+        return {
+            "recommended_phase": "Normal",
+            "recommended_phase_degrees": 0,
+            "reinforcement_db": 3.0,
+            "delay_ms": round((sub_distance_m - front_distance_m) / 343.0 * 1000.0, 2),
+            "summary": "Fase Normal (0°) seleccionada por defecto."
+        }
+
+    p_front = 10.0 ** (front_mag_db[mask] / 20.0)
+    p_sub = 10.0 ** (sub_mag_db[mask] / 20.0)
+
+    # Constructive in-phase (0° / Normal)
+    sum_normal = 20.0 * np.log10(np.maximum(1e-6, p_front + p_sub))
+    # Destructive out-of-phase (180° / Reverse)
+    sum_reverse = 20.0 * np.log10(np.maximum(1e-6, np.abs(p_front - p_sub)))
+
+    e_normal = float(np.mean(sum_normal))
+    e_reverse = float(np.mean(sum_reverse))
+
+    delta_db = round(float(e_normal - e_reverse), 2)
+    delay_ms = round((sub_distance_m - front_distance_m) / 343.0 * 1000.0, 2)
+
+    if e_normal >= e_reverse:
+        rec_phase = "Normal"
+        rec_deg = 0
+        reinf_db = max(0.5, round(e_normal - float(np.mean(np.maximum(front_mag_db[mask], sub_mag_db[mask]))), 2))
+        summary = f"Fase Normal (0°) ofrece {abs(delta_db):.1f} dB de mayor refuerzo acústico constructivo en el cruce de {crossover_hz:.0f} Hz."
+    else:
+        rec_phase = "Reverse"
+        rec_deg = 180
+        reinf_db = max(0.5, round(e_reverse - float(np.mean(np.maximum(front_mag_db[mask], sub_mag_db[mask]))), 2))
+        summary = f"Fase Invertida (180°) cancela el nulo de cruce y aporta {abs(delta_db):.1f} dB de mayor energía acústica."
+
+    return {
+        "recommended_phase": rec_phase,
+        "recommended_phase_degrees": rec_deg,
+        "reinforcement_db": reinf_db,
+        "energy_normal_db": round(e_normal, 2),
+        "energy_reverse_db": round(e_reverse, 2),
+        "delta_db": delta_db,
+        "delay_ms": delay_ms,
+        "crossover_hz": crossover_hz,
+        "summary": summary
+    }
+
+
+def calculate_multi_sub_alignment(
+    sub1_distance_m: float,
+    sub2_distance_m: float,
+) -> Dict[str, Any]:
+    """
+    Calculates relative inter-subwoofer delay and alignment for 2.2 / dual-subwoofer topologies.
+    """
+    diff_m = abs(sub1_distance_m - sub2_distance_m)
+    delay_ms = round(diff_m / 343.0 * 1000.0, 2)
+    closer_sub = "Subwoofer_1" if sub1_distance_m <= sub2_distance_m else "Subwoofer_2"
+    further_sub = "Subwoofer_2" if closer_sub == "Subwoofer_1" else "Subwoofer_1"
+
+    return {
+        "inter_sub_delay_ms": delay_ms,
+        "distance_delta_m": round(diff_m, 2),
+        "reference_sub": closer_sub,
+        "delayed_sub": further_sub,
+        "recommendation": f"Atrasar {further_sub} en {delay_ms:.2f} ms para alinear frentes de onda en el Sweet Spot." if delay_ms > 0.1 else "Ambos subwoofers están alineados temporalmente."
+    }
+
+def calculate_speaker_trim_levels(
+    channel_spl_map: Dict[str, float],
+    target_spl_db: float = 75.0,
+    reference_channel: Optional[str] = "Front_L",
+) -> Dict[str, float]:
+    """
+    Automatic Speaker and Subwoofer dB Trim Level Optimization.
+    Calculates discrete Yamaha RX-V673 channel level trims (-10.0 dB to +10.0 dB in 0.5 dB steps)
+    so every speaker, including the Focal Cub Evo subwoofer, matches the calibrated target SPL.
+    """
+    trims: Dict[str, float] = {}
+    ref_spl = channel_spl_map.get(reference_channel or "", target_spl_db)
+    base_target = target_spl_db if target_spl_db is not None else ref_spl
+
+    for ch, spl in channel_spl_map.items():
+        # Difference required to hit reference SPL
+        diff = base_target - float(spl)
+        # Snap to discrete 0.5 dB Yamaha step
+        stepped = round(diff * 2.0) / 2.0
+        clamped = max(-10.0, min(10.0, float(stepped)))
+        trims[ch] = clamped
+
+    return trims

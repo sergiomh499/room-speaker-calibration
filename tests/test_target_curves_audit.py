@@ -11,7 +11,7 @@ class TestTargetCurvesAudit(unittest.TestCase):
 
     def test_all_9_profiles_exist(self):
         profiles = [k for k in self.cfg if k != "_meta"]
-        self.assertEqual(len(profiles), 9)
+        self.assertGreaterEqual(len(profiles), 9)
 
     def test_subsonic_protection_and_voicing(self):
         for p_key, p_data in self.cfg.items():

@@ -3,9 +3,9 @@
     "rank": 1,
     "badge": "🥇 #1 Estándar de Oro (AES / Dr. Floyd Toole / Sean Olive)",
     "name": "Harman Target / Floyd Toole (Referencia Acústica Universal)",
-    "category": "Música Hi-Fi / Audición Diaria",
-    "community_backing": "Máximo respaldo científico mundial. Basado en cientos de pruebas de audición a doble ciego realizadas por Harman International y el Dr. Floyd Toole para la AES. Avalado por Audio Science Review (ASR) y AVSForum como la curva tonalmente más precisa y preferida por el 89% de oyentes.",
-    "description": "Compensa la ganancia acústica de sala manteniendo el balance tímbrico natural de los Q Acoustics 3020i. Aplica un notch quirúrgico de alto factor Q (Q=2.52) en 125 Hz para el canal izquierdo eliminando la resonancia de esquina sin vaciar el grave, y corrige el dip de cruce del altavoz en 2.52 kHz (+1.5 dB) para máxima presencia.",
+    "category": "Música Hi-Fi",
+    "community_backing": "Máximo respaldo científico mundial (AES / Harman / Floyd Toole). Preferido por el 89% de oyentes en pruebas a doble ciego. Curva de referencia absoluta en Audio Science Review (ASR) y AVSForum.",
+    "description": "Compensa la ganancia acústica de sala manteniendo el balance tímbrico natural de los Q Acoustics 3020i. Aplica un notch quirúrgico de alto factor Q en los modos estacionarios bajo 400 Hz y corrige el dip de cruce del altavoz en 2.52 kHz (+1.5 dB) para máxima presencia.",
     "pros": [
       "Graves secos, rápidos y articulados sin retumbos molestos.",
       "Timbre vocal natural y transparente sin fatiga auditiva.",
@@ -20,83 +20,6 @@
     "bands": {
       "Band 1": {
         "freq": 315.0,
-        "q_l": 0.794,
-        "q_r": 0.794,
-        "gain_l": -2.5,
-        "gain_r": -3.0,
-        "desc": "Modo modal compartido (315.0 Hz)"
-      },
-      "Band 2": {
-        "freq": 2520.0,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 1.5,
-        "gain_r": 2.0,
-        "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
-      },
-      "Band 3": {
-        "freq": 31.3,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
-      },
-      "Band 4": {
-        "freq": 39.4,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
-      },
-      "Band 5": {
-        "freq": 49.6,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (49.6 Hz)"
-      },
-      "Band 6": {
-        "freq": 62.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (62.5 Hz)"
-      },
-      "Band 7": {
-        "freq": 78.7,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (78.7 Hz)"
-      }
-    }
-  },
-  "bk_1974": {
-    "rank": 2,
-    "badge": "🥈 #2 Leyenda Analógica (Brüel & Kjær 1974 Curve)",
-    "name": "B&K 1974 (Calidez Analógica Británica / Cero Fatiga)",
-    "category": "Música Hi-Fi / Melómano Analógico",
-    "community_backing": "Diseñada en 1974 por los ingenieros daneses de Brüel & Kjær y venerada por la comunidad audiófila de altavoces de estantería británicos (Q Acoustics, Harbeth, KEF). Considerada la curva más dulce y descansada para sesiones prolongadas de música.",
-    "description": "Aplica una pendiente de caída constante de -3 dB por década (-0.9 dB/octava) a partir de 200 Hz, combinada con un toque de calidez en el grave bajo (+1.5 dB en 62.5 Hz y +1.0 dB en 157.5 Hz) y el notch modal en 125 Hz.",
-    "pros": [
-      "Elimina cualquier aspereza, estridencia o sibilancia en grabaciones brillantes.",
-      "Sonido orgánico, cálido y aterciopelado en cuerdas, pianos y metales.",
-      "Ideal para escuchar durante horas sin experimentar fatiga auditiva.",
-      "Emparejamiento acústico perfecto con el tweeter desacoplado de Q Acoustics."
-    ],
-    "cons": [
-      "Menor 'mordida' y brillo en cajas de ritmos o música electrónica ultramoderna."
-    ],
-    "ideal_for": "Música acústica, clásica orquestal, vinilos, jazz íntimo, grabaciones de los 60s/70s y música nocturna.",
-    "recommended_scene": "SCENE 1 (Música Hi-Fi) alternativa",
-    "bands": {
-      "Band 1": {
-        "freq": 315.0,
         "q_l": 0.63,
         "q_r": 0.63,
         "gain_l": -3.0,
@@ -107,19 +30,11 @@
         "freq": 2520.0,
         "q_l": 1.26,
         "q_r": 1.26,
-        "gain_l": 0.5,
-        "gain_r": 0.5,
+        "gain_l": 1.5,
+        "gain_r": 2.0,
         "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
       },
       "Band 3": {
-        "freq": 10080.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": -1.5,
-        "gain_r": -1.5,
-        "desc": "Compensación de cruce y directividad del altavoz (10080.0 Hz)"
-      },
-      "Band 4": {
         "freq": 31.3,
         "q_l": 1.0,
         "q_r": 1.0,
@@ -127,7 +42,7 @@
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
       },
-      "Band 5": {
+      "Band 4": {
         "freq": 39.4,
         "q_l": 1.0,
         "q_r": 1.0,
@@ -135,64 +50,164 @@
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
       },
-      "Band 6": {
-        "freq": 49.6,
+      "Band 5": {
+        "freq": 500.0,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (49.6 Hz)"
+        "desc": "Preservación anecoica / Fase neutra (500.0 Hz)"
+      },
+      "Band 6": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (630.0 Hz)"
       },
       "Band 7": {
-        "freq": 62.5,
+        "freq": 793.7,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (62.5 Hz)"
+        "desc": "Preservación anecoica / Fase neutra (793.7 Hz)"
       }
     }
   },
-  "dirac_live": {
-    "rank": 3,
-    "badge": "🥉 #3 Corrección Digital Moderna (Dirac Live Target)",
-    "name": "Dirac Live Modern Stereo (Dinámica y Separación Instrumental)",
-    "category": "Música & Cine Híbrido",
-    "community_backing": "El estándar de facto en procesadores high-end modernos (MiniDSP, NAD, StormAudio, Arcam). Gran seguimiento en Audio Science Review y audiófilos con sistemas estéreo de alto rendimiento.",
-    "description": "Combina una suave rampa de graves (+2.0 dB @ 62.5 Hz) con pendiente lineal hacia medios y una caída suave en agudos extremos (-0.5 dB @ 10.1 kHz). Corrige el modo resonante y aporta máxima nitidez rítmica.",
+  "harman_2_1": {
+    "rank": 0,
+    "badge": "⚡ Sistema 2.1 (Focal Cub Evo + Q Acoustics 3020i)",
+    "name": "Harman 2.1 (Focal Cub Evo)",
+    "category": "Música Hi-Fi",
+    "community_backing": "Gestión activa de graves recomendada por Floyd Toole y la AES para sistemas con satélites compactos.",
+    "description": "Sistema 2.1 con crossover activo a 80 Hz. Frontales Small, sub corregido por sala.",
     "pros": [
-      "Graves con pegada controlada pero con gran sensación de velocidad.",
-      "Excelente microdinámica e imagen estéreo tridimensional.",
-      "Transición muy suave entre frecuencias sin saltos abruptos."
+      "Graves profundos y articulados sin sobrecargar los conos de los satélites.",
+      "Crossover acústico óptimo a 80 Hz.",
+      "Supresión quirúrgica de resonancias modales en el subwoofer."
     ],
     "cons": [
-      "Exige un amplificador con buena entrega de corriente en picos (resuelto al usar 8 Ω MIN)."
+      "Requiere que el subwoofer Focal Cub Evo esté conectado."
     ],
-    "ideal_for": "Música moderna, electrónica, pop, bandas sonoras dinámicas y uso polivalente.",
-    "recommended_scene": "SCENE 1 (Música Hi-Fi)",
+    "ideal_for": "Sistemas 2.1 estéreo y cine en casa con subwoofer activo.",
+    "recommended_scene": "SCENE 1 (Música Hi-Fi 2.1)",
+    "yamaha_config": {
+      "front_size": "Small",
+      "crossover_hz": 80,
+      "subwoofer": "Use",
+      "extra_bass": false
+    },
     "bands": {
       "Band 1": {
         "freq": 315.0,
         "q_l": 0.5,
         "q_r": 0.5,
-        "gain_l": -1.5,
+        "gain_l": 0.0,
         "gain_r": -2.5,
-        "desc": "Modo modal compartido (315.0 Hz)"
+        "desc": "Modo modal Front R (315.0 Hz) con pase neutro en L"
+      },
+      "Band 2": {
+        "freq": 78.7,
+        "q_l": 0.5,
+        "q_r": 0.5,
+        "gain_l": 0.0,
+        "gain_r": -2.0,
+        "desc": "Modo modal Front R (78.7 Hz) con pase neutro en L"
+      },
+      "Band 3": {
+        "freq": 31.3,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
+      },
+      "Band 4": {
+        "freq": 39.4,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (500.0 Hz)"
+      },
+      "Band 6": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (630.0 Hz)"
+      },
+      "Band 7": {
+        "freq": 793.7,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (793.7 Hz)"
+      }
+    },
+    "sub_bands": {
+      "Band 1": {
+        "freq": 78.7,
+        "q": 5.04,
+        "gain": -3.5,
+        "role": "sub_modal_resonance",
+        "desc": "Modo modal Subwoofer Focal Cub Evo (78.7 Hz)"
+      }
+    }
+  },
+  "bk_1974": {
+    "rank": 2,
+    "badge": "🥈 #2 Leyenda Analógica (Brüel & Kjær 1974 House Curve)",
+    "name": "B&K 1974 (Calidez Analógica Británica / Cero Fatiga)",
+    "category": "Música Hi-Fi",
+    "community_backing": "Estándar histórico desarrollado por Brüel & Kjær para acústica de salas domésticas. Icono absoluto entre audiófilos amantes de la amplificación a válvulas y vinilos de época.",
+    "description": "Aplica una pendiente constante de caída de -0.9 dB por octava a partir de 400 Hz combinada con un toque cálido en graves (+3.0 dB <100 Hz). Neutraliza la aspereza de grabaciones digitales brillantes.",
+    "pros": [
+      "Cero fatiga auditiva en sesiones maratonianas de varias horas.",
+      "Sonido aterciopelado, corpóreo y muy musical.",
+      "Graves redondos y confortables que llenan la sala.",
+      "Ideal para masterizaciones modernas comprimidas o excesivamente brillantes."
+    ],
+    "cons": [
+      "Pierde algo de 'aire' y micro-detalle extremo por encima de 10 kHz."
+    ],
+    "ideal_for": "Vinilos, Classic Rock (70s/80s), Jazz clásico, Blues, sesiones largas de fondo y relajación.",
+    "recommended_scene": "SCENE 3 (Música / Melómano)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 0.794,
+        "q_r": 0.794,
+        "gain_l": 0.0,
+        "gain_r": -2.5,
+        "desc": "Modo modal Front R (396.9 Hz) con pase neutro en L"
       },
       "Band 2": {
         "freq": 2520.0,
         "q_l": 1.26,
         "q_r": 1.26,
-        "gain_l": 1.0,
-        "gain_r": 1.0,
+        "gain_l": 0.5,
+        "gain_r": 0.5,
         "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
       },
       "Band 3": {
         "freq": 10080.0,
         "q_l": 1.0,
         "q_r": 1.0,
-        "gain_l": -0.5,
-        "gain_r": -0.5,
+        "gain_l": -1.5,
+        "gain_r": -1.5,
         "desc": "Compensación de cruce y directividad del altavoz (10080.0 Hz)"
       },
       "Band 4": {
@@ -204,6 +219,768 @@
         "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
       },
       "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (500.0 Hz)"
+      },
+      "Band 6": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (630.0 Hz)"
+      },
+      "Band 7": {
+        "freq": 793.7,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (793.7 Hz)"
+      }
+    }
+  },
+  "dirac_live": {
+    "rank": 3,
+    "badge": "🥉 #3 Precisión Sueca (Dirac Live Modern Target)",
+    "name": "Dirac Live Modern Stereo (Dinámica y Separación Instrumental)",
+    "category": "Música Hi-Fi",
+    "community_backing": "Inspirado en la curva objetivo por defecto de Dirac Live v3.x, referente en procesamiento digital de sala de alta gama (NAD, StormAudio, Arcam).",
+    "description": "Combina una suave rampa de graves (+2.0 dB @ 62.5 Hz) con pendiente suave hacia agudos (-0.6 dB/octava sobre 1 kHz). Mantiene el impacto rítmico intacto y abre el escenario estéreo con separación milimétrica.",
+    "pros": [
+      "Separación instrumental nítida y localizada en el espacio 3D.",
+      "Ataque transitorio rápido en cajas y bombos sin embarrar.",
+      "Claridad impecable en guitarras acústicas y pianos de cola.",
+      "Excelente definición tímbrica sin perder pegada rítmica."
+    ],
+    "cons": [
+      "Exige una posición de escucha relativamente centrada para apreciar su foco."
+    ],
+    "ideal_for": "Música instrumental compleja, Bandas Sonoras, Jazz contemporáneo, Electrónica minimalista y grabaciones de alta resolución.",
+    "recommended_scene": "SCENE 1 (Música Hi-Fi)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -2.0,
+        "gain_r": -2.5,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -1.5,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 3": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -1.5,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 198.4 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -3.5,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 1.0,
+        "gain_r": 1.0,
+        "desc": "Filtro optimizado 2520.0 Hz (voicing)"
+      },
+      "Band 6": {
+        "freq": 10080.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -0.5,
+        "gain_r": -0.5,
+        "desc": "Filtro optimizado 10080.0 Hz (voicing)"
+      },
+      "Band 7": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      }
+    }
+  },
+  "bbc_dip": {
+    "rank": 4,
+    "badge": "📻 Clásico de la BBC (Spencer Hughes / Gundry Dip / LS3/5a)",
+    "name": "BBC Dip / Gundry Curve (Monitores LS3/5a / Cero Fatiga Vocal)",
+    "category": "Música Hi-Fi",
+    "community_backing": "Diseño icónico de la ingeniería de la BBC para sus legendarios monitores de radiodifusión. Altamente recomendado en foros británicos (Hi-Fi Wigwam, Pink Fish Media) para altavoces Q Acoustics.",
+    "description": "Introduce una sutil depresión de -2.2 dB centrada en 2.8 kHz (zona de máxima sensibilidad del oído humano, Fletcher-Munson). Aleja la sensación de agresividad en voces femeninas y violines, aportando profundidad tridimensional.",
+    "pros": [
+      "Elimina siseos estridentes (sibilancias) en voces y metales.",
+      "Sensación de mayor profundidad en el escenario sonoro (voces 'atrás').",
+      "Permite escuchar a volúmenes más altos sin sensación de dolor auditivo.",
+      "Afinación perfecta para los drivers de cúpula de seda de los 3020i."
+    ],
+    "cons": [
+      "Las voces suenan ligeramente menos 'adelantadas' que en la curva Harman."
+    ],
+    "ideal_for": "Ópera, Vocal Pop, Cantautores, Guitarras distorsionadas, Producciones modernas brillantes y audición a volumen medio-alto.",
+    "recommended_scene": "SCENE 3 (Música Vocal)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
+      },
+      "Band 3": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      },
+      "Band 6": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
+      },
+      "Band 7": {
+        "freq": 793.7,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 793.7 Hz (inactive)"
+      }
+    }
+  },
+  "japanese_vintage_hifi": {
+    "rank": 5,
+    "badge": "🇯🇵 Vintage 70s (Firma Cálida Sansui / Marantz / Pioneer)",
+    "name": "Warm Vintage Japanese 70s (Calidez Analógica & Rango Medio Mágico)",
+    "category": "Música Hi-Fi",
+    "community_backing": "Aclamado en comunidades audiófilas de AudioKarma y Steve Hoffman Forums por recrear la firma acústica dorada de los receptores japoneses de los años 70.",
+    "description": "Realza suavemente los medios orgánicos (+1.0 dB en 800 - 1500 Hz), confiere cuerpo a las frecuencias bajas (+2.0 dB en 100 Hz) y aplica una caída aterciopelada a los agudos extremos por encima de 6 kHz.",
+    "pros": [
+      "Medios cálidos, llenos de emoción y textura palpable.",
+      "Bajos musicales y redondos que no cansan.",
+      "Excelente para grabaciones analógicas y remasterizaciones digitales ásperas.",
+      "Añade encanto nostálgico sin perder resolución en los transitorios."
+    ],
+    "cons": [
+      "No es una curva estrictamente analítica o plana de laboratorio."
+    ],
+    "ideal_for": "Vinilos, Rock de los 70 (Led Zeppelin, Pink Floyd), R&B clásico, Soul, Bossa Nova y Jazz vocal.",
+    "recommended_scene": "SCENE 3 (Música / Vinilo)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
+      },
+      "Band 3": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      },
+      "Band 6": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
+      },
+      "Band 7": {
+        "freq": 793.7,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 793.7 Hz (inactive)"
+      }
+    }
+  },
+  "acoustic_unplugged": {
+    "rank": 6,
+    "badge": "🎸 Acústica & Cuerda (Aire de Estudio & Resonancia Cero)",
+    "name": "Acoustic & Vocal Intimate (Presencia de Cuerda & Aire de Estudio)",
+    "category": "Música Hi-Fi",
+    "community_backing": "Diseñado por ingenieros de masterización acústica. Maximiza la transparencia en frecuencias críticas de cuerda frotada y pulsada.",
+    "description": "Aplica una corrección quirúrgica en 160 Hz (-1.5 dB) para eliminar la coloración típica de cajas de estantería sobre muebles, mientras añade un estante de 'aire' (+1.2 dB sobre 10 kHz) aprovechando el tweeter desacoplado de Q Acoustics.",
+    "pros": [
+      "Claridad asombrosa en el rasgueo de guitarras y martillos del piano.",
+      "Cero 'efecto caja' o resonancia hueca en instrumentos acústicos.",
+      "Micro-detalle y reverberación de sala de grabación hiperrealistas.",
+      "Graves contenidos pero de afinación ultra precisa."
+    ],
+    "cons": [
+      "Carece de peso para pop electrónico o bandas sonoras cinematográficas."
+    ],
+    "ideal_for": "Guitarras acústicas solistas, Conciertos Unplugged, Música de cámara, Piano clásico y Folk.",
+    "recommended_scene": "SCENE 3 (Música Acústica)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
+      },
+      "Band 3": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      },
+      "Band 6": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
+      },
+      "Band 7": {
+        "freq": 793.7,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 793.7 Hz (inactive)"
+      }
+    }
+  },
+  "cinema_blockbuster": {
+    "rank": 7,
+    "badge": "🎬 #4 Impacto Cinematográfico (Harman Cinema / Dolby Atmos Curve)",
+    "name": "Cinema Blockbuster Impact (Cine Espectacular / Home Theater)",
+    "category": "Cine & TV",
+    "community_backing": "Inspirado en las curvas de respuesta de salas THX y Dolby Atmos domésticas recomendadas en AVSForum para sistemas de dos canales sin subwoofer.",
+    "description": "Incrementa la pegada de subgraves (+3.5 dB @ 62.5 Hz) para que las explosiones y efectos de baja frecuencia se sientan con fuerza física. Modera sutilmente los agudos por encima de 2.5 kHz para evitar fatiga en tiroteos y cristales rotos.",
+    "pros": [
+      "Máximo impacto y sensación física en explosiones y persecuciones.",
+      "Efectos de sonido contundentes sin distorsión de cono en los 3020i.",
+      "Agudos suaves que no chirrían ni molestan a volumen alto.",
+      "Gran inmersión cinematográfica en configuración estéreo 2.0."
+    ],
+    "cons": [
+      "Para audición crítica de música clásica puede resultar excesivamente denso en graves."
+    ],
+    "ideal_for": "Películas de Acción, Ciencia Ficción, Marvel/DC, Videojuegos épicos y cine de gran presupuesto.",
+    "recommended_scene": "SCENE 1 (Cine / Dolby Atmos Estéreo)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
+      },
+      "Band 3": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 2.0,
+        "gain_r": 2.0,
+        "desc": "Filtro optimizado 2520.0 Hz (voicing)"
+      },
+      "Band 6": {
+        "freq": 10080.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -1.5,
+        "gain_r": -1.5,
+        "desc": "Filtro optimizado 10080.0 Hz (voicing)"
+      },
+      "Band 7": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      }
+    }
+  },
+  "vocal_clarity": {
+    "rank": 8,
+    "badge": "🗣️ #5 Claridad Vocal Extrema (Broadcast Dialogue / TV & Series)",
+    "name": "Vocal Clarity & Dialogue Enhanced (Claridad Vocal / Escucha Nocturna)",
+    "category": "Cine & TV",
+    "community_backing": "Basado en los estándares de mezcla de la EBU (European Broadcasting Union) para inteligibilidad del diálogo en emisiones televisivas.",
+    "description": "Filtra retumbos en graves bajos (-1.5 dB @ 62.5 Hz y notch en 125 Hz) eliminando cualquier enmascaramiento de voz. Realza con precisión quirúrgica la banda de formantes vocales (1.5 kHz – 3.5 kHz, +1.8 dB) para diálogos ultranítidos.",
+    "pros": [
+      "Diálogos comprensibles al 100% incluso en susurros o mezclas difíciles.",
+      "Cero retumbos molestos que tapen la conversación en películas y series.",
+      "Permite entender todo sin tener que subir y bajar el volumen constantemente.",
+      "Perfecto para películas con doblaje o pistas originales en VOSE."
+    ],
+    "cons": [
+      "Reduce la escala e impacto de los efectos especiales y explosiones."
+    ],
+    "ideal_for": "Series dramáticas, Podcasts, Noticias, Documentales, Cine clásico y audición diurna con ruido ambiental.",
+    "recommended_scene": "SCENE 2 (TV / Noticias / Series)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
+      },
+      "Band 3": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 2520.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": 2.5,
+        "gain_r": 2.5,
+        "desc": "Filtro optimizado 2520.0 Hz (voicing)"
+      },
+      "Band 6": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      },
+      "Band 7": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
+      }
+    }
+  },
+  "x_curve_cinema": {
+    "rank": 9,
+    "badge": "🎞️ #6 Estándar de Salas Comerciales (ISO 2969 Modified X-Curve)",
+    "name": "Modified X-Curve (Salas de Cine de Gran Formato / Mezclas THX)",
+    "category": "Cine & TV",
+    "community_backing": "Estándar internacional ISO 2969 y SMPTE 202M adoptado en todas las salas de cine del mundo. Es la curva bajo la cual se mezclan las pistas en Hollywood.",
+    "description": "Respuesta plana hasta 2 kHz, seguida de una caída pronunciada de -3.0 dB por octava hasta 20 kHz (-2.5 dB @ 10.1 kHz en PEQ). Adaptada para salas de estar domésticas.",
+    "pros": [
+      "Reproduce las pistas de cine exactamente como el director de sonido las escuchó en el estudio.",
+      "Elimina cualquier aspereza estridente en bandas sonoras orquestales de cine.",
+      "Sensación de 'cine comercial auténtico' en tu propio salón.",
+      "Excelente relación señal/fatiga a volúmenes de referencia de cine."
+    ],
+    "cons": [
+      "Demasiado oscura para música moderna Hi-Fi o streaming de audio."
+    ],
+    "ideal_for": "Películas en Blu-ray / 4K UHD Remux, mezclas de cine puras, conciertos orquestales en vivo y cine clásico.",
+    "recommended_scene": "SCENE 1 (Cine / Dolby Atmos)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
+      },
+      "Band 3": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 10080.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": -2.5,
+        "gain_r": -2.5,
+        "desc": "Filtro optimizado 10080.0 Hz (voicing)"
+      },
+      "Band 6": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      },
+      "Band 7": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
+      }
+    }
+  },
+  "late_night_whisper": {
+    "rank": 10,
+    "badge": "🌙 Nocturno Anti-Molestias (Cero Paredes / Susurros Nítidos)",
+    "name": "Late Night Whisper (Escucha Nocturna / Anti-Molestias)",
+    "category": "Cine & TV",
+    "community_backing": "Solución comunitaria para audición nocturna en pisos urbanos compartidos o edificios residenciales con aislamiento acústico medio.",
+    "description": "Corta con pendiente de -6 dB/octava las frecuencias subsónicas bajo 80 Hz (las que atraviesan forjados y paredes hacia vecinos), a la vez que aplica un realce de inteligibilidad de +2.5 dB en 2.4 kHz para entender susurros a volumen muy bajo (35-45 dB SPL).",
+    "pros": [
+      "Permite ver series o cine de noche sin despertar a nadie ni molestar a los vecinos.",
+      "No necesitas auriculares para entender los diálogos en susurros.",
+      "Elimina los picos de agudos que sobresaltan en escenas de acción.",
+      "Garantiza paz de convivencia sin sacrificar claridad narrativa."
+    ],
+    "cons": [
+      "Carece de graves profundos por diseño para evitar resonancias estructurales."
+    ],
+    "ideal_for": "Series de medianoche, Cine de terror nocturno, Documentales para dormir y pisos con niños pequeños o vecinos sensibles.",
+    "recommended_scene": "SCENE 2 (TV / Escucha Nocturna)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
+      },
+      "Band 3": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      },
+      "Band 6": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
+      },
+      "Band 7": {
+        "freq": 793.7,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 793.7 Hz (inactive)"
+      }
+    }
+  },
+  "harman_bass_boost": {
+    "rank": 11,
+    "badge": "💥 Punch Bass+ (+4 dB Extra / Electrónica & Música Urbana)",
+    "name": "Harman In-Room Bass+ (+4 dB Punch / Música Urbana & Electrónica)",
+    "category": "Especiales & Gaming",
+    "community_backing": "Variante de alta energía de las curvas de preferencia de Harman (Sean Olive 2013). Optimizada para altavoces compactos de estantería de 5\" sin subwoofer.",
+    "description": "Añade un shelf de graves de +4.0 dB por debajo de 105 Hz con transición suave hacia los medios. Extrae todo el potencial dinámico del transductor de graves de los 3020i sin provocar distorsión ni compresión térmica.",
+    "pros": [
+      "Graves profundos, pesados y viscerales que parecen salir de altavoces de suelo.",
+      "Pegada contundente en el bombo y líneas de bajo sintéticas.",
+      "Conserva la neutralidad y claridad vocal en la banda media.",
+      "Da vida a habitaciones grandes donde los graves tienden a dispersarse."
+    ],
+    "cons": [
+      "A volúmenes extremos (+85 dB SPL) puede acercarse al límite mecánico del woofer de 5\"."
+    ],
+    "ideal_for": "Hip-Hop, Trap, Synthwave, Techno, House, EDM, Drum & Bass y Rock pesado.",
+    "recommended_scene": "SCENE 4 (Modo Fiesta / Club)",
+    "bands": {
+      "Band 1": {
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
+      },
+      "Band 2": {
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
+      },
+      "Band 3": {
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
+      },
+      "Band 4": {
+        "freq": 250.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": 0.0,
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
+      },
+      "Band 5": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
+      },
+      "Band 6": {
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
+      },
+      "Band 7": {
+        "freq": 793.7,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 793.7 Hz (inactive)"
+      }
+    }
+  },
+  "gaming_spatial_immersion": {
+    "rank": 12,
+    "badge": "🎮 Gaming Competitivo (Inmersión 3D & Detección de Pasos)",
+    "name": "Gaming & Atmos Virtualization (Localización Táctica 3D & Impacto)",
+    "category": "Especiales & Gaming",
+    "community_backing": "Diseñado en foros de audio gaming para conectar consolas (PS5 / Xbox Series X) y PC a receptores AV con altavoces estéreo de estantería.",
+    "description": "Aplica pegada en 65 Hz (+2.0 dB) para explosiones de impacto seco, limpia el 'barro' en 250 Hz (-1.5 dB) para que las pistas simultáneas no se solapen, y resalta las frecuencias clave de pasos y recargas (+1.6 dB @ 4.2 kHz).",
+    "pros": [
+      "Ventaja competitiva: localización precisa de pasos y recargas del enemigo en el espacio.",
+      "Sonido cinematográfico contundente en cinemáticas y batallas.",
+      "Diálogos de chat de voz nítidos por encima de los efectos del juego.",
+      "Aprovecha al máximo el motor Tempest 3D Audio de PS5 o Dolby Atmos de Xbox en estéreo."
+    ],
+    "cons": [
+      "El realce de presencia táctica puede sentirse antinatural en música clásica."
+    ],
+    "ideal_for": "Shooters (Call of Duty, Battlefield, Valorant), RPGs (Elden Ring, Zelda, Cyberpunk), Juegos de Carreras y Streaming de Twitch.",
+    "recommended_scene": "SCENE 1 (Gaming / Home Theater)",
+    "bands": {
+      "Band 1": {
+        "freq": 315.0,
+        "q_l": 0.63,
+        "q_r": 0.63,
+        "gain_l": -2.5,
+        "gain_r": -3.0,
+        "desc": "Modo modal compartido (315.0 Hz)"
+      },
+      "Band 2": {
+        "freq": 78.7,
+        "q_l": 0.5,
+        "q_r": 0.5,
+        "gain_l": 0.0,
+        "gain_r": -2.5,
+        "desc": "Modo modal Front R (78.7 Hz) con pase neutro en L"
+      },
+      "Band 3": {
+        "freq": 31.3,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
+      },
+      "Band 4": {
         "freq": 39.4,
         "q_l": 1.0,
         "q_r": 1.0,
@@ -211,302 +988,82 @@
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
       },
-      "Band 6": {
-        "freq": 49.6,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (49.6 Hz)"
-      },
-      "Band 7": {
-        "freq": 62.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (62.5 Hz)"
-      }
-    }
-  },
-  "cinema_blockbuster": {
-    "rank": 4,
-    "badge": "🎬 #4 Impacto Cinematográfico (Harman Cinema / Dolby Atmos Curve)",
-    "name": "Cinema Blockbuster Impact (Cine Espectacular / Home Theater)",
-    "category": "Cine & Series / Home Cinema",
-    "community_backing": "Ampliamente respaldado en AVSForum y la comunidad de cine en casa. Diseñado para compensar la ausencia de subwoofer en sistemas 2.0 y simular la pegada de una sala de cine comercial.",
-    "description": "Incrementa la pegada de subgraves (+2.5 dB @ 62.5 Hz) para que las explosiones y efectos de baja frecuencia se sientan con fuerza física. Mantiene el notch modal en 125 Hz para no ensuciar la sala, añade presencia vocal (+2.0 dB @ 2.52 kHz) y recorta agudos (-1.5 dB @ 10.1 kHz) para aguantar picos sonoros a alto volumen sin dolor.",
-    "pros": [
-      "Efectos especiales y explosiones con peso e impacto de sala de cine.",
-      "Voces nítidas y adelantadas que destacan sobre los efectos.",
-      "Evita que el sonido se vuelva estridente en disparos y cristales rotos.",
-      "Integración perfecta con el modo Cinema DSP 'Standard' del Yamaha."
-    ],
-    "cons": [
-      "No es lineal para audición crítica de música acústica o clásica."
-    ],
-    "ideal_for": "Películas de acción, ciencia ficción, thrillers, videojuegos y contenido multicanal reproducido en 2.0.",
-    "recommended_scene": "SCENE 2 (Cine y Películas)",
-    "bands": {
-      "Band 1": {
-        "freq": 62.5,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 2.5,
-        "gain_r": 2.5,
-        "desc": "Pegada subgrave cinematográfica"
-      },
-      "Band 2": {
-        "freq": 125.0,
-        "q_l": 2.52,
-        "q_r": 1.26,
-        "gain_l": -3.5,
-        "gain_r": 0.0,
-        "desc": "Notch modal Front L imprescindible"
-      },
-      "Band 3": {
-        "freq": 157.5,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 1.0,
-        "gain_r": 1.0,
-        "desc": "Cuerpo en efectos sonoros"
-      },
-      "Band 4": {
-        "freq": 250.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Paso neutro"
-      },
       "Band 5": {
         "freq": 500.0,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Paso neutro"
+        "desc": "Preservación anecoica / Fase neutra (500.0 Hz)"
       },
       "Band 6": {
-        "freq": 2520.0,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 2.0,
-        "gain_r": 2.0,
-        "desc": "Realce vocal en diálogos de cine"
+        "freq": 630.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (630.0 Hz)"
       },
       "Band 7": {
-        "freq": 10100.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": -1.5,
-        "gain_r": -1.5,
-        "desc": "Atenuación de agudos a alto volumen"
-      }
-    }
-  },
-  "vocal_clarity": {
-    "rank": 5,
-    "badge": "🗣️ #5 Claridad Vocal Extrema (Broadcast Dialogue / TV & Series)",
-    "name": "Vocal Clarity & Dialogue Enhanced (Claridad Vocal / Escucha Nocturna)",
-    "category": "TV / Series / Documentales",
-    "community_backing": "Recomendado por técnicos de doblaje y comunidades de AVSForum para solucionar el problema común de 'no entiendo lo que dicen los actores en las series españolas o con mezcla estéreo defectuosa'.",
-    "description": "Filtra retumbos en graves bajos (-1.5 dB @ 62.5 Hz y notch en 125 Hz) eliminando cualquier enmascaramiento de voz. Realza con precisión quirúrgica la zona formante de inteligibilidad del habla (+2.5 dB @ 2.52 kHz) donde el oído humano es más sensible a las consonantes (t, p, s, k).",
-    "pros": [
-      "Inteligibilidad del habla del 100% incluso en murmullos o escenas ruidosas.",
-      "Permite ver la televisión a bajo volumen de noche sin molestar a los vecinos.",
-      "Cero zumbidos de baja frecuencia en programas de plató o noticias."
-    ],
-    "cons": [
-      "Carece de peso en subgraves para música o efectos de cine contundentes."
-    ],
-    "ideal_for": "Series dramáticas, YouTube, podcasts, documentales, noticias y visionado nocturno.",
-    "recommended_scene": "SCENE 3 (TV y Series)",
-    "bands": {
-      "Band 1": {
-        "freq": 62.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": -1.5,
-        "gain_r": -1.5,
-        "desc": "Corte de retumbos nocturnos"
-      },
-      "Band 2": {
-        "freq": 125.0,
-        "q_l": 2.52,
-        "q_r": 1.26,
-        "gain_l": -4.0,
-        "gain_r": -0.5,
-        "desc": "Atenuación modal de caja hueca"
-      },
-      "Band 3": {
-        "freq": 157.5,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Paso neutro"
-      },
-      "Band 4": {
-        "freq": 250.0,
+        "freq": 793.7,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Paso neutro"
-      },
-      "Band 5": {
-        "freq": 500.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Paso neutro"
-      },
-      "Band 6": {
-        "freq": 2520.0,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 2.5,
-        "gain_r": 2.5,
-        "desc": "Proyección máxima de consonantes y habla"
-      },
-      "Band 7": {
-        "freq": 10100.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Aire natural en sibilancias"
-      }
-    }
-  },
-  "x_curve_cinema": {
-    "rank": 6,
-    "badge": "🎞️ #6 Estándar de Salas Comerciales (ISO 2969 Modified X-Curve)",
-    "name": "Modified X-Curve (Salas de Cine de Gran Formato / Mezclas THX)",
-    "category": "Cine Comercial / THX",
-    "community_backing": "Estándar internacional ISO 2969 y SMPTE para salas de cine comercial. Utilizado durante décadas para calibrar las salas donde se masterizan las películas de Hollywood.",
-    "description": "Respuesta plana hasta 2 kHz, seguida de una caída pronunciada de -3.0 dB por octava hasta 20 kHz (-2.5 dB @ 10.1 kHz en PEQ). Adaptada para volúmenes de reproducción de cine muy altos (80-85 dBC).",
-    "pros": [
-      "Permite subir el volumen al nivel de referencia de cine sin que los agudos chillen.",
-      "Excelente para películas con pistas de sonido DTS clásicas muy agresivas."
-    ],
-    "cons": [
-      "A volumen normal o moderado suena demasiado oscura y con falta de detalle en agudos.",
-      "Diseñada originalmente para salas gigantes con gran distancia al espectador, no para salones domésticos."
-    ],
-    "ideal_for": "Sesiones de cine a volumen muy alto, películas de terror o bélicas con efectos punzantes.",
-    "recommended_scene": "SCENE 2 (Cine y Películas) alternativa",
-    "bands": {
-      "Band 1": {
-        "freq": 62.5,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 1.5,
-        "gain_r": 1.5,
-        "desc": "Extensión de subgraves de sala"
-      },
-      "Band 2": {
-        "freq": 125.0,
-        "q_l": 2.52,
-        "q_r": 1.26,
-        "gain_l": -3.5,
-        "gain_r": 0.0,
-        "desc": "Notch modal Front L"
-      },
-      "Band 3": {
-        "freq": 157.5,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 0.5,
-        "gain_r": 0.5,
-        "desc": "Medios bajos controlados"
-      },
-      "Band 4": {
-        "freq": 250.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Paso neutro"
-      },
-      "Band 5": {
-        "freq": 500.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Paso neutro"
-      },
-      "Band 6": {
-        "freq": 2520.0,
-        "q_l": 1.26,
-        "q_r": 1.26,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Inicio de caída X-Curve"
-      },
-      "Band 7": {
-        "freq": 10100.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": -2.5,
-        "gain_r": -2.5,
-        "desc": "Caída pronunciada ISO 2969 para alto SPL"
+        "desc": "Preservación anecoica / Fase neutra (793.7 Hz)"
       }
     }
   },
   "audiophile_flat": {
-    "rank": 7,
+    "rank": 13,
     "badge": "🎯 #7 Respuesta Teórica Plana (EBU Tech 3276 / Studio Monitor)",
     "name": "Audiophile Diffuse-Field Flat (Monitoreo de Estudio / Rigor Analítico)",
-    "category": "Monitoreo Técnico / Salas Tratadas",
-    "community_backing": "Estándar de radiodifusión europea EBU Tech 3276 y salas de control de masterización. Defendido por ingenieros de sonido que exigen cero coloreado del máster.",
-    "description": "Respuesta estrictamente plana (0.0 dB) en todo el espectro audible, manteniendo exclusivamente el notch modal en 125 Hz para corregir la física de la sala pero sin añadir ninguna curva de realce o caída.",
+    "category": "Monitoreo & Puro",
+    "community_backing": "Curva de calibración estricta de salas de control de grabación profesional según recomendación EBU Tech 3276 y UIT-R BS.1116.",
+    "description": "Respuesta estrictamente plana (0.0 dB) en todo el espectro audible, interviniendo exclusivamente el notch modal en 125 Hz para corregir la física de la sala. Sin realces cosméticos ni edulcorantes tímbricos.",
     "pros": [
-      "Transparencia clínica y quirúrgica: revela cada imperfección de la grabación.",
-      "Excelente para evaluar calidad de fuentes y diferencias entre másters."
+      "Máxima fidelidad a la señal fuente sin ninguna alteración tímbrica.",
+      "Rigor analítico para detectar fallos de mezcla, ruidos o artefactos.",
+      "Respuesta transitoria pura e inalterada en agudos.",
+      "Ideal para quienes buscan monitoreo quirúrgico de referencia."
     ],
     "cons": [
-      "En un salón doméstico sin paneles absorbentes ni trampas de graves, suena seco, delgado y con tendencia a la estridencia.",
-      "La psicoacústica demuestra que el oído humano percibe una sala plana como carente de graves."
+      "En salas domésticas con poca absorción puede sonar seco, delgado o 'frío'."
     ],
-    "ideal_for": "Salas con tratamiento acústico pasivo completo, audición analítica y producción musical.",
-    "recommended_scene": "SCENE 1 (Música Hi-Fi) analítica",
+    "ideal_for": "Producción musical casera, edición de audio, masterización, evaluación crítica de fuentes y audición analítica pura.",
+    "recommended_scene": "SCENE 4 (Bypass / Direct)",
     "bands": {
       "Band 1": {
-        "freq": 62.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Plano"
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
       },
       "Band 2": {
-        "freq": 125.0,
-        "q_l": 2.52,
-        "q_r": 1.26,
-        "gain_l": -3.5,
-        "gain_r": 0.0,
-        "desc": "Notch modal Front L indispensable"
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
       },
       "Band 3": {
-        "freq": 157.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
         "gain_r": 0.0,
-        "desc": "Plano"
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
       },
       "Band 4": {
         "freq": 250.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
         "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Plano"
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
       },
       "Band 5": {
         "freq": 500.0,
@@ -514,153 +1071,150 @@
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Plano"
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
       },
       "Band 6": {
-        "freq": 2520.0,
+        "freq": 630.0,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Plano"
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
       },
       "Band 7": {
-        "freq": 10100.0,
+        "freq": 793.7,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Plano"
+        "desc": "Filtro optimizado 793.7 Hz (inactive)"
       }
     }
   },
   "ypao_flat": {
-    "rank": 8,
-    "badge": "⚠️ #8 Algoritmo Stock Automático (Yamaha YPAO Flat / Natural)",
+    "rank": 14,
+    "badge": "⚙️ Algoritmo Yamaha (Curva Automática de Fábrica)",
     "name": "Yamaha YPAO Stock (Curva Automática de Fábrica)",
-    "category": "Fábrica / Algoritmo Integrado",
-    "community_backing": "Bajo respaldo en comunidades de ingeniería acústica y foros audiófilos (ASR, AVSForum). Se desaconseja por sus limitaciones en el cálculo automático de filtros sobre reflexiones tardías.",
-    "description": "El algoritmo YPAO de serie intenta aplanar la respuesta basándose en un único punto de medición con el micrófono de serie sin calibrar. Provoca sobrecorrección en agudos (comb filtering) e ignora la dispersión anecoica de los 3020i.",
+    "category": "Monitoreo & Puro",
+    "community_backing": "El algoritmo YPAO de serie intenta aplanar la respuesta basándose en su medición acústica automática.",
+    "description": "Configura las bandas de manera similar al ecualizador automático YPAO de Yamaha para referencia comparativa A/B contra las curvas audiófilas de la comunidad.",
     "pros": [
-      "No requiere mediciones externas ni portátil.",
-      "Se ejecuta en 2 minutos desde el mando a distancia."
+      "Punto de comparación directo para comprobar la mejora frente a la calibración de fábrica.",
+      "Familiaridad con la firma sonora estándar del receptor Yamaha RX-V673."
     ],
     "cons": [
-      "Ecualiza frecuencias altas por encima de la frecuencia de transición (Schroeder), destruyendo la fase del tweeter.",
-      "En 2.0 suele clasificar erróneamente los altavoces en Large sin controlar la resonancia de 117 Hz.",
-      "Riesgo de introducir distorsión por aplicar boosts (+dB) en valles de fase."
+      "Menor precisión quirúrgica en el rango de subgraves que la calibración multipunto profesional."
     ],
-    "ideal_for": "Solo como referencia de comparación para notar la superioridad de la calibración multipunto manual.",
-    "recommended_scene": "Ninguna recomendada",
+    "ideal_for": "Pruebas de contraste A/B contra los perfiles optimizados por software.",
+    "recommended_scene": "SCENE 4 (Yamaha Stock)",
     "bands": {
       "Band 1": {
-        "freq": 62.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "YPAO Auto"
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
       },
       "Band 2": {
-        "freq": 125.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": -1.0,
-        "gain_r": 0.0,
-        "desc": "YPAO Auto"
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
       },
       "Band 3": {
-        "freq": 157.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
         "gain_r": 0.0,
-        "desc": "YPAO Auto"
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
       },
       "Band 4": {
         "freq": 250.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
         "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "YPAO Auto"
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
       },
       "Band 5": {
-        "freq": 500.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "YPAO Auto"
-      },
-      "Band 6": {
         "freq": 2520.0,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.5,
         "gain_r": 0.5,
-        "desc": "YPAO Auto"
+        "desc": "Filtro optimizado 2520.0 Hz (voicing)"
       },
-      "Band 7": {
-        "freq": 10100.0,
+      "Band 6": {
+        "freq": 10080.0,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": -0.5,
         "gain_r": -0.5,
-        "desc": "YPAO Auto"
+        "desc": "Filtro optimizado 10080.0 Hz (voicing)"
+      },
+      "Band 7": {
+        "freq": 500.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
       }
     }
   },
   "through_bypass": {
-    "rank": 9,
-    "badge": "⛔ #9 Sin Corrección / Bypass Acústico (Pure Direct / PEQ Through)",
+    "rank": 15,
+    "badge": "⚡ Línea Directa (Pure Direct / Sin Ecualización / Sala al Desnudo)",
     "name": "Through / Pure Direct (Sin Ecualización / Sala al Desnudo)",
-    "category": "Línea Directa / Benchmark",
-    "community_backing": "Venerado erróneamente por puristas que creen que 'la mejor ecualización es no tocar nada', pero unánimemente rechazado por los científicos acústicos (Toole, Olive, Geddes) para salas domésticas no tratadas.",
-    "description": "Desactiva por completo el ecualizador paramétrico (PEQ: Through) o apaga los circuitos DSP (Pure Direct). La señal llega intacta al altavoz, pero la sala acústica impone sus modos resonantes sin control.",
+    "category": "Monitoreo & Puro",
+    "community_backing": "La opción purista por excelencia en foros audiófilos analógicos. Desactiva por completo el ecualizador paramétrico (PEQ: Through).",
+    "description": "La señal viaja intacta al altavoz sin ningún filtrado DSP. Sirve como referencia absoluta de 'cómo suena tu sala al natural con todos sus defectos y virtudes acústicas'.",
     "pros": [
-      "Ruta de señal analógica más corta.",
-      "Cero procesamiento digital ni latencia."
+      "Cero latencia añadida por procesamiento DSP.",
+      "Transparencia eléctrica absoluta de la etapa de potencia.",
+      "La mejor herramienta para escuchar la influencia real de las resonancias de la habitación."
     ],
     "cons": [
-      "El pico resonante de +6.68 dB en 117 Hz del canal izquierdo retumba incontroladamente.",
-      "Desbalance estéreo severo (3.36 dB) entre el canal de esquina y el canal abierto.",
-      "Sonido boomy, emborronado y con pérdida de articulación en graves."
+      "Quedan expuestos todos los modos de sala, resonancias y vicios acústicos del entorno."
     ],
-    "ideal_for": "Medición de referencia (baseline) y comparación A/B para demostrar cuánto mejora la sala con PEQ activo.",
+    "ideal_for": "Pruebas A/B para verificar el impacto de la calibración y audiófilos puristas en salas altamente tratadas acústicamente.",
     "recommended_scene": "SCENE 4 (Pure Direct)",
     "bands": {
       "Band 1": {
-        "freq": 62.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Bypass"
+        "freq": 396.9,
+        "q_l": 1.587,
+        "q_r": 1.587,
+        "gain_l": -3.5,
+        "gain_r": -4.0,
+        "desc": "Filtro optimizado 396.9 Hz (common_mode)"
       },
       "Band 2": {
-        "freq": 125.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Bypass"
+        "freq": 198.4,
+        "q_l": 3.175,
+        "q_r": 3.175,
+        "gain_l": -2.0,
+        "gain_r": -2.0,
+        "desc": "Filtro optimizado 198.4 Hz (common_mode)"
       },
       "Band 3": {
-        "freq": 157.5,
-        "q_l": 1.0,
-        "q_r": 1.0,
-        "gain_l": 0.0,
+        "freq": 315.0,
+        "q_l": 1.26,
+        "q_r": 1.26,
+        "gain_l": -3.0,
         "gain_r": 0.0,
-        "desc": "Bypass"
+        "desc": "Filtro optimizado 315.0 Hz (asym_mode)"
       },
       "Band 4": {
         "freq": 250.0,
-        "q_l": 1.0,
-        "q_r": 1.0,
+        "q_l": 3.175,
+        "q_r": 3.175,
         "gain_l": 0.0,
-        "gain_r": 0.0,
-        "desc": "Bypass"
+        "gain_r": -5.0,
+        "desc": "Filtro optimizado 250.0 Hz (transparent_pass)"
       },
       "Band 5": {
         "freq": 500.0,
@@ -668,23 +1222,23 @@
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Bypass"
+        "desc": "Filtro optimizado 500.0 Hz (inactive)"
       },
       "Band 6": {
-        "freq": 2520.0,
+        "freq": 630.0,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Bypass"
+        "desc": "Filtro optimizado 630.0 Hz (inactive)"
       },
       "Band 7": {
-        "freq": 10100.0,
+        "freq": 793.7,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Bypass"
+        "desc": "Filtro optimizado 793.7 Hz (inactive)"
       }
     }
   }

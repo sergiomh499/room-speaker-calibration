@@ -8,3 +8,6 @@ __pycache__/
 *.tmp
 reports/*.html
 data/calibrations/
+node_modules/
+frontend/node_modules/
+*.bak

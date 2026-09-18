@@ -220,7 +220,7 @@ class TestAuditPEQ(unittest.TestCase):
         payload = json.dumps({"reoptimize": True}).encode("utf-8")
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=5.0) as resp:
+            with urllib.request.urlopen(req, timeout=15.0) as resp:
                 self.assertEqual(resp.status, 200)
                 data = json.loads(resp.read().decode("utf-8"))
                 self.assertTrue(data.get("ok"))

@@ -150,9 +150,9 @@ def set_peq_mode(mode):
     print(f"[✓] PEQ Mode configurado en '{target_mode}': {res.strip()}")
     return True
 
-def get_peq_manual_data(host=IP, timeout=3.0) -> str:
-    """Queries the raw XML of active PEQ manual bands from Yamaha NVRAM."""
-    xml = '<YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data>GetParam</Manual_Data></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
+def get_peq_channel_data(ch_tag: str, host=IP, timeout=3.0) -> str:
+    """Queries the raw XML of active PEQ manual bands for a specific channel from Yamaha NVRAM."""
+    xml = f'<YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data><{ch_tag}>GetParam</{ch_tag}></Manual_Data></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
     req = urllib.request.Request(
         f"http://{host}/YamahaRemoteControl/ctrl",
         data=xml.encode('utf-8'),
@@ -161,6 +161,17 @@ def get_peq_manual_data(host=IP, timeout=3.0) -> str:
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read().decode('utf-8', errors='ignore')
 
+def get_peq_manual_data(host=IP, timeout=3.0, channels: list[str] = None) -> str:
+    """Queries the raw XML of active PEQ manual bands from Yamaha NVRAM across Front_L, Front_R and Subwoofer."""
+    if channels is None:
+        channels = ["Front_L", "Front_R", "Subwoofer"]
+    xml_parts = []
+    for ch in channels:
+        try:
+            xml_parts.append(get_peq_channel_data(ch, host=host, timeout=timeout))
+        except Exception:
+            pass
+    return f"<Manual_Data>{''.join(xml_parts)}</Manual_Data>"
 def deploy_peq_matrix_with_readback(
     peq_matrix: dict,
     host=IP,
@@ -180,13 +191,20 @@ def deploy_peq_matrix_with_readback(
     with urllib.request.urlopen(req, timeout=timeout) as r:
         pass
         
-    def format_freq(f_hz: float) -> str:
-        if f_hz >= 1000.0:
-            val = f_hz / 1000.0
-            return f"{val:.2f} kHz" if (val * 10) % 1 != 0 else f"{val:.1f} kHz"
-        return f"{f_hz:.1f} Hz"
+    YAMAHA_VALID_FREQS = [
+        (31.3, "31.3 Hz"), (39.4, "39.4 Hz"), (49.6, "49.6 Hz"), (62.5, "62.5 Hz"),
+        (78.7, "78.7 Hz"), (99.2, "99.2 Hz"), (125.0, "125.0 Hz"), (157.5, "157.5 Hz"),
+        (198.4, "198.4 Hz"), (250.0, "250.0 Hz"), (315.0, "315.0 Hz"), (396.9, "396.9 Hz"),
+        (500.0, "500.0 Hz"), (630.0, "630.0 Hz"), (793.7, "793.7 Hz"), (1000.0, "1.00 kHz"),
+        (1260.0, "1.26 kHz"), (1590.0, "1.59 kHz"), (2000.0, "2.00 kHz"), (2520.0, "2.52 kHz"),
+        (3170.0, "3.17 kHz"), (4000.0, "4.00 kHz"), (5040.0, "5.04 kHz"), (6350.0, "6.35 kHz"),
+        (8000.0, "8.00 kHz"), (10100.0, "10.1 kHz"), (12700.0, "12.7 kHz"), (16000.0, "16.0 kHz")
+    ]
 
-    # 2. Build XML for channels (supports all stereo, surround, presence, and immersive topologies)
+    def format_freq(f_hz: float) -> str:
+        # Match against Yamaha hardware discretized 1/3 octave table
+        best_str = min(YAMAHA_VALID_FREQS, key=lambda pair: abs(pair[0] - f_hz))[1]
+        return best_str
     ch_map = {
         "left": "Front_L",
         "right": "Front_R",
@@ -210,6 +228,8 @@ def deploy_peq_matrix_with_readback(
         "subwoofer_2": "Subwoofer_2",
     }
     for ch_key, ch_tag in list(ch_map.items()):
+        if ch_tag in ["Subwoofer", "Subwoofer_1", "Subwoofer_2"]:
+            continue
         bands = peq_matrix.get(ch_key, [])
         if not bands:
             continue
@@ -241,7 +261,11 @@ def deploy_peq_matrix_with_readback(
         
     divergent = []
     for ch_key, ch_tag in ch_map.items():
+        if ch_tag in ["Subwoofer", "Subwoofer_1", "Subwoofer_2"]:
+            continue
         bands = peq_matrix.get(ch_key, [])
+        if not bands:
+            continue
         ch_elem = root.find(f".//{ch_tag}")
         if ch_elem is None:
             divergent.append(f"Channel {ch_tag} missing in readback XML")

@@ -20,6 +20,9 @@ from scripts.peq_optimizer import (
     snap_frequency,
     snap_gain,
     snap_q,
+    calculate_subwoofer_phase_alignment,
+    calculate_multi_sub_alignment,
+    calculate_speaker_trim_levels,
 )
 
 class TestPEQOptimizer(unittest.TestCase):
@@ -123,6 +126,37 @@ class TestPEQOptimizer(unittest.TestCase):
 
         self.assertLess(elapsed_sec, 3.0, f"Optimization took {elapsed_sec:.2f}s (exceeds 3.0s limit)")
         self.assertGreater(res["metrics"]["predicted_modal_attenuation_db"], 5.0)
+
+    def test_subwoofer_phase_alignment_and_multi_sub(self):
+        """Validates automatic subwoofer phase evaluation (0° vs 180°) and dual-sub delay calculation."""
+        freqs = np.linspace(20, 200, 100)
+        front = np.full_like(freqs, 75.0)
+        sub = np.full_like(freqs, 75.0)
+
+        # Test in-phase alignment produces Normal (0°) recommendation
+        res = calculate_subwoofer_phase_alignment(freqs, front, sub, crossover_hz=80.0)
+        self.assertEqual(res["recommended_phase"], "Normal")
+        self.assertEqual(res["recommended_phase_degrees"], 0)
+        self.assertGreater(res["reinforcement_db"], 0.0)
+
+        # Test multi-sub relative delay calculation
+        ms_res = calculate_multi_sub_alignment(sub1_distance_m=3.0, sub2_distance_m=3.686)
+        self.assertAlmostEqual(ms_res["inter_sub_delay_ms"], 2.0, places=1)
+        self.assertEqual(ms_res["reference_sub"], "Subwoofer_1")
+        self.assertEqual(ms_res["delayed_sub"], "Subwoofer_2")
+    def test_calculate_speaker_trim_levels(self):
+        """Validates discrete 0.5 dB step calculations and clamping to [-10, +10] dB."""
+        spl_map = {
+            "Front_L": 74.8,   # diff = +0.2 -> 0.0 dB
+            "Front_R": 72.4,   # diff = +2.6 -> +2.5 dB
+            "Subwoofer": 68.1, # diff = +6.9 -> +7.0 dB
+            "Sur_L": 88.0,     # diff = -13.0 -> clamped to -10.0 dB
+        }
+        trims = calculate_speaker_trim_levels(spl_map, target_spl_db=75.0)
+        self.assertEqual(trims["Front_L"], 0.0)
+        self.assertEqual(trims["Front_R"], 2.5)
+        self.assertEqual(trims["Subwoofer"], 7.0)
+        self.assertEqual(trims["Sur_L"], -10.0)
 
 
 if __name__ == "__main__":

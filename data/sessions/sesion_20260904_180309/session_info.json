@@ -1,0 +1,15 @@
+{
+  "id": "sesion_20260904_180309",
+  "name": "Medición 18:03 - Sweet Spot",
+  "description": "Captura multipunto 5 posiciones con Pixel 9 Pro a 90°",
+  "timestamp": "2026-09-04 18:03:09",
+  "points_count": 5,
+  "points": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "has_average": true
+}
