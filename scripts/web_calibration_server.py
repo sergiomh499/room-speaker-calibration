@@ -411,42 +411,72 @@ def auto_calculate_and_deploy_trims(target_spl: float = 75.0, host: str = "192.1
         if spls:
             spl_map[ch] = round(float(np.mean(spls)), 1)
 
-    # 2. Fallback to empirical measurement files if point buffers are empty
+    # 2. Fallback to empirical acoustic measurements from spatial average
     if not spl_map:
-        meas_file = f"{DATA_DIR}/medicion_punto_1.npz"
+        meas_file = f"{DATA_DIR}/medicion_promedio_espacial.npz"
         if not os.path.exists(meas_file):
-            meas_file = f"{DATA_DIR}/medicion_promedio_espacial.npz"
+            meas_file = f"{DATA_DIR}/medicion_punto_1.npz"
         if os.path.exists(meas_file):
             d = np.load(meas_file)
-            if "ir_l" in d:
-                rms_l = float(np.sqrt(np.mean(d["ir_l"]**2)))
-                spl_map["Front_L"] = round(95.0 + 20.0 * np.log10(rms_l + 1e-12), 1)
-            if "ir_r" in d:
-                rms_r = float(np.sqrt(np.mean(d["ir_r"]**2)))
-                spl_map["Front_R"] = round(95.0 + 20.0 * np.log10(rms_r + 1e-12), 1)
-            if "ir_sub" in d:
-                rms_sub = float(np.sqrt(np.mean(d["ir_sub"]**2)))
-                spl_map["Subwoofer"] = round(95.0 + 20.0 * np.log10(rms_sub + 1e-12), 1)
+            freqs = d.get("freqs", np.linspace(20, 20000, 1000))
+            mask_mid = (freqs >= 250.0) & (freqs <= 4000.0)
+            if "smooth_l" in d:
+                spl_map["Front_L"] = round(95.0 + float(np.mean(d["smooth_l"][mask_mid])), 1)
+            if "smooth_r" in d:
+                spl_map["Front_R"] = round(95.0 + float(np.mean(d["smooth_r"][mask_mid])), 1)
+            mask_sub = (freqs >= 25.0) & (freqs <= 80.0)
+            if "smooth_sub" in d:
+                spl_map["Subwoofer"] = round(95.0 + float(np.mean(d["smooth_sub"][mask_sub])), 1)
             elif "Front_L" in spl_map:
-                # Acoustic estimation for Focal Cub Evo subwoofer relative to Front L
-                spl_map["Subwoofer"] = round(spl_map["Front_L"] - 4.5, 1)
+                # Acoustic sensitivity for Focal Cub Evo subwoofer (3.65m distance + room gain)
+                spl_map["Subwoofer"] = round(spl_map["Front_L"] - 2.5, 1)
 
     # 3. If still empty, use default 75 dB target
     if not spl_map:
         for ch in active_channels:
             spl_map[ch] = target_spl
 
-    trims = calculate_speaker_trim_levels(spl_map, target_spl_db=target_spl)
+    # 4. Calculate independent trims with distance attenuation compensation
+    distances_cm = layout_info.get("distances", {})
+    ref_dist_m = distances_cm.get("Front_L", 245) / 100.0
+    ref_spl = spl_map.get("Front_L", target_spl)
 
-    # 4. Push trims directly to Yamaha AVR NVRAM
-    applied = {}
-    for ch, trim_db in trims.items():
-        ok = set_yamaha_channel_level(ch, trim_db, host=host)
-        applied[ch] = {"trim_db": trim_db, "spl_measured": spl_map.get(ch), "applied": ok}
+    # If uncalibrated mic preamp placed reference far from target, anchor to Front L to prevent rail clipping
+    use_absolute = abs(ref_spl - target_spl) <= 6.0
+    base_target = target_spl if use_absolute else ref_spl
+
+    trims: Dict[str, float] = {}
+    applied: Dict[str, Any] = {}
+    for ch in active_channels:
+        meas_spl = spl_map.get(ch, ref_spl)
+        yamaha_key = SPEAKER_DEFINITIONS.get(ch, {}).get("yamaha_key", ch)
+        ch_dist_m = distances_cm.get(yamaha_key, distances_cm.get(ch, 245)) / 100.0
+
+        # Distance compensation relative to reference Front L distance (20*log10(d/d_ref))
+        dist_corr_db = 0.0
+        if ch_dist_m > 0 and ref_dist_m > 0:
+            dist_corr_db = 20.0 * np.log10(ch_dist_m / ref_dist_m)
+
+        # Calibrate trim to match base target at primary listening position
+        raw_trim = (base_target - meas_spl) + dist_corr_db
+        stepped_trim = round(raw_trim * 2.0) / 2.0
+        clamped_trim = max(-10.0, min(10.0, float(stepped_trim)))
+        trims[ch] = clamped_trim
+
+        # Push discrete trim directly to Yamaha AVR NVRAM
+        ok = set_yamaha_channel_level(ch, clamped_trim, host=host)
+        applied[ch] = {
+            "trim_db": clamped_trim,
+            "spl_measured": meas_spl,
+            "distance_m": round(ch_dist_m, 2),
+            "calibrated_spl": round(meas_spl + clamped_trim - dist_corr_db, 1),
+            "applied": ok
+        }
 
     return {
         "success": True,
         "target_spl_db": target_spl,
+        "anchor_mode": "absolute" if use_absolute else "relative_front_l",
         "trims": trims,
         "details": applied
     }
@@ -1720,7 +1750,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
-        if path in ["/api/detect_channels", "/api/active_channels"]:
+        if path in ["/api/detect_channels", "/api/active_channels", "/api/channel_layout"]:
             layout_arg = params.get("layout", [None])[0]
             info = detect_yamaha_channel_setup(layout=layout_arg)
             self.send_response(200)

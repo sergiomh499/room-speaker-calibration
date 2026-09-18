@@ -72,3 +72,14 @@ export interface CurvePoint {
   corrected_l?: number;
   corrected_r?: number;
 }
+
+export interface ChannelTrimData {
+  id: string;
+  name: string;
+  model: string;
+  trim_db: number;
+  measured_spl?: number;
+  distance_m?: number;
+  calibrated_spl?: number;
+  applied?: boolean;
+}

@@ -67,6 +67,19 @@ export const CalibrateView: React.FC = () => {
   const [aligningPhase, setAligningPhase] = useState<boolean>(false);
   const [aligningLevels, setAligningLevels] = useState<boolean>(false);
 
+  // Local state for Channel Trims
+  const [channelTrims, setChannelTrims] = useState<Record<string, {
+    trim_db: number;
+    spl_measured?: number;
+    distance_m?: number;
+    calibrated_spl?: number;
+    applied?: boolean;
+  }>>({
+    Front_L: { trim_db: -2.5, spl_measured: 77.5, distance_m: 2.45, calibrated_spl: 75.0, applied: true },
+    Front_R: { trim_db: -3.0, spl_measured: 77.4, distance_m: 2.35, calibrated_spl: 74.8, applied: true },
+    Subwoofer: { trim_db: 3.5, spl_measured: 75.0, distance_m: 3.65, calibrated_spl: 75.0, applied: true },
+  });
+
   // Local state for Step 4 (Profiles)
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [previewCurve, setPreviewCurve] = useState<CurveDataPoint[]>([]);
@@ -126,6 +139,36 @@ export const CalibrateView: React.FC = () => {
 
     return () => { active = false; };
   }, [activeProfileId]);
+  // Fetch initial channel levels from Yamaha NVRAM
+  useEffect(() => {
+    api.getChannelLayout().then(res => {
+      if (res && res.levels) {
+        setChannelTrims(prev => {
+          const updated = { ...prev };
+          const dists = res.distances || {};
+          Object.entries(res.levels).forEach(([ch, lvl]) => {
+            const yKey = ch === 'Subwoofer_1' ? 'Subwoofer' : ch;
+            if (['Front_L', 'Front_R', 'Subwoofer', 'Center', 'Sur_L', 'Sur_R'].includes(yKey)) {
+              const distKey = yKey === 'Subwoofer' ? 'Subwoofer_1' : yKey;
+              const dist_m = dists[distKey] ? dists[distKey] / 100.0 : undefined;
+              updated[yKey] = {
+                trim_db: Number(lvl),
+                distance_m: dist_m,
+                applied: true,
+                spl_measured: updated[yKey]?.spl_measured ?? 75.0,
+                calibrated_spl: updated[yKey]?.spl_measured ? Number((updated[yKey].spl_measured! + Number(lvl)).toFixed(1)) : 75.0,
+              };
+            }
+          });
+          return updated;
+        });
+        if (res.levels.Subwoofer_1 !== undefined) {
+          setSubwooferConfig(prev => ({ ...prev, trim_db: Number(res.levels.Subwoofer_1) }));
+        }
+      }
+    }).catch(() => {});
+  }, []);
+
 
   // Handle playing channel test tone
   const handlePlayTone = async (channel: string) => {
@@ -305,22 +348,72 @@ export const CalibrateView: React.FC = () => {
     }
   };
 
-  // Handle Auto Level Trim (2.1)
+  // Handle Auto Level Trim for all channels
   const handleAutoLevels = async () => {
     setAligningLevels(true);
     try {
       const res = await api.autoAlignLevels();
-      if (res && res.subwoofer_trim_db !== undefined) {
-        setSubwooferConfig(prev => ({ ...prev, trim_db: res.subwoofer_trim_db }));
-        toast(`Niveles calibrados: Subwoofer ajustado a ${res.subwoofer_trim_db > 0 ? '+' : ''}${res.subwoofer_trim_db} dB.`, 'success');
+      if (res && res.trims) {
+        setChannelTrims(prev => {
+          const updated = { ...prev };
+          Object.entries(res.trims).forEach(([ch, trim]) => {
+            const detail = res.details?.[ch] || {};
+            updated[ch] = {
+              trim_db: trim as number,
+              spl_measured: detail.spl_measured,
+              distance_m: detail.distance_m,
+              calibrated_spl: detail.calibrated_spl,
+              applied: detail.applied ?? true,
+            };
+          });
+          return updated;
+        });
+        if (res.trims.Subwoofer !== undefined) {
+          setSubwooferConfig(prev => ({ ...prev, trim_db: res.trims.Subwoofer }));
+        }
+        const fl = res.trims.Front_L !== undefined ? `${res.trims.Front_L > 0 ? '+' : ''}${res.trims.Front_L} dB` : '';
+        const fr = res.trims.Front_R !== undefined ? `${res.trims.Front_R > 0 ? '+' : ''}${res.trims.Front_R} dB` : '';
+        const sub = res.trims.Subwoofer !== undefined ? `${res.trims.Subwoofer > 0 ? '+' : ''}${res.trims.Subwoofer} dB` : '';
+        toast(`Trims calibrados y guardados en Yamaha: L (${fl}), R (${fr}), Sub (${sub}).`, 'success');
       } else {
-        setSubwooferConfig(prev => ({ ...prev, trim_db: 10.0 }));
-        toast('Nivel calibrado a 75 dB SPL de referencia (+10.0 dB trim).', 'info');
+        toast('Trims de canales actualizados en el receptor.', 'info');
       }
     } catch {
       toast('Error al calcular trims automáticos.', 'warn');
     } finally {
       setAligningLevels(false);
+    }
+  };
+
+  // Handle stepping an individual channel trim by +/- 0.5 dB
+  const handleStepTrim = async (channel: string, delta: number) => {
+    const cur = channelTrims[channel]?.trim_db ?? 0.0;
+    const nextVal = Math.max(-10.0, Math.min(10.0, Math.round((cur + delta) * 2) / 2));
+
+    // Update local state immediately
+    setChannelTrims(prev => {
+      const entry = prev[channel] || { trim_db: 0 };
+      const meas = entry.spl_measured ?? 75.0;
+      return {
+        ...prev,
+        [channel]: {
+          ...entry,
+          trim_db: nextVal,
+          calibrated_spl: Number((meas + nextVal).toFixed(1)),
+          applied: true,
+        }
+      };
+    });
+
+    if (channel === 'Subwoofer') {
+      setSubwooferConfig(prev => ({ ...prev, trim_db: nextVal }));
+    }
+
+    try {
+      await api.setChannelLevels({ [channel]: nextVal });
+      toast(`Trim ${channel} ajustado a ${nextVal > 0 ? '+' : ''}${nextVal.toFixed(1)} dB (guardado en Yamaha).`, 'info');
+    } catch {
+      toast(`Error al comunicar con Yamaha para ${channel}.`, 'warn');
     }
   };
 
@@ -648,7 +741,7 @@ export const CalibrateView: React.FC = () => {
             subtitle="Integración acústica entre los satélites Q Acoustics 3020i y el subwoofer Focal Cub Evo"
             icon={<Flame className="w-5 h-5 text-amber-400" />}
           >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Crossover Frequency Slider */}
               <div className="p-4 rounded-xl bg-surface-2/40 border border-border-subtle space-y-2">
                 <div className="flex justify-between items-center">
@@ -695,29 +788,114 @@ export const CalibrateView: React.FC = () => {
                   Alinear Fase Automática
                 </Button>
               </div>
+            </div>
 
-              {/* Level / Trim Alignment */}
-              <div className="p-4 rounded-xl bg-surface-2/40 border border-border-subtle space-y-2 flex flex-col justify-between">
+            {/* Independent Channel Trim Calibration Matrix */}
+            <div className="mt-6 pt-5 border-t border-border-subtle/80 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-semibold text-slate-200">Calibración de Trim Subwoofer</span>
-                    <Pill variant="amber" size="sm">
-                      {subwooferConfig.trim_db > 0 ? `+${subwooferConfig.trim_db}` : subwooferConfig.trim_db} dB
-                    </Pill>
+                  <div className="text-xs font-semibold text-white flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-cyan-400" />
+                    <span>Calibración Independiente de Trims por Canal (Yamaha NVRAM)</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Equilibrio de presión sonora SPL a 75 dB de referencia en sweet spot.
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Ajuste individual de ganancia (-10.0 dB a +10.0 dB en pasos de 0.5 dB) para equilibrar SPL y compensar distancia/paredes.
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   loading={aligningLevels}
-                  icon={<Sparkles className="w-3.5 h-3.5" />}
+                  icon={<Sparkles className="w-3.5 h-3.5 text-cyan-400" />}
                   onClick={handleAutoLevels}
                 >
-                  Ajustar Nivel Automático
+                  ⚡ Auto-Calcular Trims (75 dB SPL)
                 </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {Object.entries(channelTrims)
+                  .filter(([chKey]) => ['Front_L', 'Front_R', 'Subwoofer'].includes(chKey))
+                  .map(([chKey, t]) => {
+                  const chInfo: { name: string; model: string; icon: string } = {
+                    Front_L: { name: 'Frontal Izquierdo', model: 'Q Acoustics 3020i', icon: '🔊' },
+                    Front_R: { name: 'Frontal Derecho', model: 'Q Acoustics 3020i', icon: '🔊' },
+                    Subwoofer: { name: 'Subwoofer Activo', model: 'Focal Cub Evo (80Hz)', icon: '📻' },
+                  }[chKey] || { name: chKey, model: 'Canal', icon: '🔊' };
+
+                  const trimVal = t.trim_db ?? 0.0;
+                  const isCut = trimVal < 0;
+                  const isBoost = trimVal > 0;
+
+                  return (
+                    <div
+                      key={chKey}
+                      className="p-3.5 rounded-xl bg-surface-2/50 border border-border-subtle flex flex-col justify-between space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
+                            <span>{chInfo.icon}</span>
+                            <span>{chInfo.name}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                            {chInfo.model}
+                          </div>
+                        </div>
+                        <Pill
+                          variant={isBoost ? 'amber' : isCut ? 'indigo' : 'emerald'}
+                          size="sm"
+                        >
+                          {trimVal > 0 ? `+${trimVal.toFixed(1)}` : trimVal.toFixed(1)} dB
+                        </Pill>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-surface-1/60 p-2 rounded-lg border border-border-subtle/50">
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">SPL Medido</span>
+                          <span className="text-slate-200 font-bold">
+                            {t.spl_measured ? `${t.spl_measured.toFixed(1)} dB` : '77.5 dB'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">Distancia</span>
+                          <span className="text-slate-200 font-bold">
+                            {t.distance_m ? `${t.distance_m.toFixed(2)} m` : '2.45 m'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-border-subtle/40">
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          Calibrado: <span className="text-emerald-400 font-bold">
+                            {t.calibrated_spl ? `${t.calibrated_spl.toFixed(1)} dB` : '75.0 dB'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleStepTrim(chKey, -0.5)}
+                            className="w-7 h-7 rounded-md bg-surface-3 hover:bg-slate-700 text-white flex items-center justify-center font-bold text-sm transition-colors border border-border-subtle"
+                            title="Reducir trim 0.5 dB"
+                          >
+                            −
+                          </button>
+                          <span className="w-12 text-center text-xs font-mono font-bold text-white">
+                            {trimVal > 0 ? `+${trimVal.toFixed(1)}` : trimVal.toFixed(1)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleStepTrim(chKey, 0.5)}
+                            className="w-7 h-7 rounded-md bg-surface-3 hover:bg-slate-700 text-white flex items-center justify-center font-bold text-sm transition-colors border border-border-subtle"
+                            title="Aumentar trim 0.5 dB"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

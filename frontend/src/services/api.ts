@@ -90,6 +90,25 @@ export const api = {
   async autoAlignLevels(): Promise<any> {
     return fetchApi<any>('/api/auto_align_levels', { method: 'POST' });
   },
+  async getChannelLayout(): Promise<any> {
+    return fetchApi<any>('/api/detect_channels');
+  },
+
+  async setChannelLevels(levels: Record<string, number>): Promise<any> {
+    return fetchApi<any>('/api/set_channel_levels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ levels }),
+    });
+  },
+
+  async setChannelDistances(distances: Record<string, number>): Promise<any> {
+    return fetchApi<any>('/api/set_channel_distances', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ distances }),
+    });
+  },
 
   async deployPEQ(profile: string, scene?: number): Promise<any> {
     return fetchApi<any>('/api/deploy_peq', {
