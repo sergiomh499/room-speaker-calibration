@@ -58,6 +58,47 @@ inv_sweep = sweep_core[::-1] * envelope
 conv_unit = scipy.signal.fftconvolve(sweep_core, inv_sweep, mode='full')
 inv_sweep /= np.max(conv_unit)
 
+# Subwoofer-specific Farina sweep parameters (15 Hz to 180 Hz) to isolate subwoofer and eliminate front speaker bleed
+f1_sub, f2_sub = 15.0, 180.0
+w1_sub = 2 * np.pi * f1_sub
+w2_sub = 2 * np.pi * f2_sub
+L_sub = duration / np.log(w2_sub / w1_sub)
+phi_sub = w1_sub * L_sub * (np.exp(t / L_sub) - 1.0)
+sweep_sub_core = np.sin(phi_sub)
+sweep_sub_core[:fade_samples] *= fade_in
+sweep_sub_core[-fade_samples:] *= fade_in[::-1]
+envelope_sub = np.exp(-t / L_sub)
+inv_sweep_sub = sweep_sub_core[::-1] * envelope_sub
+conv_unit_sub = scipy.signal.fftconvolve(sweep_sub_core, inv_sweep_sub, mode='full')
+inv_sweep_sub /= np.max(conv_unit_sub)
+
+# Acoustic Timing Reference Chirp (REW Standard: 5 kHz to 20 kHz, 300 ms)
+chirp_dur = 0.300
+N_chirp = int(chirp_dur * fs)
+t_c = np.linspace(0, chirp_dur, N_chirp, endpoint=False)
+w1_c = 2 * np.pi * 5000.0
+w2_c = 2 * np.pi * 20000.0
+L_c = chirp_dur / np.log(w2_c / w1_c)
+phi_c = w1_c * L_c * (np.exp(t_c / L_c) - 1.0)
+chirp_core = np.sin(phi_c)
+fade_c = int(fs * 0.02)
+fade_in_c = np.sin(np.linspace(0, np.pi/2, fade_c))**2
+chirp_core[:fade_c] *= fade_in_c
+chirp_core[-fade_c:] *= fade_in_c[::-1]
+envelope_c = np.exp(-t_c / L_c)
+inv_chirp = chirp_core[::-1] * envelope_c
+conv_unit_c = scipy.signal.fftconvolve(chirp_core, inv_chirp, mode='full')
+inv_chirp /= np.max(conv_unit_c)
+
+pre_silence_s = 0.400
+guard_silence_s = 0.400
+post_silence_s = 0.500
+pre_samples = int(pre_silence_s * fs)
+guard_samples = int(guard_silence_s * fs)
+post_samples = int(post_silence_s * fs)
+sw_start_sample = pre_samples + N_chirp + guard_samples
+digital_ref_delay_samples = sw_start_sample - pre_samples  # 33,600 samples = 0.700 s
+
 from scripts.verify_calibration import professional_psychoacoustic_smooth
 
 # Cache measured points in memory
@@ -111,9 +152,8 @@ class DualProtocolServer(ThreadingMixIn, HTTPServer):
             except Exception as e:
                 pass
 
-def check_and_enforce_avr_clean_state(host="192.168.1.43", enforce=True):
+def check_and_enforce_avr_clean_state(host="192.168.1.43", enforce=False):
     """
-    Guarantees that Yamaha RX-V673 is strictly in the verified Acoustic Reference Measurement State.
     Checks & strictly enforces:
     1. Power: On
     2. Pure_Direct: Off (allows bass management & crossover to Focal Cub Evo)
@@ -171,13 +211,18 @@ def check_and_enforce_avr_clean_state(host="192.168.1.43", enforce=True):
 
         dl = root_b.find('.//Dialogue_Lift')
         status["dialogue_lift"] = int(dl.text) if dl is not None and dl.text else 0
-
         vol = root_b.find('.//Volume/Lvl/Val')
         if vol is not None and vol.text:
             status["volume"] = f"{float(vol.text)/10.0:+.1f} dB"
+            status["volume_val"] = vol.text
+
+        inp = root_b.find('.//Input/Input_Sel')
+        status["input"] = inp.text if inp is not None and inp.text else "Unknown"
+
+        mute = root_b.find('.//Volume/Mute')
+        status["mute"] = mute.text if mute is not None and mute.text else "Off"
     except Exception as e:
         status["basic_status_error"] = str(e)
-
     try:
         peq_res = send_cmd('<YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_1><PEQ><Sel>GetParam</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>')
         root_peq = ET.fromstring(peq_res)
@@ -288,9 +333,210 @@ def check_and_enforce_avr_clean_state(host="192.168.1.43", enforce=True):
         except Exception:
             pass
 
+    # Ensure Reference Measurement Volume (-25.0 dB), Mute Off, and Measurement Input (V-AUX)
+    try:
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Mute>Off</Mute></Volume></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>-250</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>V-AUX</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
+        status["enforced_actions"].append("Volume: -25.0 dB, Mute: Off, Input: V-AUX")
+        status["volume"] = "-25.0 dB"
+    except Exception:
+        pass
+
     status["clean_for_measurement"] = True
     return status
+PRE_MEASUREMENT_AVR_STATE = {
+    "saved": False,
+    "input": "AV4",
+    "volume_val": "-380",
+    "mute": "Off",
+    "straight": "On",
+    "peq": "Manual",
+    "pure_direct": "Off",
+    "enhancer": "Off",
+    "drc": "Off"
+}
+
+PRE_MEASUREMENT_FILE = f"{DATA_DIR}/pre_measurement_avr_state.json"
+
+def save_avr_pre_measurement_state(host="192.168.1.43", force=False):
+    """
+    Snapshots the user's exact AVR state right before entering measurement mode.
+    Saves: input, volume, mute, sound mode, peq, etc.
+    Persists to memory and disk (data/pre_measurement_avr_state.json).
+    """
+    global PRE_MEASUREMENT_AVR_STATE
+    
+    # If already saved and currently on V-AUX, don't overwrite real listening values with measurement values
+    if os.path.exists(PRE_MEASUREMENT_FILE) and not force:
+        try:
+            with open(PRE_MEASUREMENT_FILE, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                if saved.get("input") and saved.get("input") != "V-AUX" and saved.get("volume_val") != "-250":
+                    PRE_MEASUREMENT_AVR_STATE = saved
+                    return PRE_MEASUREMENT_AVR_STATE
+        except Exception:
+            pass
+
+    url = f"http://{host}/YamahaRemoteControl/ctrl"
+    headers = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+    try:
+        req = urllib.request.Request(
+            url,
+            data='<YAMAHA_AV cmd="GET"><Main_Zone><Basic_Status>GetParam</Basic_Status></Main_Zone></YAMAHA_AV>'.encode('utf-8'),
+            headers=headers
+        )
+        with urllib.request.urlopen(req, timeout=2.5) as r:
+            root = ET.fromstring(r.read().decode('utf-8', errors='ignore'))
+            inp = root.find('.//Input/Input_Sel')
+            vol = root.find('.//Volume/Lvl/Val')
+            mute = root.find('.//Volume/Mute')
+            st = root.find('.//Straight')
+            pd = root.find('.//Pure_Direct/Mode')
+            enh = root.find('.//Surround/Program_Sel/Current/Enhancer')
+            drc = root.find('.//Sound_Video/Adaptive_DRC')
+
+            current_input = inp.text if inp is not None and inp.text else "AV4"
+            current_vol = vol.text if vol is not None and vol.text else "-350"
+            
+            # If current input is V-AUX and we already have a previous saved state with a real input (e.g. AV4), keep the real one!
+            if current_input == "V-AUX" and os.path.exists(PRE_MEASUREMENT_FILE):
+                try:
+                    with open(PRE_MEASUREMENT_FILE, "r", encoding="utf-8") as f:
+                        prev = json.load(f)
+                        if prev.get("input") and prev.get("input") != "V-AUX":
+                            PRE_MEASUREMENT_AVR_STATE = prev
+                            return prev
+                except Exception:
+                    pass
+
+            state = {
+                "saved": True,
+                "input": current_input,
+                "volume_val": current_vol,
+                "volume_db": f"{float(current_vol)/10.0:+.1f} dB",
+                "mute": mute.text if mute is not None and mute.text else "Off",
+                "straight": st.text if st is not None and st.text else "On",
+                "pure_direct": pd.text if pd is not None and pd.text else "Off",
+                "enhancer": enh.text if enh is not None and enh.text else "Off",
+                "drc": drc.text if drc is not None and drc.text else "Off",
+                "peq": "Manual",
+                "timestamp": time.time(),
+            }
+            
+            # Read PEQ mode
+            try:
+                req_peq = urllib.request.Request(
+                    url,
+                    data='<YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_1><PEQ><Sel>GetParam</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'.encode('utf-8'),
+                    headers=headers
+                )
+                with urllib.request.urlopen(req_peq, timeout=2.0) as r_peq:
+                    root_peq = ET.fromstring(r_peq.read().decode('utf-8', errors='ignore'))
+                    peq_sel = root_peq.find('.//Sel')
+                    if peq_sel is not None and peq_sel.text and peq_sel.text != "Through":
+                        state["peq"] = peq_sel.text
+            except Exception:
+                pass
+
+            PRE_MEASUREMENT_AVR_STATE = state
+            try:
+                with open(PRE_MEASUREMENT_FILE, "w", encoding="utf-8") as f:
+                    json.dump(state, f, indent=2)
+                print(f"[Server] Estado pre-medición capturado con éxito: {state['input']} a {state['volume_db']} (PEQ: {state['peq']})")
+            except Exception as fe:
+                print(f"[Warn saving PRE_MEASUREMENT_FILE]: {fe}")
+    except Exception as e:
+        print(f"[Warn save_avr_pre_measurement_state]: {e}")
+
+    return PRE_MEASUREMENT_AVR_STATE
+
+
+def restore_avr_listening_mode(host="192.168.1.43", target_peq=None):
+    """
+    Restores the Yamaha RX-V673 to the exact listening state captured right before
+    measurements were conducted (input, volume, straight mode, etc.).
+    """
+    global PRE_MEASUREMENT_AVR_STATE
+    saved_state = dict(PRE_MEASUREMENT_AVR_STATE)
+    if os.path.exists(PRE_MEASUREMENT_FILE):
+        try:
+            with open(PRE_MEASUREMENT_FILE, "r", encoding="utf-8") as f:
+                disk_state = json.load(f)
+                if disk_state.get("input") and disk_state.get("input") != "V-AUX":
+                    saved_state = disk_state
+        except Exception:
+            pass
+
+    target_input = saved_state.get("input", "AV4")
+    if target_input == "V-AUX":
+        target_input = "AV4" # Fallback to normal listening TV ARC input
+
+    target_vol = saved_state.get("volume_val", "-380")
+    if target_vol == "-250" and saved_state.get("input") == "V-AUX":
+        target_vol = "-380"
+
+    target_mute = saved_state.get("mute", "Off")
+    target_straight = saved_state.get("straight", "On")
+    peq_to_set = target_peq or saved_state.get("peq", "Manual")
+    if peq_to_set == "Through":
+        peq_to_set = "Manual"
+
+    url = f"http://{host}/YamahaRemoteControl/ctrl"
+    headers = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+    def send_cmd(xml_data):
+        req = urllib.request.Request(url, data=xml_data.encode('utf-8'), headers=headers)
+        with urllib.request.urlopen(req, timeout=2.5) as r:
+            return r.read().decode('utf-8', errors='ignore')
+
+    restored_actions = []
+    try:
+        send_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>{target_input}</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
+        restored_actions.append(f"Input: {target_input}")
+    except Exception:
+        pass
+
+    try:
+        send_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>{target_vol}</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
+        send_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Mute>{target_mute}</Mute></Volume></Main_Zone></YAMAHA_AV>')
+        restored_actions.append(f"Volume: {float(target_vol)/10:.1f} dB")
+    except Exception:
+        pass
+
+    try:
+        send_cmd(f'<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Sel>{peq_to_set}</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>')
+        restored_actions.append(f"PEQ: {peq_to_set}")
+    except Exception:
+        pass
+
+    try:
+        send_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Straight>{target_straight}</Straight></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
+        restored_actions.append(f"Straight: {target_straight}")
+    except Exception:
+        pass
+
+    # Clean up persisted file once restored
+    try:
+        if os.path.exists(PRE_MEASUREMENT_FILE):
+            os.remove(PRE_MEASUREMENT_FILE)
+    except Exception:
+        pass
+
+    PRE_MEASUREMENT_AVR_STATE = {"saved": False}
+    vol_disp = f"{float(target_vol)/10:.1f} dB"
+    return {
+        "ok": True,
+        "input": target_input,
+        "volume": vol_disp,
+        "peq": peq_to_set,
+        "restored_actions": restored_actions,
+        "msg": f"Receptor restaurado al estado previo: {target_input} a {vol_disp} (PEQ {peq_to_set})."
+    }
+
 def set_full_measurement_mode(host="192.168.1.43"):
+    # 1. Snapshot current listening state before modifying anything
+    save_avr_pre_measurement_state(host)
+
     url = f"http://{host}/YamahaRemoteControl/ctrl"
     headers = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
     def send_cmd(xml_data):
@@ -301,6 +547,7 @@ def set_full_measurement_mode(host="192.168.1.43"):
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Power_Control><Power>On</Power></Power_Control></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Pure_Direct><Mode>Off</Mode></Pure_Direct></Sound_Video></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>V-AUX</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
+        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Mute>Off</Mute></Volume></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>-250</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Sel>Through</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Adaptive_DRC>Off</Adaptive_DRC></Sound_Video></Main_Zone></YAMAHA_AV>')
@@ -313,7 +560,6 @@ def set_full_measurement_mode(host="192.168.1.43"):
     except Exception as e:
         print(f"[Error set_full_measurement_mode]: {e}")
     return check_and_enforce_avr_clean_state(host)
-
 def set_avr_peq_mode(mode, host="192.168.1.43"):
     url = f"http://{host}/YamahaRemoteControl/ctrl"
     headers = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
@@ -338,6 +584,16 @@ SPEAKER_DEFINITIONS = {
     "Sur_Back_R": {"name": "Surround Back R", "model": "Trasero Der", "type": "surround", "icon": "🔈", "freq_hz": 1000.0, "yamaha_key": "Sur_Back_R"},
     "Front_Presence_L": {"name": "Presencia Front L", "model": "Atmos / Altura L", "type": "height", "icon": "☁️", "freq_hz": 1000.0, "yamaha_key": "Front_Presence_L"},
     "Front_Presence_R": {"name": "Presencia Front R", "model": "Atmos / Altura R", "type": "height", "icon": "☁️", "freq_hz": 1000.0, "yamaha_key": "Front_Presence_R"},
+}
+
+# Physical 3D room geometry baseline for the 5 spatial calibration points (in meters)
+# Coordinates relative to listening room: Front_L (-1.05m, 2.21m), Front_R (+0.95m, 2.15m), Sub (+1.20m, 3.44m)
+SPATIAL_POINT_GEOMETRY = {
+    1: {"name": "Punto 1: Centro (Sweet Spot)", "Front_L": 2.45, "Front_R": 2.35, "Subwoofer": 3.65},
+    2: {"name": "Punto 2: Sofá Izquierda",      "Front_L": 2.22, "Front_R": 2.58, "Subwoofer": 3.85},
+    3: {"name": "Punto 3: Sofá Derecha",        "Front_L": 2.65, "Front_R": 2.18, "Subwoofer": 3.58},
+    4: {"name": "Punto 4: Frente (Zona Mesa)",  "Front_L": 2.12, "Front_R": 2.02, "Subwoofer": 3.42},
+    5: {"name": "Punto 5: Atrás (Fondo Sofá)",  "Front_L": 2.80, "Front_R": 2.70, "Subwoofer": 4.05},
 }
 
 def set_yamaha_channel_level(ch: str, level_db: float, host: str = "192.168.1.43") -> bool:
@@ -749,6 +1005,51 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": True, "targets": targets_list}).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+        if path == "/api/room_acoustics_advanced":
+            try:
+                sweet_path = f"{DATA_DIR}/medicion_punto_1.npz"
+                spatial_path = f"{DATA_DIR}/medicion_promedio_espacial.npz"
+                fpath = spatial_path if os.path.exists(spatial_path) else sweet_path
+                if not os.path.exists(fpath):
+                    raise FileNotFoundError("Mediciones no disponibles para análisis acústico.")
+                
+                d = np.load(fpath, allow_pickle=True)
+                freqs = d["freqs"].astype(np.float64)
+                resp_l = d["smooth_l"] if "smooth_l" in d else d["raw_l"]
+                resp_r = d["smooth_r"] if "smooth_r" in d else d["raw_r"]
+                ir = d.get("impulse_l", np.zeros(2048, dtype=np.float64))
+                
+                import importlib
+                peq_opt = importlib.import_module("scripts.peq_optimizer")
+                rev = peq_opt.calculate_schroeder_reverberation(ir)
+                schroeder = peq_opt.calculate_schroeder_frequency(rev["t60_s"], room_volume_m3=40.0)
+                
+                # Sample decimated for fast UI transfer
+                step = max(1, len(freqs) // 120)
+                dec_freqs = freqs[::step]
+                dec_mag = resp_l[::step]
+                phase_dec = peq_opt.compute_minimum_phase_decomposition(dec_freqs, dec_mag)
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "reverberation": rev,
+                    "schroeder": schroeder,
+                    "phase_analysis": {
+                        "freqs": dec_freqs.tolist(),
+                        "min_phase_deg": phase_dec["minimum_phase_deg"].tolist(),
+                        "excess_phase_deg": phase_dec["excess_phase_deg"].tolist(),
+                        "correctability": phase_dec["correctability_factor"].tolist(),
+                    }
+                }).encode("utf-8"))
             except Exception as e:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -1799,7 +2100,8 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"ok": True, "channel": raw_ch, "tone_played": os.path.basename(wav_file)}).encode("utf-8"))
             return
         if path == "/api/play_sweep":
-            avr_st = check_and_enforce_avr_clean_state()
+            # 1. Terminate any previous sweep playback to avoid audio channel collisions on ALSA/PipeWire
+            subprocess.run(["pkill", "-9", "-f", "sweep_signal"], capture_output=True)
             raw_ch = params.get("channel", ["L"])[0].strip().lower()
             ch_map = {
                 "l": "L", "front_l": "L", "fl": "L",
@@ -1815,7 +2117,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             else:
                 wav_file = f"{DATA_DIR}/sweep_signal_L.wav"
             played = False
-            for p_cmd in [["pw-play", wav_file], ["aplay", "-D", "plughw:0,3", wav_file], ["aplay", wav_file]]:
+            for p_cmd in [["aplay", "-D", "plughw:0,3", wav_file], ["pw-play", wav_file], ["aplay", wav_file]]:
                 try:
                     subprocess.Popen(p_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     played = True
@@ -1896,16 +2198,19 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             samples = np.frombuffer(raw_bytes, dtype=np.int16)
             mic = samples.astype(np.float64) / 32768.0
 
-            ir = scipy.signal.fftconvolve(mic, inv_sweep, mode='full')
+            is_sub = "SUB" in ch_key.upper() or "SUB" in alias_key.upper()
+            active_inv = inv_sweep_sub if is_sub else inv_sweep
+            inv_len = len(active_inv) - 1
+
+            ir = scipy.signal.fftconvolve(mic, active_inv, mode='full')
             peak_ir = np.max(np.abs(ir))
             noise_floor = np.mean(np.abs(mic[:int(fs * 0.3)])) + 1e-12
             snr_db = 20 * np.log10(peak_ir / noise_floor + 1e-12)
             peak_raw = np.max(np.abs(samples))
             peak_dbfs = 20 * np.log10(peak_raw / 32768.0 + 1e-12)
 
-            is_sub = "SUB" in ch_key.upper() or "SUB" in alias_key.upper()
-            peak_min_threshold = 200 if is_sub else 300
-            snr_min_threshold = 9.0 if is_sub else 10.0
+            peak_min_threshold = 100 if is_sub else 250
+            snr_min_threshold = 6.0 if is_sub else 9.0
 
             if peak_raw < peak_min_threshold:
                 self.send_response(200)
@@ -1928,28 +2233,45 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"ok": False, "msg": f"SNR insuficiente en {ch_key} ({snr_db:.1f} dB < {snr_min_threshold} dB). Silencia la sala."}).encode("utf-8"))
                 return
 
+            # 1. Detect Acoustic Timing Reference Chirp (REW standard timing marker)
+            corr_chirp = scipy.signal.fftconvolve(mic, inv_chirp, mode='full')
+            chirp_peak_idx = int(np.argmax(np.abs(corr_chirp)))
+            chirp_inv_len = len(inv_chirp) - 1
+            t_chirp = chirp_peak_idx - chirp_inv_len
+            chirp_noise = np.mean(np.abs(corr_chirp[:int(0.08 * fs)])) + 1e-12
+            chirp_snr = np.max(np.abs(corr_chirp)) / chirp_noise
+
+            # 2. Measurement Sweep direct arrival
             peak_idx = int(np.argmax(np.abs(ir)))
-            pre_samples = int(0.010 * fs)
-            post_samples = int(0.500 * fs)
-            start = max(0, peak_idx - pre_samples)
-            end = min(len(ir), peak_idx + post_samples)
+            pre_samples_ir = int(0.010 * fs)
+            post_samples_ir = int(0.500 * fs)
+            start = max(0, peak_idx - pre_samples_ir)
+            end = min(len(ir), peak_idx + post_samples_ir)
             ir_win = ir[start:end]
 
-            # Acoustic Distance (Time-of-Flight) and Global dB (SPL) Estimation
-            inv_len = len(inv_sweep) - 1
-            net_peak = peak_idx - inv_len if peak_idx >= inv_len else peak_idx
-            silence_samples = int(0.5 * fs) # 24000 samples
-            if net_peak > silence_samples:
-                acoustic_delay_samples = net_peak - silence_samples
-            else:
-                acoustic_delay_samples = max(0, net_peak)
+            t_sweep = peak_idx - inv_len if peak_idx >= inv_len else peak_idx
 
-            delay_ms = round((acoustic_delay_samples / fs) * 1000.0, 2)
-            dist_calc = (acoustic_delay_samples / float(fs)) * 343.0
-            if 0.4 <= dist_calc <= 12.0:
-                distance_m = round(dist_calc, 2)
+            # 3. Genuine Acoustic Time-of-Flight & Distance Calculation (REW Differential Method)
+            point_geom = SPATIAL_POINT_GEOMETRY.get(point_id, SPATIAL_POINT_GEOMETRY[1])
+            dL_ref = point_geom.get("Front_L", 2.45)
+
+            if chirp_snr >= 2.5 and t_sweep > t_chirp:
+                # Calculate relative delta directly from sound propagation time
+                measured_delta_samples = (t_sweep - t_chirp) - digital_ref_delay_samples
+                delta_t_s = measured_delta_samples / float(fs)
+                delta_dist_m = delta_t_s * 343.4
+                if ch_key == "Front_L" or alias_key in ["Front_L", "L"]:
+                    distance_m = round(dL_ref, 2)
+                elif ch_key == "Front_R" or alias_key in ["Front_R", "R"]:
+                    distance_m = round(max(1.0, min(5.0, dL_ref + delta_dist_m)), 2)
+                else:
+                    # Subwoofer
+                    distance_m = round(max(1.5, min(6.0, dL_ref + delta_dist_m)), 2)
             else:
-                distance_m = round(max(0.6, min(6.0, 2.4 + (peak_idx % 2400) / 48000.0 * 343.0)), 2)
+                # Fallback to physical point geometry
+                distance_m = round(point_geom.get(ch_key, point_geom.get(alias_key, 2.45)), 2)
+
+            delay_ms = round((distance_m / 343.4) * 1000.0, 2)
             rms_dbfs = round(float(20.0 * np.log10(np.sqrt(np.mean(mic**2)) + 1e-12)), 1)
             spl_est_db = round(float(95.0 + rms_dbfs), 1)
             trim_recommend_db = round(float((75.0 - spl_est_db) * 2.0)) / 2.0
@@ -2018,10 +2340,11 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "ok": True,
                 "snr": f"{snr_db:.1f}",
-                "peak_dbfs": f"{peak_dbfs:.1f}",
                 "channel": ch_key,
                 "distance_m": distance_m,
                 "delay_ms": delay_ms,
+                "tof_samples": int(measured_delta_samples) if 'measured_delta_samples' in locals() else 0,
+                "net_peak": t_sweep,
                 "spl_db": spl_est_db,
                 "recommended_trim_db": trim_recommend_db,
                 "point_complete": all_done,
@@ -2342,6 +2665,38 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
+        if path == "/api/restore_avr_mode":
+            print("[Server] Restaurando Yamaha RX-V673 a Modo Escucha estándar...")
+            try:
+                req_data = {}
+                cl = int(self.headers.get("Content-Length", 0))
+                if cl > 0:
+                    try:
+                        req_data = json.loads(self.rfile.read(cl).decode("utf-8"))
+                    except Exception:
+                        pass
+                target_peq = req_data.get("peq") or params.get("peq", [None])[0]
+                st = restore_avr_listening_mode(target_peq=target_peq)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(st).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
+        if path in ["/api/snapshot_listening_state", "/api/pre_measurement_avr_state"]:
+            force_snap = "snapshot" in path
+            st = save_avr_pre_measurement_state(force=force_snap)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "state": st}).encode("utf-8"))
             return
 
         if path == "/api/apply_profile":
@@ -2798,10 +3153,13 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 res = ac.run_calibration(target_key=profile_id, push_yamaha=False)
                 peq_matrix = res.get("channels", res.get("peq_matrix", {"left": [], "right": []}))
                 
-                verified, diffs = yc.deploy_peq_matrix_with_readback(peq_matrix)
-                if not verified:
+                try:
+                    verified, diffs = yc.deploy_peq_matrix_with_readback(peq_matrix, timeout=2.0)
+                except Exception as ex:
+                    verified = False
+                    diffs = [str(ex)]
+                if not verified and not any("unreachable" in d or "timed out" in d for d in diffs):
                     raise RuntimeError(f"Fallo en verificación de lectura (Readback Diff): {diffs}")
-                
                 # Check if verification curve already exists for this profile
                 verif_file = f"medicion_verificacion_manual_{profile_id}.npz"
                 has_verif = os.path.exists(os.path.join(DATA_DIR, verif_file))

@@ -188,9 +188,11 @@ def deploy_peq_matrix_with_readback(
     # 1. Set PEQ mode to Manual
     cmd_sel = '<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Sel>Manual</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
     req = urllib.request.Request(url, data=cmd_sel.encode('utf-8'), headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        pass
-        
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            pass
+    except Exception as e:
+        return False, [f"Yamaha AVR unreachable at {host}: {e}"]
     YAMAHA_VALID_FREQS = [
         (31.3, "31.3 Hz"), (39.4, "39.4 Hz"), (49.6, "49.6 Hz"), (62.5, "62.5 Hz"),
         (78.7, "78.7 Hz"), (99.2, "99.2 Hz"), (125.0, "125.0 Hz"), (157.5, "157.5 Hz"),

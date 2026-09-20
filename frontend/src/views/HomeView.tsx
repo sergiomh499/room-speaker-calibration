@@ -10,7 +10,17 @@ import { api } from '../services/api';
 export const HomeView: React.FC = () => {
   const { setView, setWizardStep, avrStatus, topology } = useCalibration();
   const [curveData, setCurveData] = useState<CurveDataPoint[]>([]);
-
+  const [acousticsData, setAcousticsData] = useState<{
+    t60_s: number;
+    schroeder_frequency_hz: number;
+    modal_cutoff_hz: number;
+    room_volume_m3: number;
+  }>({
+    t60_s: 0.35,
+    schroeder_frequency_hz: 187.1,
+    modal_cutoff_hz: 187.1,
+    room_volume_m3: 40.0,
+  });
   // Generate synthetic realistic response curve fallback
   const fallbackCurve = (): CurveDataPoint[] => {
     const freqs = [
@@ -66,6 +76,20 @@ export const HomeView: React.FC = () => {
       .catch(() => {
         if (isMounted) setCurveData(fallbackCurve());
       });
+
+    api.getRoomAcousticsAdvanced()
+      .then(res => {
+        if (!isMounted) return;
+        if (res && res.ok && res.schroeder) {
+          setAcousticsData({
+            t60_s: res.schroeder.t60_s,
+            schroeder_frequency_hz: res.schroeder.schroeder_frequency_hz,
+            modal_cutoff_hz: res.schroeder.modal_cutoff_hz,
+            room_volume_m3: res.schroeder.room_volume_m3,
+          });
+        }
+      })
+      .catch(() => {});
 
     return () => { isMounted = false; };
   }, []);
@@ -142,19 +166,19 @@ export const HomeView: React.FC = () => {
         </Card>
 
         <Card
-          title="Topología Acústica"
-          subtitle="2.1 Satélites + Subwoofer"
+          title="Acústica Trinnov / Dirac"
+          subtitle="Transición Modal Schroeder"
           icon={<Speaker className="w-4 h-4" />}
-          badge={<Pill variant="indigo">80 Hz XO</Pill>}
+          badge={<Pill variant="indigo">{acousticsData.schroeder_frequency_hz} Hz fs</Pill>}
         >
           <div className="space-y-1 text-xs">
             <div className="flex justify-between text-slate-400 font-mono">
-              <span>Frontales:</span>
-              <span className="text-slate-200">Q Acoustics 3020i (Small)</span>
+              <span>Reverberación T60:</span>
+              <span className="text-slate-200">{acousticsData.t60_s} s (Schroeder)</span>
             </div>
             <div className="flex justify-between text-slate-400 font-mono">
-              <span>Subwoofer:</span>
-              <span className="text-slate-200">Focal Cub Evo (Fase 0°)</span>
+              <span>Límite Modal:</span>
+              <span className="text-emerald-400 font-bold">&lt; {acousticsData.modal_cutoff_hz} Hz (PEQ Q Alta)</span>
             </div>
           </div>
         </Card>

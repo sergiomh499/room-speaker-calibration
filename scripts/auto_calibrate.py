@@ -106,16 +106,25 @@ def run_calibration(
         fc_hz=64.0,
         subwoofer_crossover_hz=subwoofer_crossover_hz,
     )
+    # Calculate empirical T60 and dynamic Schroeder frequency fs
+    from scripts.peq_optimizer import (
+        calculate_schroeder_reverberation,
+        calculate_schroeder_frequency,
+        compute_minimum_phase_decomposition,
+    )
+    ir_sample = d_sweet.get("impulse_l", np.zeros(1024))
+    rev_metrics = calculate_schroeder_reverberation(ir_sample)
+    schroeder_info = calculate_schroeder_frequency(rev_metrics["t60_s"], room_volume_m3=40.0)
+    schroeder_limit = schroeder_info["modal_cutoff_hz"]
 
     print("=== MOTOR DE OPTIMIZACIÓN ACÚSTICA DINÁMICA REAL ===")
     print(f"Perfil Objetivo:   {target_info['name']}")
     print(f"Ponderación:       70% Sweet Spot / 30% Promedio Espacial Cluster (Tight 15-20cm)")
     print(f"Suavizado:         Variable Smoothing (Var) — 2026 Pro")
     print(f"Normalización:     Banda Ancha 300 Hz – 3 kHz (anti-dip 1 kHz)")
-    print(f"Límite Schroeder:  500 Hz (Cero boost en agudos)")
+    print(f"T60 Acústico Sala: {rev_metrics['t60_s']:.2f} s | Frecuencia Schroeder: {schroeder_limit:.1f} Hz")
     print(f"Tope de Boost:     +3.0 dB")
     print(f"Calculando solución matemática óptima...")
-
     # 3. Dynamic Optimization
     opt_result = optimize_stereo_peq(
         freqs_hz=freqs,
@@ -135,7 +144,13 @@ def run_calibration(
     # 3b. Subwoofer PEQ Optimization (if 2.1 crossover is configured)
     if subwoofer_crossover_hz and subwoofer_crossover_hz > 0:
         sub_file = DATA_DIR / "medicion_sub.npz"
-        if sub_file.exists():
+        if "smooth_sub" in d_sweet:
+            sub_resp = d_sweet["smooth_sub"]
+        elif "raw_sub" in d_sweet:
+            sub_resp = d_sweet["raw_sub"]
+        elif spatial_avg_file.exists() and "smooth_sub" in np.load(spatial_avg_file):
+            sub_resp = np.load(spatial_avg_file)["smooth_sub"]
+        elif sub_file.exists():
             d_sub = np.load(sub_file)
             f_sub_meas = d_sub["freqs"]
             raw_sub = d_sub["resp"] if "resp" in d_sub else (d_sub["smooth"] if "smooth" in d_sub else d_sub["raw_l"])
@@ -144,7 +159,6 @@ def run_calibration(
             raw_sl = d_sweet["smooth_l"] if "smooth_l" in d_sweet else d_sweet["raw_l"]
             raw_sr = d_sweet["smooth_r"] if "smooth_r" in d_sweet else d_sweet["raw_r"]
             sub_resp = broadband_normalize(freqs, 0.5 * (raw_sl + raw_sr))
-
         sub_bands = optimize_subwoofer_peq(
             freqs_hz=freqs,
             response_db=sub_resp,

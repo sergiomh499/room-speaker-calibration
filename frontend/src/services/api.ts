@@ -58,9 +58,11 @@ export const api = {
     return fetchApi<any>(`/api/play_sweep?channel=${encodeURIComponent(channel)}`);
   },
 
-  async uploadSweep(point: number, channel: string, bytes: Uint8Array, layout?: string): Promise<any> {
+  async uploadSweep(point: number, channel: string, bytes: Uint8Array, layout?: string, leadMs?: number, pingMs?: number): Promise<any> {
     const layoutParam = layout ? `&layout=${encodeURIComponent(layout)}` : '';
-    const res = await fetch(`${BASE_URL}/api/upload_sweep?point=${point}&channel=${encodeURIComponent(channel)}${layoutParam}`, {
+    const leadParam = leadMs !== undefined ? `&lead_ms=${encodeURIComponent(leadMs)}` : '';
+    const pingParam = pingMs !== undefined ? `&ping_ms=${encodeURIComponent(pingMs)}` : '';
+    const res = await fetch(`${BASE_URL}/api/upload_sweep?point=${point}&channel=${encodeURIComponent(channel)}${layoutParam}${leadParam}${pingParam}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: bytes as unknown as BodyInit
@@ -90,6 +92,10 @@ export const api = {
   async autoAlignLevels(): Promise<any> {
     return fetchApi<any>('/api/auto_align_levels', { method: 'POST' });
   },
+  async finalizeCalibration(profile: string = 'harman_2_1'): Promise<any> {
+    return fetchApi<any>(`/api/finalize_calibration?profile=${encodeURIComponent(profile)}`);
+  },
+
   async getChannelLayout(): Promise<any> {
     return fetchApi<any>('/api/detect_channels');
   },
@@ -122,6 +128,10 @@ export const api = {
     return fetchApi<any>('/api/sessions/history');
   },
 
+  async getRoomAcousticsAdvanced(): Promise<any> {
+    return fetchApi<any>('/api/room_acoustics_advanced');
+  },
+
   async restoreSession(id: string): Promise<any> {
     return fetchApi<any>('/api/sessions/restore', {
       method: 'POST',
@@ -132,6 +142,22 @@ export const api = {
 
   async preflightCheck(enforce: boolean = true): Promise<any> {
     return fetchApi<any>(`/api/preflight_check?enforce=${enforce}`);
+  },
+
+  async setMeasurementMode(): Promise<any> {
+    return fetchApi<any>('/api/set_measurement_mode', { method: 'POST' });
+  },
+
+  async snapshotListeningState(): Promise<any> {
+    return fetchApi<any>('/api/snapshot_listening_state', { method: 'POST' });
+  },
+
+  async restoreAvrMode(peq?: string): Promise<any> {
+    return fetchApi<any>('/api/restore_avr_mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peq }),
+    });
   },
 
   async getFilterCurves(profile: string): Promise<any> {

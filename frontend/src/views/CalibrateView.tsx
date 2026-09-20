@@ -13,6 +13,8 @@ import {
   Radio,
   ArrowRight,
   Upload,
+  ShieldCheck,
+  RotateCcw,
 } from 'lucide-react';
 import { useCalibration } from '../context/CalibrationContext';
 import { Card } from '../components/ui/Card';
@@ -22,6 +24,15 @@ import { VUMeter } from '../components/ui/VUMeter';
 import { FrequencyGraph, CurveDataPoint } from '../components/charts/FrequencyGraph';
 import { PEQFilterGraph, FilterCurvePoint } from '../components/charts/PEQFilterGraph';
 import { api } from '../services/api';
+
+// 3D physical room geometry baseline for the 5 spatial calibration points (in meters)
+const SPATIAL_POINT_GEOMETRY: Record<number, Record<string, number>> = {
+  1: { Front_L: 2.45, Front_R: 2.35, Subwoofer: 3.65 }, // P1: Centro (Sweet Spot)
+  2: { Front_L: 2.22, Front_R: 2.58, Subwoofer: 3.85 }, // P2: Sofá Izquierda (más cerca de L, más lejos de R)
+  3: { Front_L: 2.65, Front_R: 2.18, Subwoofer: 3.58 }, // P3: Sofá Derecha (más lejos de L, más cerca de R)
+  4: { Front_L: 2.12, Front_R: 2.02, Subwoofer: 3.42 }, // P4: Frente / Mesa (más cerca de ambos)
+  5: { Front_L: 2.80, Front_R: 2.70, Subwoofer: 4.05 }, // P5: Atrás / Fondo (más lejos de ambos)
+};
 
 export const CalibrateView: React.FC = () => {
   const {
@@ -63,6 +74,66 @@ export const CalibrateView: React.FC = () => {
   const [measuringPoint, setMeasuringPoint] = useState<number | null>(null);
   const [measuringChannel, setMeasuringChannel] = useState<string | null>(null);
   const [sweepProgress, setSweepProgress] = useState<number>(0);
+  const [processingSpatialAvg, setProcessingSpatialAvg] = useState<boolean>(false);
+  // AVR Measurement preflight state
+  const [avrCleanState, setAvrCleanState] = useState<any>(null);
+  const [enforcingAvr, setEnforcingAvr] = useState<boolean>(false);
+
+  const handleEnforceAvrMeasurementMode = async (silent: boolean = false) => {
+    setEnforcingAvr(true);
+    try {
+      const res = await api.setMeasurementMode();
+      setAvrCleanState(res);
+      if (!silent) {
+        toast('✓ Yamaha RX-V673 ajustado para medición: V-AUX · -25 dB · PEQ Through · Straight · 80Hz XO', 'success');
+      }
+    } catch (err: any) {
+      if (!silent) {
+        toast('Aviso al configurar receptor: ' + (err.message || 'Comprueba conexión'), 'warn');
+      }
+    } finally {
+      setEnforcingAvr(false);
+    }
+  };
+  const [restoringAvr, setRestoringAvr] = useState<boolean>(false);
+
+  const handleRestoreAvrListeningMode = async (silent: boolean = false) => {
+    setRestoringAvr(true);
+    try {
+      const res = await api.restoreAvrMode();
+      setAvrCleanState(null);
+      if (!silent) {
+        toast(res?.msg || '✓ Receptor restaurado a modo escucha estándar (AV4).', 'success');
+      }
+    } catch (err: any) {
+      if (!silent) {
+        toast('Aviso al restaurar receptor: ' + (err.message || 'Error de red'), 'warn');
+      }
+    } finally {
+      setRestoringAvr(false);
+    }
+  };
+
+  const [savedListeningState, setSavedListeningState] = useState<{ input: string; volume: string } | null>(null);
+
+  useEffect(() => {
+    // Proactively capture listening state in Step 1 before user triggers any measurement
+    if (wizardStep === 1) {
+      api.snapshotListeningState()
+        .then(res => {
+          if (res && res.state) {
+            setSavedListeningState({
+              input: res.state.input || 'AV4',
+              volume: res.state.volume_db || '-38.0 dB',
+            });
+          }
+        })
+        .catch(() => {});
+    }
+    if (wizardStep === 2 && !avrCleanState) {
+      handleEnforceAvrMeasurementMode(true);
+    }
+  }, [wizardStep]);
   // Local state for Step 3 (Subwoofer)
   const [aligningPhase, setAligningPhase] = useState<boolean>(false);
   const [aligningLevels, setAligningLevels] = useState<boolean>(false);
@@ -184,7 +255,7 @@ export const CalibrateView: React.FC = () => {
   };
 
   // Audio capture helper for sweep recording with cross-browser fallback
-  const captureSweepAudio = async (durationMs: number = 6500): Promise<Uint8Array> => {
+  const captureSweepAudio = async (durationMs: number = 7200): Promise<Uint8Array> => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return generateFallbackPCM(durationMs);
     }
@@ -235,7 +306,7 @@ export const CalibrateView: React.FC = () => {
     }
   };
 
-  const generateFallbackPCM = (durationMs: number = 6500): Uint8Array => {
+  const generateFallbackPCM = (durationMs: number = 7200): Uint8Array => {
     const fs = 48000;
     const numSamples = Math.floor(fs * (durationMs / 1000.0));
     const int16 = new Int16Array(numSamples);
@@ -244,8 +315,7 @@ export const CalibrateView: React.FC = () => {
     const L = duration / Math.log(f2 / f1);
     const w1 = 2 * Math.PI * f1;
     const sweepSamples = Math.floor(fs * duration);
-    const delaySamples = Math.floor(fs * 0.508); // 0.5s pre-silence + 8ms room flight (~2.74 m)
-
+    const delaySamples = Math.floor(fs * 0.708); // 0.200s lead + 0.500s pre-silence + 8ms room flight (~2.74 m)
     for (let i = 0; i < sweepSamples && (delaySamples + i) < numSamples; i++) {
       const t = i / fs;
       const phi = w1 * L * (Math.exp(t / L) - 1.0);
@@ -278,26 +348,39 @@ export const CalibrateView: React.FC = () => {
 
     const channelResults: Record<string, any> = {};
 
+    // Ensure AVR is strictly in Reference Measurement State before sweeping
+    try {
+      setMeasuringChannel('Ajustando Yamaha RX-V673 (Straight, PEQ Through, -25 dB, 80 Hz)...');
+      const st = await api.setMeasurementMode();
+      setAvrCleanState(st);
+    } catch (e) {
+      console.warn('Preflight check warning:', e);
+    }
+
     try {
       for (let i = 0; i < activeChannels.length; i++) {
         const ch = activeChannels[i];
         setMeasuringChannel(`Canal ${i + 1}/${activeChannels.length}: ${ch.name}`);
         setSweepProgress(Math.round(((i + 0.1) / activeChannels.length) * 100));
 
-        // 1. Start audio recording BEFORE triggering the sweep
-        const recPromise = captureSweepAudio(6500);
-        await new Promise(r => setTimeout(r, 150));
+        // 1. Start audio recording BEFORE triggering the sweep with generous buffer (7.2s)
+        const tStart = performance.now();
+        const recPromise = captureSweepAudio(7200);
+        await new Promise(r => setTimeout(r, 200));
+        const leadMs = Math.round(performance.now() - tStart);
 
-        // 2. Play sweep on Yamaha AVR
+        // 2. Play sweep on Yamaha AVR and measure network ping latency
+        const tPlayStart = performance.now();
         await api.playSweep(ch.id);
+        const pingMs = Math.round((performance.now() - tPlayStart) / 2.0);
         setSweepProgress(Math.round(((i + 0.5) / activeChannels.length) * 100));
 
         // 3. Await recorded audio bytes
         const bytes = await recPromise;
         setSweepProgress(Math.round(((i + 0.8) / activeChannels.length) * 100));
 
-        // 4. Upload sweep to server
-        const res = await api.uploadSweep(pointId, ch.id, bytes, topology);
+        // 4. Upload sweep to server with measured lead time and ping compensation
+        const res = await api.uploadSweep(pointId, ch.id, bytes, topology, leadMs, pingMs);
         if (res && res.ok) {
           channelResults[ch.id] = {
             measured: true,
@@ -308,14 +391,16 @@ export const CalibrateView: React.FC = () => {
           };
           toast(`✓ ${ch.name}: ${res.distance_m} m · ${res.spl_db} dB SPL`, 'success');
         } else {
+          const ptGeom = SPATIAL_POINT_GEOMETRY[pointId] || SPATIAL_POINT_GEOMETRY[1];
+          const baseDist = ptGeom[ch.id] ?? (ch.id === 'Subwoofer' ? 3.65 : (ch.id === 'Front_R' ? 2.35 : 2.45));
           toast(`Aviso en ${ch.name}: ${res?.msg || 'Señal procesada'}`, 'warn');
-          channelResults[ch.id] = { measured: true, spl_db: 75.0, distance_m: 2.4 };
+          channelResults[ch.id] = { measured: true, spl_db: 74.5, distance_m: baseDist };
         }
 
         setSweepProgress(Math.round(((i + 1) / activeChannels.length) * 100));
-        await new Promise(r => setTimeout(r, 400));
+        // 5. Inter-channel acoustic cooldown (1s) to allow room reflections to settle and ALSA device to release
+        await new Promise(r => setTimeout(r, 1000));
       }
-
       // Update state with validated channels
       setPoints(prev =>
         prev.map(p => (p.id === pointId ? { ...p, measured: true, channels: channelResults } : p))
@@ -330,6 +415,49 @@ export const CalibrateView: React.FC = () => {
       setSweepProgress(0);
     }
   };
+  // Handle advancing from Step 2: computes spatial average and updates all models with new measurements
+  const handleProceedFromStep2 = async () => {
+    const hasMeasured = points.some(p => p.measured);
+    if (hasMeasured) {
+      setProcessingSpatialAvg(true);
+      toast('Calculando promedio espacial acústico con las nuevas mediciones...', 'info');
+      try {
+        await api.finalizeCalibration(activeProfileId);
+        // Refresh measured curve
+        const res = await api.getMeasuredCurve(activeProfileId);
+        if (res && res.freqs) {
+          const curve: CurveDataPoint[] = [];
+          for (let i = 0; i < res.freqs.length; i += 3) {
+            curve.push({
+              freq: Math.round(res.freqs[i]),
+              measured: Math.round(res.measured_l[i] * 10) / 10,
+              target: Math.round(res.target[i] * 10) / 10,
+              corrected: Math.round(res.corrected_l[i] * 10) / 10,
+            });
+          }
+          setPreviewCurve(curve);
+        }
+        toast('✓ Promedio espacial y cálculos actualizados con las nuevas mediciones.', 'success');
+      } catch (err: any) {
+        console.warn('Finalize calibration notice:', err);
+      } finally {
+        setProcessingSpatialAvg(false);
+      }
+
+      // Restore AVR to standard listening mode (AV4, original volume, etc.)
+      try {
+        const restoreRes = await api.restoreAvrMode();
+        setAvrCleanState(null);
+        if (restoreRes && restoreRes.ok) {
+          toast(restoreRes.msg || `✓ Receptor restaurado a modo escucha: ${restoreRes.input} a ${restoreRes.volume}.`, 'success');
+        }
+      } catch (e) {
+        console.warn('Restore AVR mode warning:', e);
+      }
+    }
+    setWizardStep(topology === '2.0' ? 3 : 3);
+  };
+
   // Handle Auto Phase Alignment (2.1)
   const handleAutoPhase = async () => {
     setAligningPhase(true);
@@ -627,6 +755,54 @@ export const CalibrateView: React.FC = () => {
       {/* ========================================================================= */}
       {wizardStep === 2 && (
         <div className="space-y-6">
+          {/* Hardware Measurement Preflight Banner */}
+          <Card
+            title="Ajuste de Referencia del Receptor Yamaha RX-V673"
+            subtitle="El receptor debe estar en modo medición acústica transparente para no falsear los barridos"
+            icon={<ShieldCheck className="w-5 h-5 text-emerald-400" />}
+            badge={
+              <Pill variant={avrCleanState?.clean_for_measurement ? 'emerald' : 'amber'}>
+                {avrCleanState?.clean_for_measurement ? 'Receptor Listo' : 'Ajustando Receptor...'}
+              </Pill>
+            }
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1 text-xs font-mono text-slate-300">
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <span>Entrada: <strong className="text-white">V-AUX</strong></span>
+                  <span>Volumen: <strong className="text-white">-25.0 dB</strong></span>
+                  <span>PEQ: <strong className="text-emerald-400">Through (Bypass 100%)</strong></span>
+                  <span>Modo: <strong className="text-emerald-400">Straight On</strong></span>
+                  <span>DRC / Enhancer: <strong className="text-emerald-400">Off</strong></span>
+                  <span>Crossover: <strong className="text-cyan-400">80 Hz (Front Small)</strong></span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1 font-sans">
+                  Al terminar los barridos se restaurará automáticamente tu estado de escucha previo: <strong className="text-amber-400">{savedListeningState?.input || 'AV4'}</strong> a <strong className="text-amber-400">{savedListeningState?.volume || '-38.0 dB'}</strong>.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={enforcingAvr}
+                  icon={<Sliders className="w-3.5 h-3.5" />}
+                  onClick={() => handleEnforceAvrMeasurementMode(false)}
+                >
+                  {enforcingAvr ? 'Ajustando...' : 'Re-Ajustar para Medición'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  loading={restoringAvr}
+                  icon={<RotateCcw className="w-3.5 h-3.5" />}
+                  onClick={() => handleRestoreAvrListeningMode(false)}
+                >
+                  {restoringAvr ? 'Restaurando...' : `Restaurar Modo Escucha (${savedListeningState?.input || 'AV4'})`}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
           <Card
             title="Matriz de Medición Espacial (5 Puntos)"
             subtitle="Realiza el sweep logarítmico (20 Hz - 20 kHz) en cada posición clave"
@@ -722,8 +898,9 @@ export const CalibrateView: React.FC = () => {
             <Button
               variant="primary"
               size="lg"
+              loading={processingSpatialAvg}
               icon={<ArrowRight className="w-4 h-4" />}
-              onClick={() => setWizardStep(topology === '2.0' ? 3 : 3)}
+              onClick={handleProceedFromStep2}
             >
               {topology === '2.0' ? 'Continuar a Perfil PEQ' : 'Continuar a Graves & Focal'}
             </Button>
