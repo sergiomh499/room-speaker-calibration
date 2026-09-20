@@ -162,5 +162,9 @@ export const api = {
 
   async getFilterCurves(profile: string): Promise<any> {
     return fetchApi<any>(`/api/peq_filter_curves?profile=${encodeURIComponent(profile)}`);
+  },
+
+  async getMeasurementAnalysis(): Promise<any> {
+    return fetchApi<any>('/api/measurement_analysis');
   }
 };

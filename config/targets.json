@@ -101,22 +101,14 @@
     },
     "bands": {
       "Band 1": {
-        "freq": 315.0,
-        "q_l": 0.5,
-        "q_r": 0.5,
-        "gain_l": 0.0,
-        "gain_r": -2.5,
-        "desc": "Modo modal Front R (315.0 Hz) con pase neutro en L"
-      },
-      "Band 2": {
         "freq": 78.7,
-        "q_l": 0.5,
-        "q_r": 0.5,
+        "q_l": 2.52,
+        "q_r": 2.52,
         "gain_l": 0.0,
-        "gain_r": -2.0,
+        "gain_r": -1.5,
         "desc": "Modo modal Front R (78.7 Hz) con pase neutro en L"
       },
-      "Band 3": {
+      "Band 2": {
         "freq": 31.3,
         "q_l": 1.0,
         "q_r": 1.0,
@@ -124,13 +116,21 @@
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
       },
-      "Band 4": {
+      "Band 3": {
         "freq": 39.4,
         "q_l": 1.0,
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
         "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
+      },
+      "Band 4": {
+        "freq": 49.6,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (49.6 Hz)"
       },
       "Band 5": {
         "freq": 500.0,
@@ -159,11 +159,18 @@
     },
     "sub_bands": {
       "Band 1": {
-        "freq": 78.7,
-        "q": 5.04,
-        "gain": -3.5,
+        "freq": 49.6,
+        "q": 1.587,
+        "gain": -8.0,
         "role": "sub_modal_resonance",
-        "desc": "Modo modal Subwoofer Focal Cub Evo (78.7 Hz)"
+        "desc": "Modo modal Subwoofer Focal Cub Evo (49.6 Hz)"
+      },
+      "Band 2": {
+        "freq": 62.5,
+        "q": 2.0,
+        "gain": -8.0,
+        "role": "sub_modal_resonance",
+        "desc": "Modo modal Subwoofer Focal Cub Evo (62.5 Hz)"
       }
     }
   },

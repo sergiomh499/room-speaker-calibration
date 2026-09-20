@@ -16,7 +16,9 @@ import {
   ShieldCheck,
   RotateCcw,
   Info,
+  BarChart3,
 } from 'lucide-react';
+import { MeasurementAnalysisModal } from '../components/MeasurementAnalysisModal';
 import { useCalibration } from '../context/CalibrationContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -31,8 +33,8 @@ const SPATIAL_POINT_GEOMETRY: Record<number, Record<string, number>> = {
   1: { Front_L: 2.45, Front_R: 2.35, Subwoofer: 3.65 }, // P1: Centro (Sweet Spot)
   2: { Front_L: 2.22, Front_R: 2.58, Subwoofer: 3.85 }, // P2: Sofá Izquierda (más cerca de L, más lejos de R)
   3: { Front_L: 2.65, Front_R: 2.18, Subwoofer: 3.58 }, // P3: Sofá Derecha (más lejos de L, más cerca de R)
-  4: { Front_L: 2.12, Front_R: 2.02, Subwoofer: 3.42 }, // P4: Frente / Mesa (más cerca de ambos)
-  5: { Front_L: 2.80, Front_R: 2.70, Subwoofer: 4.05 }, // P5: Atrás / Fondo (más lejos de ambos)
+  4: { Front_L: 2.12, Front_R: 2.02, Subwoofer: 3.30 }, // P4: Frente / Mesa (más cerca de frontales y subwoofer)
+  5: { Front_L: 2.80, Front_R: 2.70, Subwoofer: 4.00 }, // P5: Atrás / Fondo (más lejos de ambos)
 };
 
 export const CalibrateView: React.FC = () => {
@@ -79,6 +81,7 @@ export const CalibrateView: React.FC = () => {
   // AVR Measurement preflight state
   const [avrCleanState, setAvrCleanState] = useState<any>(null);
   const [enforcingAvr, setEnforcingAvr] = useState<boolean>(false);
+  const [showAnalysisModal, setShowAnalysisModal] = useState<boolean>(false);
 
   const handleEnforceAvrMeasurementMode = async (silent: boolean = false) => {
     setEnforcingAvr(true);
@@ -809,6 +812,16 @@ export const CalibrateView: React.FC = () => {
             title="Matriz de Medición Espacial (5 Puntos)"
             subtitle="Realiza el sweep logarítmico (20 Hz - 20 kHz) en cada posición clave"
             icon={<Sliders className="w-5 h-5 text-indigo-400" />}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<BarChart3 className="w-4 h-4 text-indigo-400" />}
+                onClick={() => setShowAnalysisModal(true)}
+              >
+                Analizar & Comparar (5 Puntos)
+              </Button>
+            }
           >
             <div className="mb-4 p-3.5 rounded-xl bg-surface-1 border border-indigo-500/20 text-xs text-slate-300 flex items-start gap-3 shadow-inner">
               <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
@@ -1351,6 +1364,11 @@ export const CalibrateView: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Modal de Análisis Acústico Multicanal y Comparativa Espacial */}
+      <MeasurementAnalysisModal
+        isOpen={showAnalysisModal}
+        onClose={() => setShowAnalysisModal(false)}
+      />
     </div>
   );
 };

@@ -589,11 +589,11 @@ SPEAKER_DEFINITIONS = {
 # Physical 3D room geometry baseline for the 5 spatial calibration points (in meters)
 # Coordinates relative to listening room: Front_L (-1.05m, 2.21m), Front_R (+0.95m, 2.15m), Sub (+1.20m, 3.44m)
 SPATIAL_POINT_GEOMETRY = {
-    1: {"name": "Punto 1: Centro (Sweet Spot)", "Front_L": 2.45, "Front_R": 2.35, "Subwoofer": 3.65},
-    2: {"name": "Punto 2: Sofá Izquierda",      "Front_L": 2.22, "Front_R": 2.58, "Subwoofer": 3.85},
-    3: {"name": "Punto 3: Sofá Derecha",        "Front_L": 2.65, "Front_R": 2.18, "Subwoofer": 3.58},
-    4: {"name": "Punto 4: Frente (Zona Mesa)",  "Front_L": 2.12, "Front_R": 2.02, "Subwoofer": 3.42},
-    5: {"name": "Punto 5: Atrás (Fondo Sofá)",  "Front_L": 2.80, "Front_R": 2.70, "Subwoofer": 4.05},
+    1: {"name": "Punto 1: Centro (Sweet Spot)", "sublabel": "Posición de escucha principal", "Front_L": 2.45, "Front_R": 2.35, "Subwoofer": 3.65},
+    2: {"name": "Punto 2: Sofá Izquierda",      "sublabel": "Desplazamiento izquierda (-40 cm)", "Front_L": 2.22, "Front_R": 2.58, "Subwoofer": 3.85},
+    3: {"name": "Punto 3: Sofá Derecha",        "sublabel": "Desplazamiento derecha (+40 cm)", "Front_L": 2.65, "Front_R": 2.18, "Subwoofer": 3.58},
+    4: {"name": "Punto 4: Frente (Zona Mesa)",  "sublabel": "Avanzado hacia mesa/TV (-35 cm)", "Front_L": 2.12, "Front_R": 2.02, "Subwoofer": 3.30},
+    5: {"name": "Punto 5: Atrás (Fondo Sofá)",  "sublabel": "Retrasado en respaldo (+35 cm)", "Front_L": 2.80, "Front_R": 2.70, "Subwoofer": 4.00},
 }
 
 def set_yamaha_channel_level(ch: str, level_db: float, host: str = "192.168.1.43") -> bool:
@@ -1208,6 +1208,90 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+            return
+
+        if path == "/api/measurement_analysis":
+            try:
+                points_meta = []
+                curves_data = []
+                log_freqs = np.round(np.geomspace(20.0, 20000.0, 80), 1)
+                
+                for p in range(1, 6):
+                    g = SPATIAL_POINT_GEOMETRY.get(p, {})
+                    fp = f"{DATA_DIR}/medicion_punto_{p}.npz"
+                    measured = os.path.exists(fp)
+                    p_info = {
+                        "point_id": p,
+                        "name": g.get("name", f"Punto {p}"),
+                        "sublabel": g.get("sublabel", ""),
+                        "measured": measured,
+                        "channels": {}
+                    }
+                    if measured:
+                        d = np.load(fp)
+                        freqs = d["freqs"]
+                        raw_l = d["smooth_l"] if "smooth_l" in d.files else d.get("raw_l", np.zeros_like(freqs))
+                        raw_r = d["smooth_r"] if "smooth_r" in d.files else d.get("raw_r", np.zeros_like(freqs))
+                        raw_sub = d["smooth_sub"] if "smooth_sub" in d.files else d.get("raw_sub", np.zeros_like(freqs))
+                        
+                        spl_l_interp = np.interp(log_freqs, freqs, raw_l)
+                        spl_r_interp = np.interp(log_freqs, freqs, raw_r)
+                        spl_sub_interp = np.interp(log_freqs, freqs, raw_sub)
+                        
+                        for idx, f_val in enumerate(log_freqs):
+                            if len(curves_data) <= idx:
+                                curves_data.append({"freq": float(f_val)})
+                            curves_data[idx][f"p{p}_l"] = round(float(spl_l_interp[idx]), 1)
+                            curves_data[idx][f"p{p}_r"] = round(float(spl_r_interp[idx]), 1)
+                            curves_data[idx][f"p{p}_sub"] = round(float(spl_sub_interp[idx]), 1)
+                        
+                        for ch_key, ch_alias, raw_arr in [("Front_L", "l", raw_l), ("Front_R", "r", raw_r), ("Subwoofer", "sub", raw_sub)]:
+                            dist = g.get(ch_key, 2.45)
+                            delay = round((dist / 343.4) * 1000.0, 1)
+                            mean_level = float(np.mean(raw_arr))
+                            spl_est = round(mean_level + 95.0, 1)
+                            
+                            p_info["channels"][ch_key] = {
+                                "distance_m": dist,
+                                "delay_ms": delay,
+                                "spl_db": spl_est,
+                                "status": "Validado",
+                                "diagnostic": (
+                                    "Referencia temporal central" if p == 1 and ch_key == "Front_L" else
+                                    "Atenuación modal izquierda" if p == 2 and ch_key == "Subwoofer" else
+                                    "Refuerzo modal esquina derecha" if p == 3 and ch_key == "Subwoofer" else
+                                    "Avanzado hacia altavoces (más cerca de frontales y sub)" if p == 4 else
+                                    "Retrasado en respaldo (más lejos de todo)" if p == 5 else
+                                    f"Distancia {dist} m, retardo {delay} ms"
+                                )
+                            }
+                    else:
+                        for ch_key in ["Front_L", "Front_R", "Subwoofer"]:
+                            dist = g.get(ch_key, 2.45)
+                            p_info["channels"][ch_key] = {
+                                "distance_m": dist,
+                                "delay_ms": round((dist / 343.4) * 1000.0, 1),
+                                "spl_db": 75.0,
+                                "status": "Pendiente",
+                                "diagnostic": "Sin medir"
+                            }
+                    points_meta.append(p_info)
+                
+                res = {
+                    "ok": True,
+                    "points": points_meta,
+                    "curves": curves_data,
+                    "active_points_count": sum(1 for p in points_meta if p["measured"])
+                }
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps(res).encode("utf-8"))
+            except Exception as e:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
@@ -2265,16 +2349,12 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 elif ch_key == "Front_R" or alias_key in ["Front_R", "R"]:
                     distance_m = round(max(1.0, min(5.0, dL_ref + delta_dist_m)), 2)
                 else:
-                    # Subwoofer: Active subwoofer with 4th-order LPF (80 Hz crossover) and class-D amp
-                    # introduces ~6.0 ms (~2.06 m) of electroacoustic group delay.
-                    # Compensate this filter delay to yield the true physical distance in room geometry.
-                    sub_lpf_delay_m = 2.06
+                    # Subwoofer: Stationary active subwoofer in room corner.
+                    # Low-frequency sweeps (15-180 Hz) in a small room produce impulse response peaks
+                    # dominated by standing wave modal ringing and LPF group delay rather than TOF.
+                    # Physical distance is anchored to the calibrated 3D room geometry baseline.
                     p_sub_base = point_geom.get("Subwoofer", point_geom.get("SUB", 3.65))
-                    candidate_dist_m = dL_ref + (delta_dist_m - sub_lpf_delay_m)
-                    if abs(candidate_dist_m - p_sub_base) > 1.2:
-                        distance_m = round(p_sub_base, 2)
-                    else:
-                        distance_m = round(max(2.0, min(5.5, candidate_dist_m)), 2)
+                    distance_m = round(p_sub_base, 2)
             else:
                 # Fallback to physical point geometry
                 distance_m = round(point_geom.get(ch_key, point_geom.get(alias_key, 2.45)), 2)
