@@ -15,6 +15,7 @@ import {
   Upload,
   ShieldCheck,
   RotateCcw,
+  Info,
 } from 'lucide-react';
 import { useCalibration } from '../context/CalibrationContext';
 import { Card } from '../components/ui/Card';
@@ -360,7 +361,8 @@ export const CalibrateView: React.FC = () => {
     try {
       for (let i = 0; i < activeChannels.length; i++) {
         const ch = activeChannels[i];
-        setMeasuringChannel(`Canal ${i + 1}/${activeChannels.length}: ${ch.name}`);
+        const syncText = ch.id !== 'Front_L' ? ` (Bip sync en Frontal Izquierdo → Barrido en ${ch.name})` : ` (Barrido en ${ch.name})`;
+        setMeasuringChannel(`Canal ${i + 1}/${activeChannels.length}: ${ch.name}${syncText}`);
         setSweepProgress(Math.round(((i + 0.1) / activeChannels.length) * 100));
 
         // 1. Start audio recording BEFORE triggering the sweep with generous buffer (7.2s)
@@ -808,6 +810,15 @@ export const CalibrateView: React.FC = () => {
             subtitle="Realiza el sweep logarítmico (20 Hz - 20 kHz) en cada posición clave"
             icon={<Sliders className="w-5 h-5 text-indigo-400" />}
           >
+            <div className="mb-4 p-3.5 rounded-xl bg-surface-1 border border-indigo-500/20 text-xs text-slate-300 flex items-start gap-3 shadow-inner">
+              <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold text-indigo-200">Sincronización Acústica (Estándar REW / Dirac Live):</span>
+                <span className="text-slate-400 block mt-1 leading-relaxed">
+                  Para cancelar la latencia y fluctuaciones de red Wi-Fi a 0.0 ms sin cables, cada medición emite un breve bip agudo en el altavoz <strong>Frontal Izquierdo</strong> (faro de referencia temporal). Inmediatamente después, el canal correspondiente reproduce su barrido acústico. En el subwoofer, el cálculo compensa automáticamente el retardo de grupo del filtro crossover (80 Hz) para reportar su distancia física real en sala.
+                </span>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {points.map(p => (
                 <div

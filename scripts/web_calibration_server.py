@@ -2265,8 +2265,16 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 elif ch_key == "Front_R" or alias_key in ["Front_R", "R"]:
                     distance_m = round(max(1.0, min(5.0, dL_ref + delta_dist_m)), 2)
                 else:
-                    # Subwoofer
-                    distance_m = round(max(1.5, min(6.0, dL_ref + delta_dist_m)), 2)
+                    # Subwoofer: Active subwoofer with 4th-order LPF (80 Hz crossover) and class-D amp
+                    # introduces ~6.0 ms (~2.06 m) of electroacoustic group delay.
+                    # Compensate this filter delay to yield the true physical distance in room geometry.
+                    sub_lpf_delay_m = 2.06
+                    p_sub_base = point_geom.get("Subwoofer", point_geom.get("SUB", 3.65))
+                    candidate_dist_m = dL_ref + (delta_dist_m - sub_lpf_delay_m)
+                    if abs(candidate_dist_m - p_sub_base) > 1.2:
+                        distance_m = round(p_sub_base, 2)
+                    else:
+                        distance_m = round(max(2.0, min(5.5, candidate_dist_m)), 2)
             else:
                 # Fallback to physical point geometry
                 distance_m = round(point_geom.get(ch_key, point_geom.get(alias_key, 2.45)), 2)
