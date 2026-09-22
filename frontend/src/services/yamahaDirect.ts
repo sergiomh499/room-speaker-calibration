@@ -1,10 +1,12 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
-
 export const YAMAHA_DEFAULT_IP = '192.168.1.43';
 
 export class YamahaDirectController {
   private ip: string;
+  private volumeDebounceTimer: any = null;
+  private pendingTargetVolume: number | null = null;
+  private isSendingVolume = false;
 
   constructor(ip: string = YAMAHA_DEFAULT_IP) {
     this.ip = ip;
@@ -19,9 +21,8 @@ export class YamahaDirectController {
   }
 
   /**
-   * Envía un comando XML crudo al endpoint YNC del receptor Yamaha RX-V673.
-   * Utiliza CapacitorHttp nativo en Android (sin restricciones CORS ni Mixed Content)
-   * o el proxy del servidor si se ejecuta en navegador web de escritorio.
+   * Envía un comando XML al endpoint YNC del receptor Yamaha RX-V673.
+   * Utiliza CapacitorHttp nativo en Android (sin CORS) o fetch directo.
    */
   async sendYncXml(xml: string): Promise<string> {
     const url = `http://${this.ip}/YamahaRemoteControl/ctrl`;
@@ -33,7 +34,9 @@ export class YamahaDirectController {
         headers: {
           'Content-Type': 'text/xml; charset=utf-8',
           'User-Agent': 'AV_Receiver/3.1'
-        }
+        },
+        connectTimeout: 1000,
+        readTimeout: 1500,
       });
       return response.data;
     }
@@ -49,13 +52,45 @@ export class YamahaDirectController {
   }
 
   /**
-   * Cambia el volumen maestro en decibelios (ej. -30.0 dB).
+   * Cambia el volumen maestro de forma reactiva con debounce de 60ms.
+   * Si el usuario pulsa [+] o [-] repetidas veces rápido, no satura el puerto HTTP
+   * del Yamaha con 10 conexiones encoladas, sino que envía el valor acumulado final al instante.
    */
-  async setVolume(volumeDb: number): Promise<boolean> {
-    const val = Math.round(volumeDb * 10);
-    const xml = `<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>${val}</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>`;
-    await this.sendYncXml(xml);
+  async setVolume(volumeDb: number, immediate = false): Promise<boolean> {
+    this.pendingTargetVolume = volumeDb;
+    if (immediate) {
+      clearTimeout(this.volumeDebounceTimer);
+      return this._flushVolume();
+    }
+
+    clearTimeout(this.volumeDebounceTimer);
+    this.volumeDebounceTimer = setTimeout(() => {
+      this._flushVolume();
+    }, 60);
     return true;
+  }
+
+  private async _flushVolume(): Promise<boolean> {
+    if (this.pendingTargetVolume === null || this.isSendingVolume) return false;
+    const target = this.pendingTargetVolume;
+    this.pendingTargetVolume = null;
+    this.isSendingVolume = true;
+
+    try {
+      const val = Math.round(target * 10);
+      const xml = `<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>${val}</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>`;
+      await this.sendYncXml(xml);
+      return true;
+    } catch (e) {
+      console.warn('Error enviando volumen a Yamaha:', e);
+      return false;
+    } finally {
+      this.isSendingVolume = false;
+      // Si mientras se enviaba se acumuló otra pulsación, despacharla
+      if (this.pendingTargetVolume !== null) {
+        this._flushVolume();
+      }
+    }
   }
 
   /**
@@ -107,10 +142,8 @@ export class YamahaDirectController {
 </item>
 </DIDL-Lite>`;
 
-    // 1. Cambiar a SERVER
     await this.setInput('SERVER');
 
-    // 2. SetAVTransportURI
     const bodySetUri = `<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
   <s:Body>
@@ -133,7 +166,6 @@ export class YamahaDirectController {
         }
       });
 
-      // 3. Play
       const bodyPlay = `<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
   <s:Body>
@@ -155,7 +187,6 @@ export class YamahaDirectController {
       return true;
     }
 
-    // Vía backend
     const resp = await fetch('/api/stream_to_avr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

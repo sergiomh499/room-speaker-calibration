@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Volume2, VolumeX, Plus, Minus, Sliders, ChevronUp, ChevronDown } from 'lucide-react';
 import { yamahaDirect } from '../../services/yamahaDirect';
 import { useCalibration } from '../../context/CalibrationContext';
@@ -7,34 +7,58 @@ export const MobileAvrRemote: React.FC = () => {
   const { avrStatus, toast } = useCalibration();
   const [isOpen, setIsOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [localVol, setLocalVol] = useState<number | null>(null);
 
-  // Parsear volumen actual
-  const currentVol = typeof avrStatus.avr_volume_db === 'number'
+  // Parsear volumen actual del estado del receptor
+  const serverVol = typeof avrStatus.avr_volume_db === 'number'
     ? avrStatus.avr_volume_db
     : parseFloat(String(avrStatus.avr_volume_db)) || -35.0;
-  const handleVolumeChange = async (delta: number) => {
+
+  const currentVol = localVol !== null ? localVol : serverVol;
+
+  // Sincronizar con el receptor cuando cambie externamente y no estemos ajustando activamente
+  useEffect(() => {
+    if (localVol === null) {
+      setLocalVol(serverVol);
+    }
+  }, [serverVol]);
+
+  const handleVolumeChange = (delta: number) => {
+    // Respuesta táctil y actualización visual instantánea (0ms lag)
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(12);
+    }
     const nextVol = Math.round((currentVol + delta) * 2) / 2;
-    await yamahaDirect.setVolume(nextVol);
-    toast(`Volumen: ${nextVol > 0 ? '+' : ''}${nextVol.toFixed(1)} dB`, 'info');
+    setLocalVol(nextVol);
+    yamahaDirect.setVolume(nextVol);
   };
 
-  const handleToggleMute = async () => {
+  const handleToggleMute = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(20);
+    }
     const nextMute = !isMuted;
     setIsMuted(nextMute);
     const xml = `<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Mute>${nextMute ? 'On' : 'Off'}</Mute></Volume></Main_Zone></YAMAHA_AV>`;
-    await yamahaDirect.sendYncXml(xml);
-    toast(nextMute ? 'Receptor silenciado (Mute)' : 'Sonido restaurado', 'info');
+    yamahaDirect.sendYncXml(xml);
+    toast(nextMute ? 'Silenciado (Mute)' : 'Sonido activado', 'info');
   };
 
-  const handleSceneSelect = async (sceneNum: number) => {
-    await yamahaDirect.selectScene(sceneNum);
+  const handleSceneSelect = (sceneNum: number) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([15, 30, 15]);
+    }
+    yamahaDirect.selectScene(sceneNum);
     toast(`Escena ${sceneNum} activada`, 'success');
   };
 
-  const handleTogglePeq = async () => {
+  const handleTogglePeq = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(15);
+    }
     const nextMode = avrStatus.avr_peq_mode === 'Manual' ? 'Through' : 'Manual';
-    await yamahaDirect.setPeqMode(nextMode);
-    toast(`Modo PEQ: ${nextMode}`, 'info');
+    yamahaDirect.setPeqMode(nextMode);
+    toast(`PEQ: ${nextMode}`, 'info');
   };
 
   return (
@@ -75,33 +99,49 @@ export const MobileAvrRemote: React.FC = () => {
           <div className="space-y-1.5">
             <div className="flex justify-between items-center text-xs font-mono">
               <span className="text-slate-400">Volumen Maestro</span>
-              <span className="text-white font-bold text-sm">{avrStatus.avr_volume_db} dB</span>
+              <span className="text-indigo-300 font-bold text-base tracking-tight">{currentVol > 0 ? '+' : ''}{currentVol.toFixed(1)} dB</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => handleVolumeChange(-1.0)}
-                className="flex-1 py-2.5 rounded-xl border border-border-subtle bg-surface-2 hover:bg-surface-2/80 active:scale-95 text-white flex items-center justify-center font-bold text-sm shadow-sm transition-all"
+                onClick={() => handleVolumeChange(-2.0)}
+                className="px-2.5 py-2 rounded-xl border border-white/5 bg-surface-2 hover:bg-surface-2/80 active:scale-95 text-slate-400 hover:text-white font-mono text-xs shadow-sm transition-all"
+                title="-2.0 dB"
+              >
+                -2
+              </button>
+              <button
+                type="button"
+                onClick={() => handleVolumeChange(-0.5)}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 bg-surface-2 hover:bg-surface-2/80 active:scale-95 text-white flex items-center justify-center font-bold text-sm shadow-sm transition-all"
               >
                 <Minus className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={handleToggleMute}
-                className={`px-3 py-2.5 rounded-xl border transition-all ${
+                className={`px-3 py-2.5 rounded-xl border transition-all active:scale-95 ${
                   isMuted
                     ? 'border-rose-500/50 bg-rose-500/20 text-rose-300'
-                    : 'border-border-subtle bg-surface-2 text-slate-300 hover:text-white'
+                    : 'border-white/10 bg-surface-2 text-slate-300 hover:text-white'
                 }`}
               >
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </button>
               <button
                 type="button"
-                onClick={() => handleVolumeChange(1.0)}
-                className="flex-1 py-2.5 rounded-xl border border-border-subtle bg-surface-2 hover:bg-surface-2/80 active:scale-95 text-white flex items-center justify-center font-bold text-sm shadow-sm transition-all"
+                onClick={() => handleVolumeChange(0.5)}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 bg-surface-2 hover:bg-surface-2/80 active:scale-95 text-white flex items-center justify-center font-bold text-sm shadow-sm transition-all"
               >
                 <Plus className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleVolumeChange(2.0)}
+                className="px-2.5 py-2 rounded-xl border border-white/5 bg-surface-2 hover:bg-surface-2/80 active:scale-95 text-slate-400 hover:text-white font-mono text-xs shadow-sm transition-all"
+                title="+2.0 dB"
+              >
+                +2
               </button>
             </div>
           </div>
