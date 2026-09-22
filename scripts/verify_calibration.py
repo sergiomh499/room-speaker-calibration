@@ -90,6 +90,7 @@ def evaluate_multi_target_alignment(
     resp_r: np.ndarray,
     target_keys: Optional[List[str]] = None,
     fc_hz: float = 64.0,
+    resp_sub: Optional[np.ndarray] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Evaluates measured Left/Right acoustic responses against multiple reference target curves.
@@ -118,6 +119,14 @@ def evaluate_multi_target_alignment(
         modal_err = avg_resp[modal_mask] - t_curve[modal_mask]
         max_peak_err = float(np.max(np.abs(modal_err))) if len(modal_err) > 0 else 0.0
         
+        sub_rms_err = None
+        if resp_sub is not None:
+            sub_mask = (freqs >= 25.0) & (freqs <= 100.0)
+            if np.any(sub_mask):
+                sub_err = resp_sub[sub_mask] - t_curve[sub_mask]
+                sub_err_zero_mean = sub_err - np.mean(sub_err)
+                sub_rms_err = round(float(np.sqrt(np.mean(sub_err_zero_mean ** 2))), 2)
+
         score = max(0.0, min(100.0, 100.0 - (rms_err * 12.0)))
         if rms_err <= 1.2:
             rating = "S-TIER"
@@ -132,7 +141,12 @@ def evaluate_multi_target_alignment(
             "target_id": t_key,
             "target_name": p_info.get("name", t_key),
             "category": p_info.get("category", "General"),
+            "badge": p_info.get("badge", ""),
+            "description": p_info.get("description", ""),
+            "crossover_hz": p_info.get("crossover_hz", 80.0),
+            "sub_supported": p_info.get("sub_supported", True),
             "rms_error_db": round(rms_err, 2),
+            "sub_rms_error_db": sub_rms_err,
             "max_peak_error_db": round(max_peak_err, 2),
             "fidelity_score_pct": round(score, 1),
             "rating": rating,
@@ -242,6 +256,8 @@ def run_verification(profile="harman_wide_room", save_fig=True):
     nat_fallback_r = sweet_base_r + (ypao_nat_ref_r - base_r)
 
     # Helper: Load file candidate or fallback, apply Joint-Stereo Target Alignment
+    mask_sub = (freqs >= 20.0) & (freqs <= 180.0)
+    # Helper: Load file candidate or fallback, apply Joint-Stereo Target Alignment
     def load_and_align_mode(file_candidates, def_l, def_r, name, short_name, color, ls):
         for fn in file_candidates:
             fp = os.path.join(DATA_DIR, fn)
@@ -251,6 +267,13 @@ def run_verification(profile="harman_wide_room", save_fig=True):
                     fm = d["freqs"]
                     sl = professional_psychoacoustic_smooth(fm, d["smooth_l"])
                     sr = professional_psychoacoustic_smooth(fm, d["smooth_r"])
+                    sub_arr = None
+                    if "smooth_sub" in d:
+                        ssub = professional_psychoacoustic_smooth(fm, d["smooth_sub"])
+                        if len(fm) != len(freqs) or not np.allclose(fm, freqs):
+                            sub_arr = np.interp(freqs, fm, ssub)
+                        else:
+                            sub_arr = ssub.copy()
                     if len(fm) != len(freqs) or not np.allclose(fm, freqs):
                         l_raw = np.interp(freqs, fm, sl)
                         r_raw = np.interp(freqs, fm, sr)
@@ -266,6 +289,7 @@ def run_verification(profile="harman_wide_room", save_fig=True):
                         "short_name": short_name,
                         "l": l_raw - common_offset,
                         "r": r_raw - common_offset,
+                        "sub": (sub_arr - common_offset) if sub_arr is not None else None,
                         "color": color,
                         "ls": ls,
                         "is_live": True,
@@ -284,6 +308,7 @@ def run_verification(profile="harman_wide_room", save_fig=True):
             "short_name": short_name,
             "l": def_l_psy - common_offset,
             "r": def_r_psy - common_offset,
+            "sub": None,
             "color": color,
             "ls": ls,
             "is_live": False,
@@ -328,7 +353,6 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         rms_l = float(np.sqrt(np.mean((cl[mask_eval] - target_curve[mask_eval])**2)))
         rms_r = float(np.sqrt(np.mean((cr[mask_eval] - target_curve[mask_eval])**2)))
         rms_avg = (rms_l + rms_r) / 2.0
-        
         std_l = float(np.std(cl[mask_eval]))
         std_r = float(np.std(cr[mask_eval]))
         std_avg = (std_l + std_r) / 2.0
@@ -338,6 +362,13 @@ def run_verification(profile="harman_wide_room", save_fig=True):
         
         peak_modal = float(cl[idx_modal])
         
+        # Calculate sub-bass RMS error (20-180 Hz) if sub data present
+        c_sub = c_data.get("sub")
+        rms_sub = None
+        if c_sub is not None:
+            # Evaluate sub against the low-frequency portion of target
+            rms_sub = float(np.sqrt(np.mean((c_sub[mask_sub] - target_curve[mask_sub])**2)))
+
         # Scientific Target Alignment Percentage: 100% at 0 dB RMS error, 0% at >= 10 dB error
         alignment_pct = float(max(0.0, min(100.0, (1.0 - min(1.0, rms_avg / 10.0)) * 100.0)))
         c_summary = {
@@ -347,6 +378,7 @@ def run_verification(profile="harman_wide_room", save_fig=True):
             "rms_avg_db": rms_avg,
             "rms_l_db": rms_l,
             "rms_r_db": rms_r,
+            "rms_sub_db": round(rms_sub, 2) if rms_sub is not None else None,
             "std_linearity_db": std_avg,
             "stereo_imbalance_db": imb_avg,
             "modal_peak_119hz_db": peak_modal,
@@ -354,13 +386,11 @@ def run_verification(profile="harman_wide_room", save_fig=True):
             "fidelity_score_pct": round(alignment_pct, 1),
             "color": c_data["color"],
             "is_live": bool(c_data.get("is_live", False)),
+            "has_sub": c_sub is not None,
             "provenance": "Medición en Vivo (Sweet Spot)" if c_data.get("is_live", False) else "Referencia Base / Modelo",
             "source_file": c_data.get("source_file", "")
         }
         comparative_results.append(c_summary)
-        
-    # Rank curves scientifically (Lowest RMS target error = best acoustic alignment)
-    comparative_results.sort(key=lambda x: (not x["is_live"], x["rms_avg_db"]))
     for rank_idx, r in enumerate(comparative_results, start=1):
         r["rank"] = rank_idx
         if rank_idx == 1:
@@ -513,8 +543,20 @@ def run_verification(profile="harman_wide_room", save_fig=True):
             best_curve.get("raw_r", peq_model_r),
             fc_hz=64.0
         ),
+        "curves_data": {
+            c_id: {
+                "name": c_data["name"],
+                "short_name": c_data["short_name"],
+                "color": c_data["color"],
+                "l": c_data["l"].tolist() if hasattr(c_data["l"], "tolist") else c_data["l"],
+                "r": c_data["r"].tolist() if hasattr(c_data["r"], "tolist") else c_data["r"],
+                "sub": c_data["sub"].tolist() if c_data.get("sub") is not None and hasattr(c_data["sub"], "tolist") else None,
+            }
+            for c_id, c_data in curves_dict.items()
+        },
+        "freqs": freqs.tolist() if hasattr(freqs, "tolist") else freqs,
+        "target_curve": target_curve.tolist() if hasattr(target_curve, "tolist") else target_curve,
     }
-    
     # 7. Generate Multi-Curve Comparative Figure
     if save_fig:
         plt.style.use('dark_background')

@@ -57,13 +57,15 @@ def compute_and_save_average():
             d = np.load(fpath)
             smooth_l = d["smooth_l"] if "smooth_l" in d else d.get("l_smooth")
             smooth_r = d["smooth_r"] if "smooth_r" in d else d.get("r_smooth")
+            smooth_sub = d.get("smooth_sub") if "smooth_sub" in d else d.get("raw_sub")
             measurements.append({
                 "label": label,
                 "freqs": d["freqs"],
                 "smooth_l": smooth_l,
-                "smooth_r": smooth_r
+                "smooth_r": smooth_r,
+                "smooth_sub": smooth_sub
             })
-            
+
     if not measurements:
         print("[!] No se encontraron puntos medidos (medicion_punto_*.npz).")
         return
@@ -74,14 +76,20 @@ def compute_and_save_average():
     
     p_l_total = np.zeros_like(freqs, dtype=float)
     p_r_total = np.zeros_like(freqs, dtype=float)
+    p_sub_total = np.zeros_like(freqs, dtype=float)
+    sub_count = 0
     
     for m in measurements:
         p_l_total += 10.0 ** (m["smooth_l"] / 10.0)
         p_r_total += 10.0 ** (m["smooth_r"] / 10.0)
+        if m.get("smooth_sub") is not None:
+            p_sub_total += 10.0 ** (m["smooth_sub"] / 10.0)
+            sub_count += 1
         
     avg_l = 10.0 * np.log10(p_l_total / float(n_meas) + 1e-12)
     avg_r = 10.0 * np.log10(p_r_total / float(n_meas) + 1e-12)
-    
+    avg_sub = 10.0 * np.log10(p_sub_total / float(max(1, sub_count)) + 1e-12) if sub_count > 0 else None
+
     def professional_psychoacoustic_smooth(freqs, mag_db):
         valid = (freqs >= 20.0) & (freqs <= 20000.0)
         f_val = freqs[valid]
@@ -136,13 +144,24 @@ def compute_and_save_average():
     # Apply psychoacoustic smoothing to spatial average
     avg_l_psy = professional_psychoacoustic_smooth(freqs, avg_l)
     avg_r_psy = professional_psychoacoustic_smooth(freqs, avg_r)
+    avg_sub_psy = professional_psychoacoustic_smooth(freqs, avg_sub) if avg_sub is not None else None
 
     # Save master spatial average dataset
     ts_str = time.strftime("%Y%m%d_%H%M%S")
     out_npz_ts = f"{DATA_DIR}/medicion_promedio_espacial_{ts_str}.npz"
     out_npz_latest = f"{DATA_DIR}/medicion_promedio_espacial.npz"
-    np.savez(out_npz_ts, freqs=freqs, smooth_l=avg_l_psy, smooth_r=avg_r_psy, raw_l=avg_l, raw_r=avg_r)
-    np.savez(out_npz_latest, freqs=freqs, smooth_l=avg_l_psy, smooth_r=avg_r_psy, raw_l=avg_l, raw_r=avg_r)
+    save_dict = {
+        "freqs": freqs,
+        "smooth_l": avg_l_psy,
+        "smooth_r": avg_r_psy,
+        "raw_l": avg_l,
+        "raw_r": avg_r
+    }
+    if avg_sub_psy is not None:
+        save_dict["smooth_sub"] = avg_sub_psy
+        save_dict["raw_sub"] = avg_sub
+    np.savez(out_npz_ts, **save_dict)
+    np.savez(out_npz_latest, **save_dict)
     print(f"[v] Promedio espacial maestro guardado en:\n  - {out_npz_ts}\n  - {out_npz_latest}")
     
     # Generate Normalized Plot (Standard Acoustic Engineering: 0 dB @ 1 kHz)

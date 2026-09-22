@@ -5,6 +5,19 @@ import json
 class TestMultiTargetEndpoints(unittest.TestCase):
     BASE_URL = "http://127.0.0.1:53317"
 
+    @classmethod
+    def setUpClass(cls):
+        try:
+            req = urllib.request.Request(f"{cls.BASE_URL}/api/targets")
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                cls.server_online = (resp.status == 200)
+        except Exception:
+            cls.server_online = False
+
+    def setUp(self):
+        if not self.server_online:
+            self.skipTest("Web calibration server offline on port 53317")
+
     def test_get_targets_endpoint(self):
         url = f"{self.BASE_URL}/api/targets"
         req = urllib.request.Request(url)

@@ -111,19 +111,19 @@ class TestReportGraphsSync(unittest.TestCase):
 
         # Check /figures/
         try:
-            fig_req = urllib.request.urlopen(f"{server_url}/figures/waterfall_csd_comparison.png", timeout=3.0)
-            cache_hdr = fig_req.headers.get("Cache-Control", "")
-            self.assertIn("no-cache", cache_hdr.lower())
-            self.assertIn("no-store", cache_hdr.lower())
+            with urllib.request.urlopen(f"{server_url}/figures/waterfall_csd_comparison.png", timeout=3.0) as fig_req:
+                cache_hdr = fig_req.headers.get("Cache-Control", "")
+                self.assertIn("no-cache", cache_hdr.lower())
+                self.assertIn("no-store", cache_hdr.lower())
         except Exception as e:
             self.skipTest(f"Server not reachable on {server_url}: {e}")
 
         # Check /api/download_pdf
         try:
-            pdf_req = urllib.request.urlopen(f"{server_url}/api/download_pdf?profile=harman_wide_room", timeout=5.0)
-            cache_hdr = pdf_req.headers.get("Cache-Control", "")
-            self.assertIn("no-cache", cache_hdr.lower())
-            self.assertEqual(pdf_req.headers.get("Content-Type"), "application/pdf")
+            with urllib.request.urlopen(f"{server_url}/api/download_pdf?profile=harman_wide_room", timeout=5.0) as pdf_req:
+                cache_hdr = pdf_req.headers.get("Cache-Control", "")
+                self.assertIn("no-cache", cache_hdr.lower())
+                self.assertEqual(pdf_req.headers.get("Content-Type"), "application/pdf")
         except Exception as e:
             self.skipTest(f"PDF download route failed on {server_url}: {e}")
 

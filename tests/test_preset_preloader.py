@@ -8,6 +8,19 @@ from unittest.mock import patch, MagicMock
 BASE_URL = "http://127.0.0.1:53317"
 
 class TestPresetPreloaderAndHistoryEndpoints(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        try:
+            req = urllib.request.Request(f"{BASE_URL}/api/session_state")
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                cls.server_online = (resp.status == 200)
+        except Exception:
+            cls.server_online = False
+
+    def setUp(self):
+        if not getattr(self, "server_online", False):
+            self.skipTest("Web calibration server offline on port 53317")
+
     def test_get_sessions_history_endpoint(self):
         req = urllib.request.Request(f"{BASE_URL}/api/sessions/history")
         with urllib.request.urlopen(req, timeout=5) as resp:
@@ -30,7 +43,7 @@ class TestPresetPreloaderAndHistoryEndpoints(unittest.TestCase):
                 self.assertFalse(data.get("ok"))
         except urllib.error.HTTPError as e:
             self.assertEqual(e.code, 400)
-
+            e.close()
     def test_preload_preset_endpoint_valid_profile(self):
         req = urllib.request.Request(
             f"{BASE_URL}/api/calibration/preload_preset",

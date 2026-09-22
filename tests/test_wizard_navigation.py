@@ -50,6 +50,8 @@ class TestWizardNavigation(unittest.TestCase):
         try:
             with urllib.request.urlopen(req_rec, timeout=2.0) as r:
                 pass
+        except urllib.error.HTTPError as e:
+            e.close()
         except Exception:
             pass
 
