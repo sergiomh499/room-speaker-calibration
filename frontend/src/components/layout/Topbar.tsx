@@ -88,27 +88,34 @@ export const Topbar: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-1/95 backdrop-blur-xl border-t border-border-strong px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom,0px),12px)] flex justify-around items-center">
-        {navItems.map(item => {
-          const active = view === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setView(item.id)}
-              className={`flex flex-col items-center justify-center w-16 py-1 rounded-xl text-[11px] font-medium transition-colors ${
-                active ? 'text-indigo-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <div className={`p-1.5 rounded-lg transition-transform ${active ? 'bg-indigo-500/20 scale-110' : ''}`}>
-                {item.icon}
-              </div>
-              <span className="mt-0.5">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {/* Floating iOS Liquid Glass Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-[max(env(safe-area-inset-bottom,0px),12px)] left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+        <nav className="pointer-events-auto w-full max-w-sm flex items-center justify-around px-2 py-1.5 rounded-3xl bg-slate-900/60 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] ring-1 ring-white/5">
+          {navItems.map(item => {
+            const active = view === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setView(item.id)}
+                className={`relative flex flex-col items-center justify-center flex-1 py-1 rounded-2xl transition-all duration-300 ${
+                  active ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {active && (
+                  <div className="absolute inset-0 bg-white/10 rounded-2xl backdrop-blur-md border border-white/15 shadow-sm transition-all -z-10" />
+                )}
+                <div className={`p-1 transition-transform duration-300 ${active ? 'scale-110 text-indigo-400' : ''}`}>
+                  {item.icon}
+                </div>
+                <span className={`text-[10px] tracking-tight mt-0.5 transition-all ${active ? 'font-semibold text-white' : 'font-normal text-slate-400'}`}>
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
     </>
   );
 };

@@ -35,26 +35,26 @@ const AppContent: React.FC = () => {
       </main>
       {/* Mobile AVR Remote widget */}
       <MobileAvrRemote />
-      {/* Floating Toast Container */}
-      <div className="fixed bottom-16 md:bottom-6 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
-        {toasts.map(t => (
+      {/* Minimalist Floating Pill Toast (iOS Dynamic Island Style) */}
+      <div className="fixed top-[max(env(safe-area-inset-top,0px),12px)] left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 pointer-events-none max-w-[90vw] sm:max-w-md w-full px-4">
+        {toasts.slice(-2).map(t => (
           <div
             key={t.id}
-            className={`pointer-events-auto flex items-center gap-2.5 p-3 rounded-xl border shadow-2xl backdrop-blur text-xs font-mono transition-all animate-in fade-in slide-in-from-bottom-2 ${
+            className={`pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full border shadow-xl backdrop-blur-2xl text-[11px] font-sans font-medium transition-all duration-300 animate-in fade-in slide-in-from-top-3 ${
               t.type === 'success'
-                ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200'
+                ? 'bg-slate-900/85 border-emerald-500/30 text-emerald-300 shadow-emerald-950/20'
                 : t.type === 'error'
-                ? 'bg-rose-950/90 border-rose-500/40 text-rose-200'
+                ? 'bg-slate-900/85 border-rose-500/30 text-rose-300 shadow-rose-950/20'
                 : t.type === 'warn'
-                ? 'bg-amber-950/90 border-amber-500/40 text-amber-200'
-                : 'bg-surface-2/95 border-border-strong text-slate-200'
+                ? 'bg-slate-900/85 border-amber-500/30 text-amber-300 shadow-amber-950/20'
+                : 'bg-slate-900/85 border-slate-700/40 text-slate-200 shadow-black/40'
             }`}
           >
-            {t.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-            {t.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
-            {t.type === 'warn' && <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
-            {t.type === 'info' && <Info className="w-4 h-4 text-indigo-400 shrink-0" />}
-            <span className="flex-1">{t.message}</span>
+            {t.type === 'success' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+            {t.type === 'error' && <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />}
+            {t.type === 'warn' && <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+            {t.type === 'info' && <Info className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
+            <span className="truncate">{t.message}</span>
           </div>
         ))}
       </div>
