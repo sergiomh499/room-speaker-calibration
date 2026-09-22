@@ -10,7 +10,10 @@ export interface TargetProfile {
   subwoofer_crossover_hz?: number;
   pros?: string[];
   cons?: string[];
-  bands?: Record<string, { f: number; q: number; gain: number }>;
+  bands?: Record<string, any>;
+  sub_bands?: Record<string, any>;
+  supported_topologies?: string[];
+  sub_supported?: boolean;
 }
 
 export interface AVRStatus {

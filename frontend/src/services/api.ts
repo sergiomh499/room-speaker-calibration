@@ -46,7 +46,7 @@ export const api = {
     return fetchApi<Record<string, TargetProfile>>('/api/community_profiles');
   },
 
-  async getMeasuredCurve(profile: string = 'harman_2_1'): Promise<any> {
+  async getMeasuredCurve(profile: string = 'harman_wide_room'): Promise<any> {
     return fetchApi<any>(`/api/measured_curve?profile=${encodeURIComponent(profile)}`);
   },
 
@@ -92,7 +92,7 @@ export const api = {
   async autoAlignLevels(): Promise<any> {
     return fetchApi<any>('/api/auto_align_levels', { method: 'POST' });
   },
-  async finalizeCalibration(profile: string = 'harman_2_1'): Promise<any> {
+  async finalizeCalibration(profile: string = 'harman_wide_room'): Promise<any> {
     return fetchApi<any>(`/api/finalize_calibration?profile=${encodeURIComponent(profile)}`);
   },
 
@@ -108,6 +108,38 @@ export const api = {
     });
   },
 
+  async setSubwooferConfig(phase: string = 'Normal', crossoverHz: number = 80.0, extraBass: boolean = false): Promise<any> {
+    return fetchApi<any>('/api/set_subwoofer_config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase, crossover_hz: crossoverHz, extra_bass: extraBass }),
+    });
+  },
+
+  async getVerificationCurves(profile: string = 'harman_wide_room'): Promise<any> {
+    return fetchApi<any>(`/api/verification_curves?profile=${encodeURIComponent(profile)}`);
+  },
+  async getVerificationComparison(profile: string = 'harman_wide_room'): Promise<any> {
+    return fetchApi<any>(`/api/verification_comparison?profile=${encodeURIComponent(profile)}`);
+  },
+  async uploadVerificationSweep(
+    channel: string,
+    mode: string = 'manual',
+    profile: string = 'harman_wide_room',
+    audioBytes: Uint8Array
+  ): Promise<any> {
+    const url = `/api/upload_verification_sweep?channel=${encodeURIComponent(channel)}&mode=${encodeURIComponent(mode)}&profile=${encodeURIComponent(profile)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+      },
+      body: new Blob([audioBytes.buffer as ArrayBuffer]),
+    });
+    return res.json();
+  },
+
+
   async setChannelDistances(distances: Record<string, number>): Promise<any> {
     return fetchApi<any>('/api/set_channel_distances', {
       method: 'POST',
@@ -121,6 +153,18 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ profile, scene }),
+    });
+  },
+
+  async getPointHistory(point: number): Promise<any> {
+    return fetchApi<any>(`/api/point_history?point=${point}`);
+  },
+
+  async loadPointHistory(point: number, id: string): Promise<any> {
+    return fetchApi<any>('/api/point_history/load', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ point, id }),
     });
   },
 
@@ -166,5 +210,23 @@ export const api = {
 
   async getMeasurementAnalysis(): Promise<any> {
     return fetchApi<any>('/api/measurement_analysis');
-  }
+  },
+  async calculateAndSavePEQ(profile: string, layout: string = '2.1', crossoverHz: number = 80.0): Promise<any> {
+    return fetchApi<any>('/api/calibration/calculate_and_save_peq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profile,
+        layout,
+        crossover_hz: crossoverHz
+      })
+    });
+  },
+  async setPeqMode(mode: string): Promise<any> {
+    return fetchApi<any>('/api/set_peq_mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, prepare_sweep: '0' })
+    });
+  },
 };

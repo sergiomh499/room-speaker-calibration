@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { get, set } from 'idb-keyval';
 import { AVRStatus, Topology, TargetProfile, MeasurementPoint, SubwooferConfig } from '../types';
 import { api } from '../services/api';
-
 export type AppView = 'home' | 'calibrate' | 'history' | 'settings';
 
 interface CalibrationContextType {
@@ -55,7 +55,7 @@ export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [avrStatus, setAvrStatus] = useState<AVRStatus>(defaultAVR);
   const [points, setPoints] = useState<MeasurementPoint[]>(initialPoints);
   const [profiles, setProfiles] = useState<TargetProfile[]>([]);
-  const [activeProfileId, setActiveProfileId] = useState<string>('harman_2_1');
+  const [activeProfileId, setActiveProfileId] = useState<string>('harman_wide_room');
   const [subwooferConfig, setSubwooferConfig] = useState<SubwooferConfig>({
     crossover_hz: 80,
     phase_degrees: 0,
@@ -100,6 +100,43 @@ export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ childre
       console.error('Error loading target profiles:', err);
     });
   }, []);
+  // Load physical measurement points on mount
+  useEffect(() => {
+    api.getMeasurementAnalysis().then(data => {
+      if (data && data.points && data.points.length > 0) {
+        const loadedPoints: MeasurementPoint[] = data.points.map((p: any) => ({
+          id: p.point_id,
+          label: p.name,
+          sublabel: p.sublabel,
+          measured: p.measured,
+          channels: p.channels,
+          active: p.point_id === 1,
+        }));
+        setPoints(loadedPoints);
+      }
+    }).catch(err => {
+      console.error('Error loading measurement points analysis:', err);
+    });
+  }, []);
+  // Restore saved state from IndexedDB
+  useEffect(() => {
+    get<Topology>('calibration_topology').then(saved => {
+      if (saved) setTopology(saved);
+    }).catch(() => {});
+    get<string>('calibration_active_profile').then(saved => {
+      if (saved) setActiveProfileId(saved);
+    }).catch(() => {});
+  }, []);
+
+  // Persist state to IndexedDB
+  useEffect(() => {
+    set('calibration_topology', topology).catch(() => {});
+  }, [topology]);
+
+  useEffect(() => {
+    set('calibration_active_profile', activeProfileId).catch(() => {});
+  }, [activeProfileId]);
+
 
   return (
     <CalibrationContext.Provider

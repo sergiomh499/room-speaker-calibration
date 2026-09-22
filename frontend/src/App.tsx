@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { CalibrationProvider, useCalibration } from './context/CalibrationContext';
 import { Topbar } from './components/layout/Topbar';
 import { HomeView } from './views/HomeView';
-import { CalibrateView } from './views/CalibrateView';
-import { HistoryView } from './views/HistoryView';
-import { SettingsView } from './views/SettingsView';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, Loader2 } from 'lucide-react';
+
+const CalibrateView = lazy(() => import('./views/CalibrateView').then(m => ({ default: m.CalibrateView })));
+const HistoryView = lazy(() => import('./views/HistoryView').then(m => ({ default: m.HistoryView })));
+const SettingsView = lazy(() => import('./views/SettingsView').then(m => ({ default: m.SettingsView })));
+
+const ViewFallback: React.FC = () => (
+  <div className="flex flex-col items-center justify-center min-h-[400px] gap-3 text-slate-400 font-mono text-xs">
+    <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+    <span>Cargando módulo de calibración...</span>
+  </div>
+);
 
 const AppContent: React.FC = () => {
   const { view, toasts } = useCalibration();
@@ -15,12 +23,13 @@ const AppContent: React.FC = () => {
       <Topbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 pb-24 md:pb-12">
-        {view === 'home' && <HomeView />}
-        {view === 'calibrate' && <CalibrateView />}
-        {view === 'history' && <HistoryView />}
-        {view === 'settings' && <SettingsView />}
+        <Suspense fallback={<ViewFallback />}>
+          {view === 'home' && <HomeView />}
+          {view === 'calibrate' && <CalibrateView />}
+          {view === 'history' && <HistoryView />}
+          {view === 'settings' && <SettingsView />}
+        </Suspense>
       </main>
-
       {/* Floating Toast Container */}
       <div className="fixed bottom-16 md:bottom-6 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
         {toasts.map(t => (

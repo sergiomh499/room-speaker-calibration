@@ -5,9 +5,10 @@ import { Button } from './Button';
 interface VUMeterProps {
   onLevelChange?: (levelDb: number) => void;
   className?: string;
+  autoStart?: boolean;
 }
 
-export const VUMeter: React.FC<VUMeterProps> = ({ onLevelChange, className }) => {
+export const VUMeter: React.FC<VUMeterProps> = ({ onLevelChange, className, autoStart }) => {
   const [isActive, setIsActive] = useState<boolean>(false);
   const [levelDb, setLevelDb] = useState<number>(-60);
   const [peakDb, setPeakDb] = useState<number>(-60);
@@ -18,6 +19,12 @@ export const VUMeter: React.FC<VUMeterProps> = ({ onLevelChange, className }) =>
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const peakDecayRef = useRef<number>(-60);
+  useEffect(() => {
+    if (autoStart && !isActive) {
+      startMonitoring();
+    }
+  }, [autoStart]);
+
 
   const startMonitoring = async () => {
     try {

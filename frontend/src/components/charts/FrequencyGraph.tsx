@@ -41,8 +41,33 @@ export const FrequencyGraph: React.FC<FrequencyGraphProps> = ({
     }
     return `${val}`;
   };
-
   const domainTicks = useMemo(() => [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000], []);
+
+  const yDomain = useMemo<[number, number]>(() => {
+    if (!data || data.length === 0) return [-36, 12];
+    let minVal = 0;
+    let maxVal = 0;
+    data.forEach(d => {
+      [d.measured, d.target, d.corrected].forEach(v => {
+        if (typeof v === 'number' && !isNaN(v)) {
+          if (v < minVal) minVal = v;
+          if (v > maxVal) maxVal = v;
+        }
+      });
+    });
+    const floorMin = Math.max(-48, Math.floor((minVal - 3) / 6) * 6);
+    const ceilMax = Math.min(18, Math.ceil((maxVal + 3) / 6) * 6);
+    return [floorMin, ceilMax];
+  }, [data]);
+
+  const yTicks = useMemo(() => {
+    const [min, max] = yDomain;
+    const ticks: number[] = [];
+    for (let t = min; t <= max; t += 6) {
+      ticks.push(t);
+    }
+    return ticks;
+  }, [yDomain]);
 
   return (
     <div className="w-full bg-surface-1/90 border border-border-subtle rounded-xl p-4 sm:p-5 flex flex-col gap-3">
@@ -115,8 +140,8 @@ export const FrequencyGraph: React.FC<FrequencyGraphProps> = ({
               fontFamily="JetBrains Mono"
             />
             <YAxis
-              domain={[-24, 12]}
-              ticks={[-24, -18, -12, -6, 0, 6, 12]}
+              domain={yDomain}
+              ticks={yTicks}
               stroke="#64748b"
               fontSize={11}
               fontFamily="JetBrains Mono"
@@ -183,6 +208,7 @@ export const FrequencyGraph: React.FC<FrequencyGraphProps> = ({
                 strokeWidth={1.5}
                 dot={false}
                 isAnimationActive={false}
+                connectNulls={true}
               />
             )}
 
@@ -195,6 +221,7 @@ export const FrequencyGraph: React.FC<FrequencyGraphProps> = ({
                 strokeDasharray="5 5"
                 dot={false}
                 isAnimationActive={false}
+                connectNulls={true}
               />
             )}
 
@@ -206,6 +233,7 @@ export const FrequencyGraph: React.FC<FrequencyGraphProps> = ({
                 strokeWidth={2.5}
                 dot={false}
                 isAnimationActive={false}
+                connectNulls={true}
               />
             )}
           </LineChart>

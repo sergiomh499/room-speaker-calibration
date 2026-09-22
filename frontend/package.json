@@ -9,14 +9,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/three": "^0.186.0",
+    "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
+    "idb-keyval": "^6.3.0",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.15.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "three": "^0.186.0"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",

@@ -7,10 +7,12 @@ import {
   Info,
   Volume2,
   RefreshCw,
+  Compass,
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { api } from '../services/api';
+import { SpatialRoom3D } from './charts/SpatialRoom3D';
 import {
   ResponsiveContainer,
   LineChart,
@@ -43,7 +45,7 @@ export const MeasurementAnalysisModal: React.FC<MeasurementAnalysisModalProps> =
   const [data, setData] = useState<any>(null);
   const [selectedPoint, setSelectedPoint] = useState<number | 'all'>('all');
   const [selectedChannel, setSelectedChannel] = useState<'all' | 'l' | 'r' | 'sub'>('all');
-  const [activeTab, setActiveTab] = useState<'metrics' | 'curves' | 'diagnostic'>('metrics');
+  const [activeTab, setActiveTab] = useState<'3d' | 'metrics' | 'curves' | 'diagnostic'>('3d');
 
   const loadData = async () => {
     setLoading(true);
@@ -71,7 +73,7 @@ export const MeasurementAnalysisModal: React.FC<MeasurementAnalysisModalProps> =
   const curves = data?.curves || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-surface-1 border border-border-strong rounded-2xl shadow-2xl overflow-hidden text-slate-200">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle bg-surface-0/60">
@@ -157,9 +159,18 @@ export const MeasurementAnalysisModal: React.FC<MeasurementAnalysisModalProps> =
           {/* View Mode Buttons */}
           <div className="flex items-center gap-1 bg-surface-1 p-1 rounded-lg border border-border-subtle">
             <button
+              onClick={() => setActiveTab('3d')}
+              className={`px-3 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === '3d' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              Visualización 3D & Promedio
+            </button>
+            <button
               onClick={() => setActiveTab('metrics')}
               className={`px-3 py-1 rounded-md font-medium transition-all ${
-                activeTab === 'metrics' ? 'bg-indigo-500/20 text-indigo-300 font-semibold' : 'text-slate-400 hover:text-white'
+                activeTab === 'metrics' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
               }`}
             >
               Telemetría
@@ -167,7 +178,7 @@ export const MeasurementAnalysisModal: React.FC<MeasurementAnalysisModalProps> =
             <button
               onClick={() => setActiveTab('curves')}
               className={`px-3 py-1 rounded-md font-medium transition-all ${
-                activeTab === 'curves' ? 'bg-indigo-500/20 text-indigo-300 font-semibold' : 'text-slate-400 hover:text-white'
+                activeTab === 'curves' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
               }`}
             >
               Gráficas
@@ -175,12 +186,13 @@ export const MeasurementAnalysisModal: React.FC<MeasurementAnalysisModalProps> =
             <button
               onClick={() => setActiveTab('diagnostic')}
               className={`px-3 py-1 rounded-md font-medium transition-all ${
-                activeTab === 'diagnostic' ? 'bg-indigo-500/20 text-indigo-300 font-semibold' : 'text-slate-400 hover:text-white'
+                activeTab === 'diagnostic' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
               }`}
             >
               Diagnóstico
             </button>
           </div>
+
         </div>
 
         {/* Modal Body */}
@@ -192,6 +204,13 @@ export const MeasurementAnalysisModal: React.FC<MeasurementAnalysisModalProps> =
             </div>
           ) : (
             <>
+              {/* TAB 0: 3D ROOM VISUALIZATION & AVERAGED CLUSTER */}
+              {activeTab === '3d' && (
+                <div className="space-y-3">
+                  <SpatialRoom3D data={data?.spatial_3d} height={520} />
+                </div>
+              )}
+
               {/* TAB 1: METRICS & TELEMETRY TABLE */}
               {activeTab === 'metrics' && (
                 <div className="space-y-4">
@@ -224,8 +243,8 @@ export const MeasurementAnalysisModal: React.FC<MeasurementAnalysisModalProps> =
                             return chKeys.map((chKey, idx) => {
                               const chData = p.channels[chKey] || {};
                               const isSub = chKey === 'Subwoofer';
-                              const p1Dist = points[0]?.channels[chKey]?.distance_m || chData.distance_m;
-                              const deltaP1 = chData.distance_m - p1Dist;
+                              const p1Dist = points[0]?.channels[chKey]?.distance_m;
+                              const deltaP1 = (chData.distance_m != null && p1Dist != null) ? chData.distance_m - p1Dist : null;
 
                               return (
                                 <tr
@@ -287,17 +306,16 @@ export const MeasurementAnalysisModal: React.FC<MeasurementAnalysisModalProps> =
 
                                   <td className="py-3 px-3 text-right font-medium">
                                     <span className="text-white">{chData.distance_m ? `${chData.distance_m} m` : '—'}</span>
-                                    {p.point_id !== 1 && deltaP1 !== 0 && (
+                                    {p.point_id !== 1 && deltaP1 != null && deltaP1 !== 0 && (
                                       <span
                                         className={`ml-1 text-[10px] ${
-                                          deltaP1 < 0 ? 'text-emerald-400 font-bold' : 'text-amber-400'
+                                          deltaP1 > 0 ? 'text-amber-400' : 'text-emerald-400'
                                         }`}
                                       >
                                         ({deltaP1 > 0 ? `+${deltaP1.toFixed(2)}` : deltaP1.toFixed(2)}m)
                                       </span>
                                     )}
                                   </td>
-
                                   <td className="py-3 px-3 text-right text-slate-400">
                                     {chData.delay_ms ? `${chData.delay_ms} ms` : '—'}
                                   </td>

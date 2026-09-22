@@ -55,17 +55,20 @@ export const HomeView: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    api.getMeasuredCurve('harman_2_1')
+    api.getMeasuredCurve('harman_wide_room')
       .then(res => {
         if (!isMounted) return;
         if (res && res.freqs && res.freqs.length > 0) {
           const points: CurveDataPoint[] = [];
           for (let i = 0; i < res.freqs.length; i += 2) {
+            const corr = res.corrected_l?.[i] ?? res.simulated_l?.[i] ?? res.simulated_avg?.[i];
+            const meas = res.measured_l?.[i] ?? res.measured_avg?.[i];
+            const tgt = res.target?.[i];
             points.push({
               freq: Math.round(res.freqs[i]),
-              measured: Math.round(res.measured_l[i] * 10) / 10,
-              target: Math.round(res.target[i] * 10) / 10,
-              corrected: Math.round(res.corrected_l[i] * 10) / 10,
+              measured: meas !== undefined && !isNaN(meas) ? Math.round(meas * 10) / 10 : undefined,
+              target: tgt !== undefined && !isNaN(tgt) ? Math.round(tgt * 10) / 10 : undefined,
+              corrected: corr !== undefined && !isNaN(corr) ? Math.round(corr * 10) / 10 : undefined,
             });
           }
           setCurveData(points);
