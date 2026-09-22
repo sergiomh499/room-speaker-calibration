@@ -11,3 +11,17 @@ data/calibrations/
 node_modules/
 frontend/node_modules/
 *.bak
+
+# Ephemeral measurement and calibration runs
+*.db
+*.db-journal
+*.db-wal
+data/*_2026*.npz
+data/*_202*.npz
+reports/*_202*.pdf
+reports/Informe_Sala_*.pdf
+reports/room_report_plot.png
+figures/*_202*.png
+
+# Frontend build artifacts
+frontend/dist/
