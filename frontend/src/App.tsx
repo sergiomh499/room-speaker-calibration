@@ -3,6 +3,8 @@ import { CalibrationProvider, useCalibration } from './context/CalibrationContex
 import { Topbar } from './components/layout/Topbar';
 import { HomeView } from './views/HomeView';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, Loader2 } from 'lucide-react';
+import { MobileAvrRemote } from './components/mobile/MobileAvrRemote';
+import { MusicStreamingHub } from './components/music/MusicStreamingHub';
 
 const CalibrateView = lazy(() => import('./views/CalibrateView').then(m => ({ default: m.CalibrateView })));
 const HistoryView = lazy(() => import('./views/HistoryView').then(m => ({ default: m.HistoryView })));
@@ -26,10 +28,13 @@ const AppContent: React.FC = () => {
         <Suspense fallback={<ViewFallback />}>
           {view === 'home' && <HomeView />}
           {view === 'calibrate' && <CalibrateView />}
+          {view === 'music' && <MusicStreamingHub />}
           {view === 'history' && <HistoryView />}
           {view === 'settings' && <SettingsView />}
         </Suspense>
       </main>
+      {/* Mobile AVR Remote widget */}
+      <MobileAvrRemote />
       {/* Floating Toast Container */}
       <div className="fixed bottom-16 md:bottom-6 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
         {toasts.map(t => (

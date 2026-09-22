@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { get, set } from 'idb-keyval';
 import { AVRStatus, Topology, TargetProfile, MeasurementPoint, SubwooferConfig } from '../types';
 import { api } from '../services/api';
-export type AppView = 'home' | 'calibrate' | 'history' | 'settings';
+export type AppView = 'home' | 'calibrate' | 'music' | 'history' | 'settings';
 
 interface CalibrationContextType {
   view: AppView;

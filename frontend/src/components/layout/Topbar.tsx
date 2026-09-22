@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Sliders, History, Settings, Activity, Volume2, Radio } from 'lucide-react';
+import { Home, Sliders, History, Settings, Activity, Volume2, Radio, Music } from 'lucide-react';
 import { useCalibration, AppView } from '../../context/CalibrationContext';
 import { Pill } from '../ui/Pill';
 
@@ -9,6 +9,7 @@ export const Topbar: React.FC = () => {
   const navItems: Array<{ id: AppView; label: string; icon: React.ReactNode }> = [
     { id: 'home', label: 'Sala', icon: <Home className="w-4 h-4" /> },
     { id: 'calibrate', label: 'Calibrar', icon: <Sliders className="w-4 h-4" /> },
+    { id: 'music', label: 'Música', icon: <Music className="w-4 h-4" /> },
     { id: 'history', label: 'Historial', icon: <History className="w-4 h-4" /> },
     { id: 'settings', label: 'Ajustes', icon: <Settings className="w-4 h-4" /> },
   ];
