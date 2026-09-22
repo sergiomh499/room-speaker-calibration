@@ -229,4 +229,24 @@ export const api = {
       body: JSON.stringify({ mode, prepare_sweep: '0' })
     });
   },
+  async selectScene(num: number): Promise<any> {
+    return fetchApi<any>(`/api/select_scene?num=${num}`, { method: 'POST' });
+  },
+  async streamToAvr(file: string, title: string = 'Sweep Calibración'): Promise<any> {
+    return fetchApi<any>('/api/stream_to_avr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file, title }),
+    });
+  },
+  async stopAvrStream(): Promise<any> {
+    return fetchApi<any>('/api/stop_avr_stream', { method: 'POST' });
+  },
+  async sendDirectAvrXml(xml: string, host: string = '192.168.1.43'): Promise<any> {
+    return fetchApi<any>('/api/send_cmd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ xml, host }),
+    });
+  },
 };
