@@ -98,7 +98,7 @@ export const HomeView: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-6 pb-20 md:pb-8">
+    <div className="space-y-6 pb-28 md:pb-8">
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-surface-1 via-surface-1 to-indigo-950/40 border border-border-subtle p-6 sm:p-8">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />

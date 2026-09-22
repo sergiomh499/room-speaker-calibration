@@ -46,20 +46,33 @@ export const api = {
           const pMatch = resp.match(/<Power>(.*?)<\/Power>/);
           const inMatch = resp.match(/<Input_Sel>(.*?)<\/Input_Sel>/);
           const volMatch = resp.match(/<Val>(-?\d+)<\/Val>/);
+          const drcMatch = resp.match(/<Adaptive_DRC>(.*?)<\/Adaptive_DRC>/);
+
+          let peqMode = 'Manual';
+          try {
+            const peqXml = `<YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_1><PEQ><Sel>GetParam</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>`;
+            const peqResp = await yamahaDirect.sendYncXml(peqXml);
+            const peqMatch = peqResp.match(/<Sel>(.*?)<\/Sel>/);
+            if (peqMatch) peqMode = peqMatch[1];
+          } catch {}
+
+
           return {
             ok: true,
             avr_power: pMatch ? pMatch[1] : 'On',
             avr_input: inMatch ? inMatch[1] : 'AV4',
-            avr_volume_db: volMatch ? (parseInt(volMatch[1], 10) / 10).toFixed(1) : '-30.0',
-            avr_peq_mode: 'Manual PEQ',
-            avr_drc: 'Off',
+            avr_volume_db: volMatch ? (parseInt(volMatch[1], 10) / 10).toFixed(1) : '-40.0',
+            avr_peq_mode: peqMode,
+            avr_drc: drcMatch ? drcMatch[1] : 'Off',
             points_measured: 5,
             points_total: 5,
             calibration_ready: true,
             online: true,
           };
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Error en fallback directo a Yamaha:', err);
+      }
       return {
         ok: false,
         avr_power: 'Offline',

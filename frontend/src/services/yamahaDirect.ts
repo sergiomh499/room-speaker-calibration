@@ -35,8 +35,8 @@ export class YamahaDirectController {
           'Content-Type': 'text/xml; charset=utf-8',
           'User-Agent': 'AV_Receiver/3.1'
         },
-        connectTimeout: 1000,
-        readTimeout: 1500,
+        connectTimeout: 4000,
+        readTimeout: 5000,
       });
       return response.data;
     }
