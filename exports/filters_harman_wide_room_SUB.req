@@ -1,0 +1,10 @@
+Filter Settings file
+
+Room EQ V5.20 or later
+Dated: 2026-09-22 19:01:30
+Notes: Room Speaker Calibration - Profile: harman_wide_room - Channel: SUB
+Hardware: Mic: pixel_9_pro_calibrated | Amp: yamaha_rx_v673 | Speakers: q_acoustics_3020i
+
+Equaliser: Generic
+Filter  1: ON  PK       Fc     49.6 Hz  Gain   -8.0 dB  Q 1.587
+Filter  2: ON  PK       Fc     62.5 Hz  Gain   -8.0 dB  Q 2.000

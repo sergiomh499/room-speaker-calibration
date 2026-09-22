@@ -41,49 +41,46 @@ def load_active_hardware() -> dict[str, str]:
     }
 
 
-def get_profile_filters(profile: str = "harman_wide_room") -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Retrieve 7-band filters for Front L and Front R for a given target profile.
+def get_profile_filters(profile: str = "harman_wide_room") -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Retrieve 7-band filters for Front L, Front R and Subwoofer modal bands for a given target profile."""
+    bands_l = []
+    bands_r = []
+    bands_sub = []
 
-    Attempts to load from optimized calibration data or auto_calibrate calculation.
-    """
-    import numpy as np
+    # 1. Primary source: read directly from config/targets.json
+    targets_path = CONFIG_DIR / "targets.json"
+    if targets_path.exists():
+        try:
+            with open(targets_path, "r", encoding="utf-8") as tf:
+                t_data = json.load(tf)
+            p_info = t_data.get(profile, {})
+            if "bands" in p_info:
+                for idx, (b_name, b_data) in enumerate(p_info["bands"].items(), start=1):
+                    freq = float(b_data.get("freq", 1000.0))
+                    q_l = float(b_data.get("q_l", b_data.get("q", 1.0)))
+                    q_r = float(b_data.get("q_r", b_data.get("q", 1.0)))
+                    gain_l = float(b_data.get("gain_l", b_data.get("gain", 0.0)))
+                    gain_r = float(b_data.get("gain_r", b_data.get("gain", 0.0)))
+                    bands_l.append({"band": idx, "freq_hz": freq, "q": q_l, "gain_db": gain_l, "type": "PK"})
+                    bands_r.append({"band": idx, "freq_hz": freq, "q": q_r, "gain_db": gain_r, "type": "PK"})
+            if "sub_bands" in p_info:
+                for idx, (b_name, b_data) in enumerate(p_info["sub_bands"].items(), start=1):
+                    freq = float(b_data.get("freq", 62.5))
+                    q = float(b_data.get("q", 2.0))
+                    gain = float(b_data.get("gain", 0.0))
+                    bands_sub.append({"band": idx, "freq_hz": freq, "q": q, "gain_db": gain, "type": "PK"})
+            if bands_l and bands_r:
+                return bands_l, bands_r, bands_sub
+        except Exception as e:
+            print(f"[Aviso] Error leyendo targets.json ({e}), intentando optimización dinámica.")
 
-    # Check for precomputed verification or calibration data
-    data_file = DATA_DIR / f"medicion_verificacion_manual_{profile}.npz"
-    if not data_file.exists():
-        data_file = DATA_DIR / "medicion_promedio_espacial.npz"
-    if not data_file.exists():
-        data_file = DATA_DIR / "medicion_real_calibracion.npz"
-
-    # Fallback to standard discrete matrix if file not ready
-    if not data_file.exists():
-        # Canonical baseline bands for fallback
-        bands_l = [
-            {"band": 1, "freq_hz": 2520.0, "q": 1.260, "gain_db": 1.5, "type": "PK"},
-            {"band": 2, "freq_hz": 125.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 3, "freq_hz": 315.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 4, "freq_hz": 793.7, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 5, "freq_hz": 2000.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 6, "freq_hz": 5040.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 7, "freq_hz": 12700.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        ]
-        bands_r = [
-            {"band": 1, "freq_hz": 198.4, "q": 0.500, "gain_db": -2.0, "type": "PK"},
-            {"band": 2, "freq_hz": 2520.0, "q": 1.260, "gain_db": 2.0, "type": "PK"},
-            {"band": 3, "freq_hz": 315.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 4, "freq_hz": 793.7, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 5, "freq_hz": 2000.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 6, "freq_hz": 5040.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-            {"band": 7, "freq_hz": 12700.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        ]
-        return bands_l, bands_r
-
-    # Use auto_calibrate run_calibration logic directly
+    # 2. Dynamic optimization fallback
     try:
         from scripts.auto_calibrate import run_calibration
         opt_res = run_calibration(target_key=profile, push_yamaha=False)
         left_bands = opt_res.get("left_bands", [])
         right_bands = opt_res.get("right_bands", [])
+        sub_bands_raw = opt_res.get("channels", {}).get("subwoofer", [])
         if left_bands and right_bands:
             bands_l = [
                 {"band": i + 1, "freq_hz": float(b[0]), "q": float(b[1]), "gain_db": float(b[2]), "type": "PK"}
@@ -93,30 +90,15 @@ def get_profile_filters(profile: str = "harman_wide_room") -> tuple[list[dict[st
                 {"band": i + 1, "freq_hz": float(b[0]), "q": float(b[1]), "gain_db": float(b[2]), "type": "PK"}
                 for i, b in enumerate(right_bands)
             ]
-            return bands_l, bands_r
+            bands_sub = [
+                {"band": i + 1, "freq_hz": float(b["freq_hz"]), "q": float(b["q"]), "gain_db": float(b["gain_db"]), "type": "PK"}
+                for i, b in enumerate(sub_bands_raw)
+            ]
+            return bands_l, bands_r, bands_sub
     except Exception as e:
-        print(f"[Aviso] No se pudo ejecutar run_calibration en directo ({e}), usando fallback.")
+        print(f"[Aviso] No se pudo ejecutar run_calibration en directo ({e}).")
 
-    # Fallback to standard canonical layout
-    bands_l = [
-        {"band": 1, "freq_hz": 2520.0, "q": 1.260, "gain_db": 1.5, "type": "PK"},
-        {"band": 2, "freq_hz": 125.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 3, "freq_hz": 315.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 4, "freq_hz": 793.7, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 5, "freq_hz": 2000.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 6, "freq_hz": 5040.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 7, "freq_hz": 12700.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-    ]
-    bands_r = [
-        {"band": 1, "freq_hz": 198.4, "q": 0.500, "gain_db": -2.0, "type": "PK"},
-        {"band": 2, "freq_hz": 2520.0, "q": 1.260, "gain_db": 2.0, "type": "PK"},
-        {"band": 3, "freq_hz": 315.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 4, "freq_hz": 793.7, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 5, "freq_hz": 2000.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 6, "freq_hz": 5040.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-        {"band": 7, "freq_hz": 12700.0, "q": 1.000, "gain_db": 0.0, "type": "PK"},
-    ]
-    return bands_l, bands_r
+    return bands_l, bands_r, bands_sub
 
 
 def format_rew(
@@ -159,8 +141,8 @@ def format_equalizer_apo(
     bands_r: list[dict[str, Any]],
     profile: str = "harman_wide_room",
     hardware: dict[str, str] | None = None,
+    bands_sub: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Format dual-channel config for EqualizerAPO with negative preamp headroom."""
     hw = hardware or load_active_hardware()
     now_str = time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -198,6 +180,15 @@ def format_equalizer_apo(
         q = float(b.get("q", 1.0))
         lines.append(f"Filter {idx}: ON PK Fc {freq:.1f} Hz Gain {gain:+.1f} dB Q {q:.3f}")
 
+    if bands_sub:
+        lines.extend(["", "Channel: SUB"])
+        for b in bands_sub:
+            idx = b.get("band", 1)
+            freq = float(b.get("freq_hz", 62.5))
+            gain = float(b.get("gain_db", 0.0))
+            q = float(b.get("q", 2.0))
+            lines.append(f"Filter {idx}: ON PK Fc {freq:.1f} Hz Gain {gain:+.1f} dB Q {q:.3f}")
+
     return "\n".join(lines) + "\n"
 
 
@@ -206,8 +197,8 @@ def format_csv(
     bands_r: list[dict[str, Any]],
     profile: str = "harman_wide_room",
     hardware: dict[str, str] | None = None,
+    bands_sub: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Format PEQ parameters into tabular CSV string."""
     hw = hardware or load_active_hardware()
     output = io.StringIO()
     writer = csv.writer(output)
@@ -224,7 +215,10 @@ def format_csv(
         "hardware_speakers",
     ])
 
-    for ch, bands in (("L", bands_l), ("R", bands_r)):
+    channels_list = [("L", bands_l), ("R", bands_r)]
+    if bands_sub:
+        channels_list.append(("SUB", bands_sub))
+    for ch, bands in channels_list:
         for b in bands:
             writer.writerow([
                 ch,
@@ -248,18 +242,21 @@ def build_export_bundle(
 ) -> dict[str, Any]:
     """Generate all format strings and optionally persist to disk."""
     hw = load_active_hardware()
-    bands_l, bands_r = get_profile_filters(profile)
+    bands_l, bands_r, bands_sub = get_profile_filters(profile)
 
     rew_l = format_rew(bands_l, channel="L", profile=profile, hardware=hw)
     rew_r = format_rew(bands_r, channel="R", profile=profile, hardware=hw)
-    apo = format_equalizer_apo(bands_l, bands_r, profile=profile, hardware=hw)
-    csv_text = format_csv(bands_l, bands_r, profile=profile, hardware=hw)
+    rew_sub = format_rew(bands_sub, channel="SUB", profile=profile, hardware=hw) if bands_sub else ""
+    apo = format_equalizer_apo(bands_l, bands_r, profile=profile, hardware=hw, bands_sub=bands_sub)
+    csv_text = format_csv(bands_l, bands_r, profile=profile, hardware=hw, bands_sub=bands_sub)
 
     # In-memory zip creation
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(f"filters_{profile}_L.req", rew_l)
         zf.writestr(f"filters_{profile}_R.req", rew_r)
+        if rew_sub:
+            zf.writestr(f"filters_{profile}_SUB.req", rew_sub)
         zf.writestr(f"equalizer_apo_{profile}.txt", apo)
         zf.writestr(f"peq_filters_{profile}.csv", csv_text)
 
@@ -271,6 +268,8 @@ def build_export_bundle(
         dest.mkdir(parents=True, exist_ok=True)
         (dest / f"filters_{profile}_L.req").write_text(rew_l, encoding="utf-8")
         (dest / f"filters_{profile}_R.req").write_text(rew_r, encoding="utf-8")
+        if rew_sub:
+            (dest / f"filters_{profile}_SUB.req").write_text(rew_sub, encoding="utf-8")
         (dest / f"equalizer_apo_{profile}.txt").write_text(apo, encoding="utf-8")
         (dest / f"peq_filters_{profile}.csv").write_text(csv_text, encoding="utf-8")
         (dest / f"filters_{profile}_all.zip").write_bytes(zip_bytes)
@@ -280,6 +279,7 @@ def build_export_bundle(
         "hardware": hw,
         "rew_l": rew_l,
         "rew_r": rew_r,
+        "rew_sub": rew_sub,
         "equalizer_apo": apo,
         "csv": csv_text,
         "zip_bytes": zip_bytes,

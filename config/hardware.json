@@ -32,6 +32,24 @@
       "sensitivity_offset_db": 0.0,
       "max_sampling_rate_hz": 48000
     },
+    "iphone_generic": {
+      "id": "iphone_generic",
+      "name": "Apple iPhone (Series 12-16 / iOS Cal)",
+      "type": "mems_smartphone",
+      "cal_file": "config/calibrations/iphone_calibrated.cal",
+      "orientation": "90_degrees_vertical",
+      "sensitivity_offset_db": 0.0,
+      "max_sampling_rate_hz": 48000
+    },
+    "samsung_galaxy": {
+      "id": "samsung_galaxy",
+      "name": "Samsung Galaxy (Series S21-S25 / Android Cal)",
+      "type": "mems_smartphone",
+      "cal_file": "config/calibrations/samsung_galaxy.cal",
+      "orientation": "90_degrees_vertical",
+      "sensitivity_offset_db": 0.0,
+      "max_sampling_rate_hz": 48000
+    },
     "generic_flat": {
       "id": "generic_flat",
       "name": "Generic Flat Microphone",

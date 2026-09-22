@@ -54,16 +54,17 @@ def run_calibration(
 ) -> dict:
     cfg_path = Path(config_path or (CONFIG_DIR / "targets.json"))
     targets = load_json(cfg_path)
+    if target_key == "harman_2_1":
+        target_key = "harman_wide_room"
     if target_key not in targets:
         print(f"[!] Target profile '{target_key}' not found. Available: {list(targets.keys())}")
         sys.exit(1)
         
     target_info = targets[target_key]
-    if subwoofer_crossover_hz is None and "yamaha_config" in target_info:
-        cfg_xo = target_info.get("yamaha_config", {}).get("crossover_hz")
-        if cfg_xo:
+    if subwoofer_crossover_hz is None:
+        cfg_xo = target_info.get("crossover_hz") or target_info.get("yamaha_config", {}).get("crossover_hz")
+        if cfg_xo is not None and target_info.get("sub_supported", True):
             subwoofer_crossover_hz = float(cfg_xo)
-
     
     # 1. Load empirical measurements (Authoritative Sweet Spot Punto 1 + Spatial Average)
     sweet_spot_file = DATA_DIR / "medicion_punto_1.npz"
@@ -205,11 +206,15 @@ def run_calibration(
         else:
             desc = f"Preservación anecoica / Fase neutra ({bl['freq_hz']} Hz)"
 
+        q_val = float(bl["q"])
+        gain_val = float(bl["gain_db"])
         bands_dict[f"Band {b_idx}"] = {
             "freq": float(bl["freq_hz"]),
-            "q_l": float(bl["q"]),
+            "q": q_val,
+            "gain": gain_val,
+            "q_l": q_val,
             "q_r": float(br["q"]),
-            "gain_l": float(bl["gain_db"]),
+            "gain_l": gain_val,
             "gain_r": float(br["gain_db"]),
             "desc": desc
         }

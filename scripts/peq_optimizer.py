@@ -559,6 +559,8 @@ def optimize_stereo_peq(
     # 3. Load target profile voicing bands (> 500 Hz) if defined
     voicing_l = []
     voicing_r = []
+    curated_modal_l = []
+    curated_modal_r = []
     if target_key:
         cfg_file = pathlib.Path(config_path or (pathlib.Path(__file__).resolve().parent.parent / "config" / "targets.json"))
         if cfg_file.exists():
@@ -567,22 +569,43 @@ def optimize_stereo_peq(
                     cfg = json.load(f)
                 if target_key in cfg and "bands" in cfg[target_key]:
                     for b_name, b_data in cfg[target_key]["bands"].items():
-                        if b_data.get("freq", 0.0) > 500.0 and (b_data.get("gain_l", 0.0) != 0.0 or b_data.get("gain_r", 0.0) != 0.0):
+                        freq_val = b_data.get("freq", 0.0)
+                        if freq_val > 500.0 and (b_data.get("gain_l", 0.0) != 0.0 or b_data.get("gain_r", 0.0) != 0.0 or b_data.get("gain", 0.0) != 0.0):
+                            g_l = b_data.get("gain_l", b_data.get("gain", 0.0))
+                            g_r = b_data.get("gain_r", b_data.get("gain", 0.0))
+                            q_l = b_data.get("q_l", b_data.get("q", 1.0))
+                            q_r = b_data.get("q_r", b_data.get("q", 1.0))
                             voicing_l.append({
-                                "freq_hz": snap_frequency(b_data["freq"]),
-                                "q": snap_q(b_data.get("q_l", 1.0)),
-                                "gain_db": snap_gain(b_data.get("gain_l", 0.0), b_data["freq"], allow_voicing_boost=True),
+                                "freq_hz": snap_frequency(freq_val),
+                                "q": snap_q(q_l),
+                                "gain_db": snap_gain(g_l, freq_val, allow_voicing_boost=True),
                                 "role": "voicing",
                             })
                             voicing_r.append({
-                                "freq_hz": snap_frequency(b_data["freq"]),
-                                "q": snap_q(b_data.get("q_r", 1.0)),
-                                "gain_db": snap_gain(b_data.get("gain_r", 0.0), b_data["freq"], allow_voicing_boost=True),
+                                "freq_hz": snap_frequency(freq_val),
+                                "q": snap_q(q_r),
+                                "gain_db": snap_gain(g_r, freq_val, allow_voicing_boost=True),
                                 "role": "voicing",
+                            })
+                        elif freq_val <= 500.0 and (b_data.get("gain_l", 0.0) < 0.0 or b_data.get("gain_r", 0.0) < 0.0 or b_data.get("gain", 0.0) < 0.0):
+                            g_l = b_data.get("gain_l", b_data.get("gain", 0.0))
+                            g_r = b_data.get("gain_r", b_data.get("gain", 0.0))
+                            q_l = b_data.get("q_l", b_data.get("q", 1.0))
+                            q_r = b_data.get("q_r", b_data.get("q", 1.0))
+                            curated_modal_l.append({
+                                "freq_hz": snap_frequency(freq_val),
+                                "q": snap_q(q_l),
+                                "gain_db": snap_gain(g_l, freq_val),
+                                "role": "common_mode",
+                            })
+                            curated_modal_r.append({
+                                "freq_hz": snap_frequency(freq_val),
+                                "q": snap_q(q_r),
+                                "gain_db": snap_gain(g_r, freq_val),
+                                "role": "common_mode",
                             })
             except Exception:
                 pass
-
     # 4. Allocate filters for Left and Right (max 7 bands per channel)
     # Coordinated stereo band allocation: Band k on Left and Right shares the exact same center frequency.
     allocated_freqs = set()
@@ -596,14 +619,10 @@ def optimize_stereo_peq(
         if m["freq_hz"] in allocated_freqs:
             continue
         base_cut = -min(6.0, m["shared_elevation"] * 0.85)
-        trim_l = -min(2.5, max(0.0, (m["left_elevation"] - m["shared_elevation"]) * 0.7))
-        trim_r = -min(2.5, max(0.0, (m["right_elevation"] - m["shared_elevation"]) * 0.7))
+        shared_gain = snap_gain(max(-8.0, base_cut), m["freq_hz"])
 
-        gain_l = snap_gain(max(-8.0, base_cut + trim_l), m["freq_hz"])
-        gain_r = snap_gain(max(-8.0, base_cut + trim_r), m["freq_hz"])
-
-        bands_l.append({"freq_hz": m["freq_hz"], "q": m["q"], "gain_db": gain_l, "role": "common_mode"})
-        bands_r.append({"freq_hz": m["freq_hz"], "q": m["q"], "gain_db": gain_r, "role": "common_mode"})
+        bands_l.append({"freq_hz": m["freq_hz"], "q": m["q"], "gain_db": shared_gain, "role": "common_mode"})
+        bands_r.append({"freq_hz": m["freq_hz"], "q": m["q"], "gain_db": shared_gain, "role": "common_mode"})
         allocated_freqs.add(m["freq_hz"])
 
     # B. Asymmetric independent modes (paired in lock-step to preserve stereo alignment)
@@ -628,14 +647,34 @@ def optimize_stereo_peq(
         bands_l.append({"freq_hz": rp["freq_hz"], "q": q_val, "gain_db": 0.0, "role": "transparent_pass"})
         bands_r.append({"freq_hz": rp["freq_hz"], "q": q_val, "gain_db": gain, "role": "asym_mode"})
         allocated_freqs.add(rp["freq_hz"])
-
     # C. Add high-frequency voicing bands
     for vl, vr in zip(voicing_l, voicing_r):
         if len(bands_l) < 7 and vl["freq_hz"] not in allocated_freqs:
             bands_l.append(dict(vl))
             bands_r.append(dict(vr))
             allocated_freqs.add(vl["freq_hz"])
+    # C2. Fill sub-500 Hz slots with curated modal bands from targets.json if slots remain
+    for ml, mr in zip(curated_modal_l, curated_modal_r):
+        sub_500_count = sum(1 for b in bands_l if b["freq_hz"] < 500.0)
+        if len(bands_l) < 7 and sub_500_count < 4 and ml["freq_hz"] not in allocated_freqs:
+            bands_l.append(dict(ml))
+            bands_r.append(dict(mr))
+            allocated_freqs.add(ml["freq_hz"])
 
+    # C3. Baseline physical room modes for this living room acoustic space
+    is_bypass_or_flat = any(w in (target_key or "").lower() for w in ["through", "bypass", "ypao"])
+    if not is_bypass_or_flat:
+        baseline_modes = [
+            {"freq_hz": 396.9, "q": 1.587, "gain_db": -3.0, "role": "common_mode"},
+            {"freq_hz": 198.4, "q": 3.175, "gain_db": -2.0, "role": "common_mode"},
+            {"freq_hz": 78.7, "q": 1.587, "gain_db": -1.5, "role": "common_mode"}
+        ]
+        for bm in baseline_modes:
+            sub_500_count = sum(1 for b in bands_l if b["freq_hz"] < 500.0)
+            if len(bands_l) < 7 and sub_500_count < 4 and bm["freq_hz"] not in allocated_freqs:
+                bands_l.append(dict(bm))
+                bands_r.append(dict(bm))
+                allocated_freqs.add(bm["freq_hz"])
     # D. Fill remaining slots respecting Yamaha RX-V673 hardware topology:
     # Bands 1-4 allow any frequency (31.3 Hz - 16 kHz).
     # Bands 5-7 strictly require frequency >= 500 Hz (min 500.0 Hz).
@@ -675,16 +714,68 @@ def optimize_stereo_peq(
         arranged_l.append(bl)
         arranged_r.append(br)
 
-    # Fill empty slots with valid neutral bands
+    # E. Dynamically tune remaining bands to optimal frequencies to minimize residual response error
+    is_bypass_or_flat = any(w in (target_key or "").lower() for w in ["through", "bypass", "ypao"])
     allocated_freqs = set(b["freq_hz"] for b in arranged_l)
+
     while len(arranged_l) < 7:
         slot_num = len(arranged_l) + 1
-        valid_pool = [f for f in YAMAHA_FREQS if (float(f) >= 500.0 if slot_num >= 5 else True) and float(f) not in allocated_freqs]
-        chosen_freq = float(valid_pool[0]) if valid_pool else (1000.0 if slot_num >= 5 else 62.5)
-        allocated_freqs.add(chosen_freq)
-        arranged_l.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
-        arranged_r.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
+        min_allowed_f = 500.0 if slot_num >= 5 else 31.3
+        valid_pool = [float(f) for f in YAMAHA_FREQS if float(f) >= min_allowed_f and float(f) not in allocated_freqs]
+        
+        if not valid_pool or is_bypass_or_flat:
+            chosen_freq = float(valid_pool[0]) if valid_pool else (1000.0 if slot_num >= 5 else 62.5)
+            allocated_freqs.add(chosen_freq)
+            arranged_l.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
+            arranged_r.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
+            continue
 
+        # Evaluate composite response of currently arranged bands
+        active_filters = [b for b in arranged_l if abs(b.get("gain_db", 0.0)) > 0.05]
+        comp_response = multi_filter_response(freqs_hz, active_filters) if active_filters else np.zeros_like(freqs_hz)
+        
+        # Calculate residual error between corrected response and target curve
+        corr_l = eff_l + comp_response
+        corr_r = eff_r + comp_response
+        res_err = 0.5 * ((corr_l - target_db) + (corr_r - target_db))
+        
+        # Search candidate frequencies (up to 14 kHz for musical/dialogue fidelity)
+        best_f = None
+        best_err = 0.0
+        best_abs_err = -1.0
+        
+        for cand_f in valid_pool:
+            if cand_f > 14000.0:
+                continue
+            idx = np.argmin(np.abs(freqs_hz - cand_f))
+            err_val = float(res_err[idx])
+            weighted_err = abs(err_val) * (1.3 if err_val > 0 else 0.7)
+            if weighted_err > best_abs_err:
+                best_abs_err = weighted_err
+                best_err = err_val
+                best_f = cand_f
+
+        if best_f is None:
+            best_f = valid_pool[0]
+            best_err = 0.0
+
+        # Calculate optimal discrete gain and Q to compensate the residual error
+        if best_err > 1.2:
+            opt_gain = snap_gain(-min(4.5, best_err * 0.75), best_f)
+            opt_q = snap_q(1.587 if best_f < 2000.0 else 1.26)
+            role_desc = "residual_peak_correction"
+        elif best_err < -2.0:
+            opt_gain = snap_gain(min(2.0, abs(best_err) * 0.5), best_f, allow_voicing_boost=True)
+            opt_q = snap_q(1.0)
+            role_desc = "residual_dip_compensation"
+        else:
+            opt_gain = 0.0
+            opt_q = 1.0
+            role_desc = "neutral_fill"
+
+        allocated_freqs.add(best_f)
+        arranged_l.append({"freq_hz": best_f, "q": opt_q, "gain_db": opt_gain, "role": role_desc})
+        arranged_r.append({"freq_hz": best_f, "q": opt_q, "gain_db": opt_gain, "role": role_desc})
     bands_l = arranged_l
     bands_r = arranged_r
     mask_eval = (freqs_hz >= 30.0) & (freqs_hz <= 500.0)
