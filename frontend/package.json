@@ -4,9 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:live": "cap run android -l --external",
+    "android:sync": "cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
