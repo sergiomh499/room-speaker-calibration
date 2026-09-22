@@ -24,7 +24,7 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-surface-0 text-slate-100 selection:bg-indigo-500/30">
       <Topbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 pb-24 md:pb-12">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4 pb-[calc(5.5rem+max(env(safe-area-inset-bottom,0px),16px))] md:pb-12 safe-left safe-right">
         <Suspense fallback={<ViewFallback />}>
           {view === 'home' && <HomeView />}
           {view === 'calibrate' && <CalibrateView />}

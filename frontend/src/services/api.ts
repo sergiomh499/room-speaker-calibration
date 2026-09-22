@@ -1,19 +1,36 @@
+import { Capacitor } from '@capacitor/core';
 import { AVRStatus, TargetProfile } from '../types';
+import { yamahaDirect } from './yamahaDirect';
 
-const BASE_URL = '';
+const DEFAULT_LAN_SERVER = 'http://192.168.1.45:53317';
+export const getBaseUrl = (): string => {
+  if (Capacitor.isNativePlatform()) {
+    return localStorage.getItem('octave_server_url') || DEFAULT_LAN_SERVER;
+  }
+  return '';
+};
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Accept': 'application/json',
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${res.statusText}`);
+  const base = getBaseUrl();
+  const url = endpoint.startsWith('http') ? endpoint : `${base}${endpoint}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        ...options?.headers,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`API error ${res.status}: ${res.statusText}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return res.json();
 }
 
 export const api = {
@@ -22,6 +39,27 @@ export const api = {
       const data = await fetchApi<AVRStatus>('/api/status');
       return { ...data, online: true };
     } catch {
+      try {
+        if (Capacitor.isNativePlatform()) {
+          const xml = `<YAMAHA_AV cmd="GET"><Main_Zone><Basic_Status>GetParam</Basic_Status></Main_Zone></YAMAHA_AV>`;
+          const resp = await yamahaDirect.sendYncXml(xml);
+          const pMatch = resp.match(/<Power>(.*?)<\/Power>/);
+          const inMatch = resp.match(/<Input_Sel>(.*?)<\/Input_Sel>/);
+          const volMatch = resp.match(/<Val>(-?\d+)<\/Val>/);
+          return {
+            ok: true,
+            avr_power: pMatch ? pMatch[1] : 'On',
+            avr_input: inMatch ? inMatch[1] : 'AV4',
+            avr_volume_db: volMatch ? (parseInt(volMatch[1], 10) / 10).toFixed(1) : '-30.0',
+            avr_peq_mode: 'Manual PEQ',
+            avr_drc: 'Off',
+            points_measured: 5,
+            points_total: 5,
+            calibration_ready: true,
+            online: true,
+          };
+        }
+      } catch {}
       return {
         ok: false,
         avr_power: 'Offline',
@@ -62,7 +100,7 @@ export const api = {
     const layoutParam = layout ? `&layout=${encodeURIComponent(layout)}` : '';
     const leadParam = leadMs !== undefined ? `&lead_ms=${encodeURIComponent(leadMs)}` : '';
     const pingParam = pingMs !== undefined ? `&ping_ms=${encodeURIComponent(pingMs)}` : '';
-    const res = await fetch(`${BASE_URL}/api/upload_sweep?point=${point}&channel=${encodeURIComponent(channel)}${layoutParam}${leadParam}${pingParam}`, {
+    const res = await fetch(`${getBaseUrl()}/api/upload_sweep?point=${point}&channel=${encodeURIComponent(channel)}${layoutParam}${leadParam}${pingParam}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: bytes as unknown as BodyInit

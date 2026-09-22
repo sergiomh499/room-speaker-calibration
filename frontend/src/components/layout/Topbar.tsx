@@ -17,8 +17,8 @@ export const Topbar: React.FC = () => {
   return (
     <>
       {/* Desktop & Tablet Topbar */}
-      <header className="sticky top-0 z-40 w-full bg-surface-0/80 backdrop-blur-md border-b border-border-subtle">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 w-full bg-surface-0/95 backdrop-blur-md border-b border-border-subtle safe-top">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-18 flex items-center justify-between gap-4">
           {/* Brand */}
           <div
             onClick={() => setView('home')}
@@ -89,7 +89,7 @@ export const Topbar: React.FC = () => {
       </header>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-1/95 backdrop-blur-lg border-t border-border-strong px-2 py-2 flex justify-around items-center safe-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-1/95 backdrop-blur-xl border-t border-border-strong px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom,0px),12px)] flex justify-around items-center">
         {navItems.map(item => {
           const active = view === item.id;
           return (

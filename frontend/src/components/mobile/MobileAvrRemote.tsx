@@ -38,7 +38,7 @@ export const MobileAvrRemote: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-16 sm:bottom-6 left-4 z-40">
+    <div className="fixed bottom-[calc(4.5rem+max(env(safe-area-inset-bottom,0px),12px))] sm:bottom-6 left-4 z-40">
       {/* Botón flotante para abrir el control remoto */}
       {!isOpen && (
         <button

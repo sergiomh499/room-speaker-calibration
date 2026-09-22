@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { get, set } from 'idb-keyval';
 import { AVRStatus, Topology, TargetProfile, MeasurementPoint, SubwooferConfig } from '../types';
 import { api } from '../services/api';
+import { avrDiscovery } from '../services/avrDiscovery';
 export type AppView = 'home' | 'calibrate' | 'music' | 'history' | 'settings';
 
 interface CalibrationContextType {
@@ -82,6 +83,15 @@ export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ childre
     const st = await api.getStatus();
     setAvrStatus(st);
   }, []);
+
+  // Auto-discovery en red local al iniciar
+  useEffect(() => {
+    avrDiscovery.discover().then(devices => {
+      if (devices.length > 0) {
+        refreshStatus();
+      }
+    }).catch(() => {});
+  }, [refreshStatus]);
 
   // Poll status periodically
   useEffect(() => {
