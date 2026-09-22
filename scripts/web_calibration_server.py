@@ -144,7 +144,6 @@ def _load_html():
         return f.read()
 HTML_CONTENT = _load_html()
 _HTML_MTIME = os.path.getmtime("templates/octave.html")
-HTML_TV_CONTENT = ""
 
 def _reload_html_if_changed():
     global HTML_CONTENT, _HTML_MTIME
@@ -1314,6 +1313,20 @@ class CalibrationHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         params = urllib.parse.parse_qs(parsed.query)
+        if path == "/api/health":
+            self.send_json({
+                "ok": True,
+                "status": "healthy",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "features": {
+                    "sqlite_storage": True,
+                    "orjson_acceleration": True,
+                    "soundfile_wav_support": True,
+                    "subwoofer_2_1": True,
+                }
+            })
+            return
+
         if path == "/api/targets":
             try:
                 with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as f:
@@ -1333,15 +1346,9 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                         "supported_topologies": v.get("supported_topologies", ["2.0", "2.1"]),
                         "sub_supported": v.get("sub_supported", True),
                     })
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"ok": True, "targets": targets_list}).encode("utf-8"))
+                self.send_json({"ok": True, "targets": targets_list})
             except Exception as e:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+                self.send_json({"ok": False, "msg": str(e)})
             return
         if path == "/api/room_acoustics_advanced":
             try:
@@ -2162,35 +2169,10 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/sessions/history":
             try:
-                sessions_list = []
-                sessions_root = f"{DATA_DIR}/sessions"
-                if os.path.exists(sessions_root):
-                    for entry in sorted(os.listdir(sessions_root), reverse=True):
-                        s_dir = os.path.join(sessions_root, entry)
-                        if os.path.isdir(s_dir):
-                            info_path = os.path.join(s_dir, "session_info.json")
-                            s_info = {}
-                            if os.path.exists(info_path):
-                                with open(info_path, "r", encoding="utf-8") as sf:
-                                    s_info = json.load(sf)
-                            has_avg = os.path.exists(os.path.join(s_dir, "medicion_promedio_espacial.npz"))
-                            sessions_list.append({
-                                "session_id": entry,
-                                "name": s_info.get("name", entry),
-                                "description": s_info.get("description", ""),
-                                "timestamp": s_info.get("timestamp", entry.replace("sesion_", "")),
-                                "points_count": s_info.get("points_count", len(s_info.get("points", []))),
-                                "has_average": has_avg
-                            })
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"ok": True, "sessions": sessions_list}).encode("utf-8"))
+                sessions_list = list_measurement_sessions()
+                self.send_json({"ok": True, "sessions": sessions_list})
             except Exception as e:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
+                self.send_json({"ok": False, "msg": str(e)})
             return
 
         if path == "/" or path == "/index.html":
@@ -3254,6 +3236,19 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 np.savez(f"{DATA_DIR}/medicion_punto_{point_id}_{ts_str}.npz", **out_data)
                 np.savez(f"{DATA_DIR}/medicion_punto_{point_id}.npz", **out_data)
                 print(f"[Server] Guardado medicion_punto_{point_id}.npz (Punto completo: {completed_channels})")
+                try:
+                    from scripts.db import record_measurement
+                    record_measurement(
+                        session_id="active_live",
+                        point_num=point_id,
+                        channel=ch_key,
+                        snr_db=float(snr_db),
+                        peak_dbfs=float(peak_dbfs),
+                        file_path=f"data/medicion_punto_{point_id}.npz"
+                    )
+                except Exception:
+                    pass
+
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -3794,6 +3789,36 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
+        if path == "/api/stream_to_avr":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = {}
+            if content_length > 0:
+                try:
+                    body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                except Exception:
+                    pass
+            fname = body.get("file", params.get("file", ["sweep_signal.wav"])[0])
+            title = body.get("title", params.get("title", ["Sweep Calibración Yamaha"])[0])
+            host = body.get("host", "192.168.1.43")
+            try:
+                from scripts.dlna_streamer import stream_audio_to_avr, get_local_lan_ip
+                local_ip = get_local_lan_ip(host)
+                audio_url = f"http://{local_ip}:53317/audio/{fname}"
+                ok, msg = stream_audio_to_avr(audio_url, title=title, host=host)
+                self.send_json({"ok": ok, "msg": msg, "stream_url": audio_url})
+            except Exception as e:
+                self.send_json({"ok": False, "msg": str(e)})
+            return
+
+        if path == "/api/stop_avr_stream":
+            try:
+                from scripts.dlna_streamer import stop_avr_stream
+                ok, msg = stop_avr_stream(restore_input="AV4")
+                self.send_json({"ok": True, "msg": "Stream detenido y entrada restaurada a AV4"})
+            except Exception as e:
+                self.send_json({"ok": False, "msg": str(e)})
+            return
+
         if path == "/api/set_peq_mode":
             content_length = int(self.headers.get("Content-Length", 0))
             req_body = {}
