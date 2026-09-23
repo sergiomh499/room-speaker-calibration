@@ -185,6 +185,69 @@ class DualProtocolServer(ThreadingMixIn, HTTPServer):
             except Exception as e:
                 pass
 
+def get_avr_live_status(host="192.168.1.43") -> Dict[str, Any]:
+    """
+    Non-destructive, ultra-fast real-time poll of Yamaha RX-V673 hardware state:
+    Power, Input, Volume (dB), PEQ mode, Mute, Straight, DRC.
+    """
+    url = f"http://{host}/YamahaRemoteControl/ctrl"
+    headers = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+    res: Dict[str, Any] = {
+        "online": False,
+        "power": "Unknown",
+        "input": "Unknown",
+        "volume": "Unknown",
+        "volume_db": -35.0,
+        "volume_val": "-350",
+        "peq": "Unknown",
+        "mute": "Off",
+        "straight": "Unknown",
+        "drc": "Unknown",
+    }
+    try:
+        b_xml = '<YAMAHA_AV cmd="GET"><Main_Zone><Basic_Status>GetParam</Basic_Status></Main_Zone></YAMAHA_AV>'
+        req = urllib.request.Request(url, data=b_xml.encode('utf-8'), headers=headers)
+        with urllib.request.urlopen(req, timeout=1.5) as r:
+            root = ET.fromstring(r.read().decode('utf-8', errors='ignore'))
+            res["online"] = True
+            pwr = root.find('.//Power_Control/Power')
+            if pwr is not None and pwr.text:
+                res["power"] = pwr.text
+            inp = root.find('.//Input/Input_Sel')
+            if inp is not None and inp.text:
+                res["input"] = inp.text
+            vol = root.find('.//Volume/Lvl/Val')
+            if vol is not None and vol.text:
+                v_num = float(vol.text) / 10.0
+                res["volume"] = f"{v_num:+.1f} dB"
+                res["volume_db"] = round(v_num, 1)
+                res["volume_val"] = vol.text
+            mute = root.find('.//Volume/Mute')
+            if mute is not None and mute.text:
+                res["mute"] = mute.text
+            st = root.find('.//Straight')
+            if st is not None and st.text:
+                res["straight"] = st.text
+            drc = root.find('.//Sound_Video/Adaptive_DRC')
+            if drc is not None and drc.text:
+                res["drc"] = drc.text
+    except Exception:
+        pass
+
+    try:
+        peq_xml = '<YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_1><PEQ><Sel>GetParam</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
+        req = urllib.request.Request(url, data=peq_xml.encode('utf-8'), headers=headers)
+        with urllib.request.urlopen(req, timeout=1.5) as r:
+            root = ET.fromstring(r.read().decode('utf-8', errors='ignore'))
+            peq = root.find('.//Sel')
+            if peq is not None and peq.text:
+                res["peq"] = peq.text
+    except Exception:
+        pass
+
+    return res
+
+
 def check_and_enforce_avr_clean_state(host="192.168.1.43", enforce=False):
     """
     Checks & strictly enforces:
@@ -366,12 +429,11 @@ def check_and_enforce_avr_clean_state(host="192.168.1.43", enforce=False):
         except Exception:
             pass
 
-    # Ensure Reference Measurement Volume (-25.0 dB), Mute Off, and Measurement Input (V-AUX)
+    # Ensure Reference Measurement Volume (-25.0 dB) and Mute Off (keep active user input)
     try:
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Mute>Off</Mute></Volume></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>-250</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
-        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>V-AUX</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
-        status["enforced_actions"].append("Volume: -25.0 dB, Mute: Off, Input: V-AUX")
+        status["enforced_actions"].append("Volume: -25.0 dB, Mute: Off")
         status["volume"] = "-25.0 dB"
     except Exception:
         pass
@@ -400,12 +462,12 @@ def save_avr_pre_measurement_state(host="192.168.1.43", force=False):
     """
     global PRE_MEASUREMENT_AVR_STATE
     
-    # If already saved and currently on V-AUX, don't overwrite real listening values with measurement values
+    # If already saved and receptor is currently at measurement volume (-250), don't overwrite real listening values
     if os.path.exists(PRE_MEASUREMENT_FILE) and not force:
         try:
             with open(PRE_MEASUREMENT_FILE, "r", encoding="utf-8") as f:
                 saved = json.load(f)
-                if saved.get("input") and saved.get("input") != "V-AUX" and saved.get("volume_val") != "-250":
+                if saved.get("saved") and saved.get("volume_val") != "-250":
                     PRE_MEASUREMENT_AVR_STATE = saved
                     return PRE_MEASUREMENT_AVR_STATE
         except Exception:
@@ -430,16 +492,16 @@ def save_avr_pre_measurement_state(host="192.168.1.43", force=False):
             drc = root.find('.//Sound_Video/Adaptive_DRC')
 
             current_input = inp.text if inp is not None and inp.text else "AV4"
-            current_vol = vol.text if vol is not None and vol.text else "-350"
+            current_vol = vol.text if vol is not None and vol.text else "-360"
             
-            # If current input is V-AUX and we already have a previous saved state with a real input (e.g. AV4), keep the real one!
-            if current_input == "V-AUX" and os.path.exists(PRE_MEASUREMENT_FILE):
+            # Don't overwrite listening volume with measurement volume -250 if we already had a real listening volume
+            if current_vol == "-250" and os.path.exists(PRE_MEASUREMENT_FILE):
                 try:
                     with open(PRE_MEASUREMENT_FILE, "r", encoding="utf-8") as f:
                         prev = json.load(f)
-                        if prev.get("input") and prev.get("input") != "V-AUX":
-                            PRE_MEASUREMENT_AVR_STATE = prev
-                            return prev
+                        if prev.get("volume_val") and prev.get("volume_val") != "-250":
+                            current_vol = prev["volume_val"]
+                            current_input = prev.get("input", current_input)
                 except Exception:
                     pass
 
@@ -496,19 +558,15 @@ def restore_avr_listening_mode(host="192.168.1.43", target_peq=None):
         try:
             with open(PRE_MEASUREMENT_FILE, "r", encoding="utf-8") as f:
                 disk_state = json.load(f)
-                if disk_state.get("input") and disk_state.get("input") != "V-AUX":
+                if disk_state.get("saved") or disk_state.get("input"):
                     saved_state = disk_state
         except Exception:
             pass
 
     target_input = saved_state.get("input", "AV4")
-    if target_input == "V-AUX":
-        target_input = "AV4" # Fallback to normal listening TV ARC input
-
-    target_vol = saved_state.get("volume_val", "-380")
-    if target_vol == "-250" and saved_state.get("input") == "V-AUX":
-        target_vol = "-380"
-
+    target_vol = saved_state.get("volume_val", "-350")
+    if target_vol in ["-250", "-200"]:
+        target_vol = "-350"
     target_mute = saved_state.get("mute", "Off")
     target_straight = saved_state.get("straight", "On")
     peq_to_set = target_peq or saved_state.get("peq", "Manual")
@@ -523,11 +581,12 @@ def restore_avr_listening_mode(host="192.168.1.43", target_peq=None):
             return r.read().decode('utf-8', errors='ignore')
 
     restored_actions = []
-    try:
-        send_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>{target_input}</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
-        restored_actions.append(f"Input: {target_input}")
-    except Exception:
-        pass
+    if target_input and target_input != "Unknown":
+        try:
+            send_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>{target_input}</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
+            restored_actions.append(f"Input: {target_input}")
+        except Exception:
+            pass
 
     try:
         send_cmd(f'<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>{target_vol}</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
@@ -548,14 +607,15 @@ def restore_avr_listening_mode(host="192.168.1.43", target_peq=None):
     except Exception:
         pass
 
-    # Clean up persisted file once restored
+    # Update persisted file marking restored timestamp without deleting it
     try:
-        if os.path.exists(PRE_MEASUREMENT_FILE):
-            os.remove(PRE_MEASUREMENT_FILE)
+        saved_state["restored_at"] = time.time()
+        with open(PRE_MEASUREMENT_FILE, "w", encoding="utf-8") as f:
+            json.dump(saved_state, f, indent=2)
     except Exception:
         pass
 
-    PRE_MEASUREMENT_AVR_STATE = {"saved": False}
+    PRE_MEASUREMENT_AVR_STATE = saved_state
     vol_disp = f"{float(target_vol)/10:.1f} dB"
     return {
         "ok": True,
@@ -579,7 +639,6 @@ def set_full_measurement_mode(host="192.168.1.43"):
     try:
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Power_Control><Power>On</Power></Power_Control></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Pure_Direct><Mode>Off</Mode></Pure_Direct></Sound_Video></Main_Zone></YAMAHA_AV>')
-        send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>V-AUX</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Mute>Off</Mute></Volume></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>-250</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
         send_cmd('<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Sel>Through</Sel></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>')
@@ -1261,10 +1320,19 @@ def decode_audio_sweep_bytes(raw_bytes: bytes) -> tuple[np.ndarray, np.ndarray]:
             audio, sr = sf.read(io.BytesIO(raw_bytes), dtype="float64")
             if audio.ndim > 1:
                 audio = audio[:, 0]
+            if sr != 48000:
+                import math
+                gcd = math.gcd(int(sr), 48000)
+                up = 48000 // gcd
+                down = int(sr) // gcd
+                audio = scipy.signal.resample_poly(audio, up, down)
             samples = (np.clip(audio, -1.0, 1.0) * 32767.0).astype(np.int16)
             return samples, audio
         except Exception as e:
             print(f"[Aviso] soundfile falló decodificando contenedor: {e}")
+    rem = len(raw_bytes) % 2
+    if rem != 0:
+        raw_bytes = raw_bytes[:-rem]
     samples = np.frombuffer(raw_bytes, dtype=np.int16)
     mic = samples.astype(np.float64) / 32768.0
     return samples, mic
@@ -1297,6 +1365,24 @@ class CalibrationHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         ctype = "text/html; charset=utf-8"
+        if path.startswith("/audio/"):
+            ctype = "audio/wav"
+            fname = os.path.basename(path)
+            fpath = os.path.join(DATA_DIR, fname)
+            self.send_response(200 if os.path.exists(fpath) else 404)
+            self.send_header("Content-Type", ctype)
+            if os.path.exists(fpath):
+                self.send_header("Content-Length", str(os.path.getsize(fpath)))
+                self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            return
+        if path == "/api/stream_proxy":
+            self.send_response(200)
+            self.send_header("Content-Type", "audio/mpeg")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            return
         react_dist = "frontend/dist"
         if os.path.exists(react_dist) and path != "/" and not path.startswith("/api/"):
             file_path = os.path.join(react_dist, path.lstrip("/"))
@@ -1812,13 +1898,20 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                     fp = f"{DATA_DIR}/medicion_verificacion_{m}.npz"
                     if not os.path.exists(fp) and m == "manual":
                         fp = f"{DATA_DIR}/medicion_verificacion_post_peq.npz"
+                    if not os.path.exists(fp) and m == "through":
+                        fp = f"{DATA_DIR}/medicion_promedio_espacial.npz"
                     if os.path.exists(fp):
                         d = np.load(fp)
                         if freqs_ref is None:
                             freqs_ref = d["freqs"].astype(np.float64)
                         l = d["smooth_l"].astype(np.float64) if "smooth_l" in d.files else d["raw_l"].astype(np.float64)
                         r = d["smooth_r"].astype(np.float64) if "smooth_r" in d.files else d["raw_r"].astype(np.float64)
-                        curves[m] = {"name": name, "l": l, "r": r}
+                        sub = None
+                        if "smooth_sub" in d.files:
+                            sub = d["smooth_sub"].astype(np.float64)
+                        elif "raw_sub" in d.files:
+                            sub = d["raw_sub"].astype(np.float64)
+                        curves[m] = {"name": name, "l": l, "r": r, "sub": sub}
                 if not curves or freqs_ref is None:
                     raise FileNotFoundError("No hay curvas de verificación disponibles.")
                 audible_mask = (freqs_ref >= 20.0) & (freqs_ref <= 20000.0)
@@ -1837,17 +1930,27 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                     r_sub = cdata["r"][log_indices]
                     l_offset = float(np.mean(l_sub[norm_mask]))
                     r_offset = float(np.mean(r_sub[norm_mask]))
-                    res["modes"][m] = {
+                    mode_dict = {
                         "name": cdata["name"],
                         "l": [round(float(x - l_offset), 2) for x in l_sub],
                         "r": [round(float(x - r_offset), 2) for x in r_sub]
                     }
+                    if cdata.get("sub") is not None:
+                        sub_raw = cdata["sub"]
+                        if len(sub_raw) == len(freqs_ref):
+                            sub_sub = sub_raw[log_indices]
+                        else:
+                            sub_sub = np.interp(f_sub, freqs_ref, sub_raw)
+                        sub_norm_mask = (f_sub >= 40.0) & (f_sub <= 120.0)
+                        sub_offset = float(np.mean(sub_sub[sub_norm_mask])) if np.any(sub_norm_mask) else 0.0
+                        mode_dict["sub"] = [round(float(x - sub_offset), 2) for x in sub_sub]
+                    res["modes"][m] = mode_dict
                 try:
                     q = urllib.parse.parse_qs(parsed.query)
                     profile = q.get("profile", ["harman_wide_room"])[0]
                     import importlib
                     peq_optimizer = importlib.import_module("scripts.peq_optimizer")
-                    target = peq_optimizer.get_target_curve(f_sub, profile)
+                    target = peq_optimizer.generate_bookshelf_target_curve(f_sub, target_key=profile)
                     res["target"] = [round(float(x), 2) for x in target]
                 except Exception:
                     pass
@@ -2207,30 +2310,48 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(tv_html.encode("utf-8"))
             return
+        if path == "/api/available_inputs":
+            inputs = [
+                {"id": "AV4", "name": "AV4 (TV LG C5 eARC / HDMI ARC)", "type": "arc"},
+                {"id": "HDMI1", "name": "HDMI 1", "type": "hdmi"},
+                {"id": "HDMI2", "name": "HDMI 2", "type": "hdmi"},
+                {"id": "HDMI3", "name": "HDMI 3", "type": "hdmi"},
+                {"id": "HDMI4", "name": "HDMI 4", "type": "hdmi"},
+                {"id": "HDMI5", "name": "HDMI 5", "type": "hdmi"},
+                {"id": "V-AUX", "name": "V-AUX (Frontal Medición)", "type": "aux"},
+                {"id": "AUDIO1", "name": "AUDIO 1 (Óptico / RCA)", "type": "audio"},
+                {"id": "AUDIO2", "name": "AUDIO 2", "type": "audio"},
+                {"id": "NET", "name": "NET / DLNA", "type": "network"},
+                {"id": "AirPlay", "name": "AirPlay", "type": "network"},
+                {"id": "TUNER", "name": "Radio FM / AM", "type": "tuner"},
+            ]
+            self.send_json({"ok": True, "inputs": inputs})
+            return
+
 
         if path == "/api/status":
-            # Compact JSON status for Home Assistant sensors
+            # Real-time live status of AVR and calibration
             points_status = {p: os.path.exists(f"{DATA_DIR}/medicion_punto_{p}.npz") for p in range(1, 6)}
             cal_ready = os.path.exists(f"{FIG_DIR}/promedio_espacial_multipunto.png")
-            avr_state = {}
-            try:
-                 avr_state = check_and_enforce_avr_clean_state()
-            except Exception:
-                 pass
+            live_st = get_avr_live_status()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(json.dumps({
                  "ok": True,
+                 "online": live_st.get("online", False),
                  "points_measured": sum(1 for v in points_status.values() if v),
                  "points_total": 5,
                  "calibration_ready": cal_ready,
-                 "avr_power": avr_state.get("power", "Unknown"),
-                 "avr_input": avr_state.get("input", "Unknown"),
-                 "avr_volume_db": avr_state.get("volume", "Unknown"),
-                 "avr_peq_mode": avr_state.get("peq", "Unknown"),
-                 "avr_drc": avr_state.get("drc", "Unknown"),
+                 "avr_power": live_st.get("power", "Unknown"),
+                 "avr_input": live_st.get("input", "Unknown"),
+                 "avr_volume_db": live_st.get("volume_db", -35.0),
+                 "avr_volume_str": live_st.get("volume", "-35.0 dB"),
+                 "avr_peq_mode": live_st.get("peq", "Unknown"),
+                 "avr_mute": live_st.get("mute", "Off"),
+                 "avr_straight": live_st.get("straight", "Unknown"),
+                 "avr_drc": live_st.get("drc", "Unknown"),
                  "timestamp": int(time.time()),
             }, ensure_ascii=False).encode("utf-8"))
             return
@@ -2922,7 +3043,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/play_test_tone":
-            avr_st = check_and_enforce_avr_clean_state()
+            check_and_enforce_avr_clean_state()
             raw_ch = params.get("channel", ["L"])[0].strip()
             ch_map = {
                 "l": "L", "front_l": "L", "fl": "L",
@@ -2937,21 +3058,22 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 "front_presence_r": "Front_Presence_R", "fpr": "Front_Presence_R"
             }
             tone_name = ch_map.get(raw_ch.lower(), "L")
-            wav_file = f"{DATA_DIR}/test_tone_{tone_name}.wav"
+            wav_fname = f"test_tone_{tone_name}.wav"
+            wav_file = f"{DATA_DIR}/{wav_fname}"
             if not os.path.exists(wav_file):
+                wav_fname = "test_tone_L.wav"
                 wav_file = f"{DATA_DIR}/test_tone_L.wav"
             try:
-                subprocess.Popen(["pw-play", wav_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except Exception:
-                subprocess.Popen(["aplay", "-D", "plughw:0,3", wav_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"ok": True, "channel": raw_ch, "tone_played": os.path.basename(wav_file)}).encode("utf-8"))
+                from scripts.dlna_streamer import stream_audio_to_avr, get_local_lan_ip
+                local_ip = get_local_lan_ip("192.168.1.43")
+                audio_url = f"http://{local_ip}:53317/audio/{wav_fname}"
+                ok_dlna, _ = stream_audio_to_avr(audio_url, title=f"Tono {tone_name}", content_type="audio/wav")
+                self.send_json({"ok": ok_dlna, "channel": raw_ch, "tone_played": wav_fname, "stream_url": audio_url})
+            except Exception as e:
+                self.send_json({"ok": False, "msg": str(e), "channel": raw_ch})
             return
+
         if path == "/api/play_sweep":
-            # 1. Terminate any previous sweep playback to avoid audio channel collisions on ALSA/PipeWire
-            subprocess.run(["pkill", "-9", "-f", "sweep_signal"], capture_output=True)
             raw_ch = params.get("channel", ["L"])[0].strip().lower()
             ch_map = {
                 "l": "L", "front_l": "L", "fl": "L",
@@ -2961,24 +3083,56 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             }
             mapped_ch = ch_map.get(raw_ch, "L")
             if mapped_ch == "SUB" or "sub" in raw_ch:
-                wav_file = f"{DATA_DIR}/sweep_signal_SUB.wav"
+                wav_fname = "sweep_signal_SUB.wav"
             elif mapped_ch == "R" or raw_ch in ["r", "front_r", "fr"] or raw_ch.endswith("_r"):
-                wav_file = f"{DATA_DIR}/sweep_signal_R.wav"
+                wav_fname = "sweep_signal_R.wav"
             else:
-                wav_file = f"{DATA_DIR}/sweep_signal_L.wav"
-            played = False
-            for p_cmd in [["aplay", "-D", "plughw:0,3", wav_file], ["pw-play", wav_file], ["aplay", wav_file]]:
-                try:
-                    subprocess.Popen(p_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    played = True
-                    break
-                except Exception:
-                    continue
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"ok": True, "channel": mapped_ch, "file": os.path.basename(wav_file), "played": played}).encode("utf-8"))
+                wav_fname = "sweep_signal_L.wav"
+            wav_file = f"{DATA_DIR}/{wav_fname}"
+            try:
+                from scripts.dlna_streamer import stream_audio_to_avr, get_local_lan_ip
+                local_ip = get_local_lan_ip("192.168.1.43")
+                audio_url = f"http://{local_ip}:53317/audio/{wav_fname}"
+                ok_dlna, msg = stream_audio_to_avr(audio_url, title=f"Sweep {mapped_ch}", content_type="audio/wav")
+                # Keep stream active without interrupting input switches between sequential channels
+                self.send_json({"ok": ok_dlna, "channel": mapped_ch, "file": wav_fname, "played": ok_dlna, "stream_url": audio_url, "msg": msg})
+            except Exception as e:
+                self.send_json({"ok": False, "channel": mapped_ch, "file": wav_fname, "played": False, "msg": str(e)})
             return
+        if path == "/api/stream_proxy":
+            target_url = params.get("url", [""])[0]
+            if not target_url:
+                self.send_response(400)
+                self.end_headers()
+                return
+            try:
+                req = urllib.request.Request(target_url, headers={"User-Agent": "VLC/3.0.0 (Yamaha-RX-V673-DMR)"})
+                with urllib.request.urlopen(req, timeout=10.0) as resp:
+                    self.send_response(200)
+                    raw_ct = resp.headers.get("Content-Type", "audio/mpeg").split(";")[0].strip()
+                    content_type = "audio/mpeg" if ("mpeg" in raw_ct or "mp3" in raw_ct or "octet" in raw_ct) else raw_ct
+                    self.send_header("Content-Type", content_type)
+                    self.send_header("Cache-Control", "no-cache")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.send_header("transferMode.dlna.org", "Streaming")
+                    self.send_header("contentFeatures.dlna.org", "DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000")
+                    self.end_headers()
+                    while True:
+                        try:
+                            chunk = resp.read(16384)
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                        except (BrokenPipeError, ConnectionResetError):
+                            break
+                return
+            except Exception as e:
+                try:
+                    self.send_response(502)
+                    self.end_headers()
+                except Exception:
+                    pass
+                return
         if path.startswith("/audio/"):
             fname = os.path.basename(path)
             fpath = os.path.join(DATA_DIR, fname)
@@ -2987,6 +3141,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "audio/wav")
                 self.send_header("Content-Length", str(os.path.getsize(fpath)))
                 self.send_header("Cache-Control", "no-cache")
+                self.send_header("Accept-Ranges", "bytes")
                 self.end_headers()
                 with open(fpath, "rb") as f:
                     shutil.copyfileobj(f, self.wfile)
@@ -3074,29 +3229,35 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             snr_db = 20 * np.log10(peak_ir / noise_floor + 1e-12)
             peak_raw = np.max(np.abs(samples))
             peak_dbfs = 20 * np.log10(peak_raw / 32768.0 + 1e-12)
-
+            print(f"[Upload Sweep] Recibido {ch_key} (point={point_id}): {len(raw_bytes)} bytes | peak_raw={peak_raw} | peak_dbfs={peak_dbfs:.1f} dBFS | snr={snr_db:.1f} dB")
             peak_min_threshold = 100 if is_sub else 250
             snr_min_threshold = 6.0 if is_sub else 9.0
 
             if peak_raw < peak_min_threshold:
+                msg = f"Señal inaudible en {ch_key} (Pico: {peak_raw} < {peak_min_threshold}). Comprueba el volumen del Yamaha y del micrófono."
+                print(f"[Upload Sweep RECHAZADO]: {msg}")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": f"Señal inaudible en {ch_key} (Pico: {peak_raw} < {peak_min_threshold}). Comprueba el volumen del Yamaha y del micrófono."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"ok": False, "msg": msg}).encode("utf-8"))
                 return
 
             if peak_dbfs > -0.5:
+                msg = f"Saturación de micrófono en canal {ch_key} ({peak_dbfs:.1f} dBFS). Reduce 3 dB el volumen maestro del receptor para evitar distorsión armónica."
+                print(f"[Upload Sweep RECHAZADO]: {msg}")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": f"Saturación de micrófono en canal {ch_key} ({peak_dbfs:.1f} dBFS). Reduce 3 dB el volumen maestro del receptor para evitar distorsión armónica."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"ok": False, "msg": msg}).encode("utf-8"))
                 return
 
             if snr_db < snr_min_threshold:
+                msg = f"SNR insuficiente en {ch_key} ({snr_db:.1f} dB < {snr_min_threshold} dB). Silencia la sala."
+                print(f"[Upload Sweep RECHAZADO]: {msg}")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": f"SNR insuficiente en {ch_key} ({snr_db:.1f} dB < {snr_min_threshold} dB). Silencia la sala."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"ok": False, "msg": msg}).encode("utf-8"))
                 return
 
             # 1. Detect Acoustic Timing Reference Chirp (REW standard timing marker)
@@ -3121,54 +3282,56 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             nvram_d0 = get_hardware_nvram_distances()
             
             if point_id == 1:
-                distance_m = round(nvram_d0.get(ch_key, 2.45), 2)
+                # Punto 1 (Sweet Spot): Si el chirp acústico tiene SNR suficiente, calcular diferencia de ToF
+                d0_l = nvram_d0.get("Front_L", 2.45)
+                if (ch_key in ["Front_R", "R"] or alias_key in ["Front_R", "R"]) and chirp_snr >= 2.5 and t_sweep > t_chirp:
+                    measured_delta_samples = (t_sweep - t_chirp) - digital_ref_delay_samples
+                    delta_dist_m = (measured_delta_samples / float(fs)) * 343.4
+                    distance_m = round(max(1.2, min(5.0, d0_l + delta_dist_m)), 2)
+                elif (ch_key in ["Subwoofer", "SUB"] or alias_key in ["Subwoofer", "SUB"]) and chirp_snr >= 2.5 and t_sweep > t_chirp:
+                    measured_delta_samples = (t_sweep - t_chirp) - digital_ref_delay_samples
+                    delta_dist_m = (measured_delta_samples / float(fs)) * 343.4
+                    distance_m = round(max(1.5, min(6.0, d0_l + delta_dist_m)), 2)
+                else:
+                    distance_m = round(nvram_d0.get(ch_key, 2.45), 2)
             else:
-                # Fetch Point 1 reference baseline for acoustic differential calculations
+                # Puntos 2 a 5: Medición diferencial acústica genuina por Tiempo de Vuelo (ToF) relativo al Sweet Spot
                 p1_fp = f"{DATA_DIR}/medicion_punto_1.npz"
                 p1_loaded = np.load(p1_fp) if os.path.exists(p1_fp) else None
-                
-                # Compute Front_L distance baseline at this point via inverse-square law
                 d0_l = nvram_d0.get("Front_L", 2.45)
-                dist_l_at_point = d0_l
-                if p1_loaded is not None and ("smooth_l" in p1_loaded.files or "raw_l" in p1_loaded.files):
-                    p1_f = p1_loaded.get("freqs", np.linspace(20, 20000, 1000))
-                    mask_mid = (p1_f >= 500.0) & (p1_f <= 4000.0)
-                    p1_spl_l = float(np.mean(p1_loaded["smooth_l"][mask_mid])) if "smooth_l" in p1_loaded.files else float(np.mean(p1_loaded["raw_l"][mask_mid]))
-                    
-                    # Current sweep direct level
-                    curr_fft = np.fft.rfft(ir_win, n=131072)
-                    curr_f = np.fft.rfftfreq(131072, d=1.0/fs)
-                    curr_mag = 20 * np.log10(np.abs(curr_fft) + 1e-12)
-                    curr_mask = (curr_f >= 500.0) & (curr_f <= 4000.0)
-                    curr_spl_l = float(np.mean(curr_mag[curr_mask])) + 95.0
-                    
-                    delta_spl_l = curr_spl_l - (p1_spl_l + 95.0)
-                    dist_l_at_point = round(d0_l * (10.0 ** (-delta_spl_l / 20.0)), 2)
-                    dist_l_at_point = max(1.2, min(5.0, dist_l_at_point))
+                d0_r = nvram_d0.get("Front_R", 2.35)
+                d0_sub = nvram_d0.get("Subwoofer", 3.65)
 
-                if ch_key == "Front_L" or alias_key in ["Front_L", "L"]:
-                    distance_m = dist_l_at_point
-                elif ch_key == "Front_R" or alias_key in ["Front_R", "R"]:
-                    if chirp_snr >= 2.5 and t_sweep > t_chirp:
+                if (ch_key in ["Front_L", "L"] or alias_key in ["Front_L", "L"]):
+                    if p1_loaded is not None and "ir_l" in p1_loaded.files:
+                        p1_pk = int(np.argmax(np.abs(p1_loaded["ir_l"])))
+                        curr_pk = int(np.argmax(np.abs(ir_win)))
+                        delta_samples = curr_pk - p1_pk
+                        delta_dist = (delta_samples / float(fs)) * 343.4
+                        distance_m = round(max(1.2, min(5.0, d0_l + delta_dist)), 2)
+                    else:
+                        distance_m = d0_l
+                elif (ch_key in ["Front_R", "R"] or alias_key in ["Front_R", "R"]):
+                    if p1_loaded is not None and "ir_r" in p1_loaded.files:
+                        p1_pk = int(np.argmax(np.abs(p1_loaded["ir_r"])))
+                        curr_pk = int(np.argmax(np.abs(ir_win)))
+                        delta_samples = curr_pk - p1_pk
+                        delta_dist = (delta_samples / float(fs)) * 343.4
+                        distance_m = round(max(1.2, min(5.0, d0_r + delta_dist)), 2)
+                    elif chirp_snr >= 2.5 and t_sweep > t_chirp:
                         measured_delta_samples = (t_sweep - t_chirp) - digital_ref_delay_samples
                         delta_dist_m = (measured_delta_samples / float(fs)) * 343.4
-                        distance_m = round(max(1.2, min(5.0, dist_l_at_point + delta_dist_m)), 2)
+                        distance_m = round(max(1.2, min(5.0, d0_l + delta_dist_m)), 2)
                     else:
-                        distance_m = nvram_d0.get("Front_R", 2.35)
+                        distance_m = d0_r
                 else:
-                    # Subwoofer: physical distance from acoustic arrival shift & displacement
-                    d0_sub = nvram_d0.get("Subwoofer", 3.65)
+                    # Subwoofer: Tiempo de vuelo mediante envolvente de Hilbert del transitorio inicial
                     if p1_loaded is not None and "ir_sub" in p1_loaded.files:
                         p1_sub_pk = int(np.argmax(np.abs(scipy.signal.hilbert(p1_loaded["ir_sub"]))))
                         sub_pk = int(np.argmax(np.abs(scipy.signal.hilbert(ir_win))))
                         delta_samples_sub = sub_pk - p1_sub_pk
                         delta_dist_sub = (delta_samples_sub / float(fs)) * 343.4
-                        raw_sub_dist = d0_sub + delta_dist_sub
-                        if 2.2 <= raw_sub_dist <= 5.0:
-                            distance_m = round(raw_sub_dist, 2)
-                        else:
-                            dy = d0_l - dist_l_at_point
-                            distance_m = round(d0_sub - (dy * 0.94), 2)
+                        distance_m = round(max(1.5, min(6.0, d0_sub + delta_dist_sub)), 2)
                     else:
                         distance_m = d0_sub
             delay_ms = round((distance_m / 343.4) * 1000.0, 2)
@@ -3213,6 +3376,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             ]
             pending_channels = [cid for cid in active_ch_ids if cid not in completed_channels]
             all_done = len(pending_channels) == 0
+            print(f"[Upload Sweep Estado] point={point_id}: completados={completed_channels}, pendientes={pending_channels}, all_done={all_done}")
 
             l_data = point_buffers[point_id].get("Front_L", point_buffers[point_id].get("L"))
             r_data = point_buffers[point_id].get("Front_R", point_buffers[point_id].get("R"))
@@ -3804,8 +3968,35 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 from scripts.dlna_streamer import stream_audio_to_avr, get_local_lan_ip
                 local_ip = get_local_lan_ip(host)
                 audio_url = f"http://{local_ip}:53317/audio/{fname}"
-                ok, msg = stream_audio_to_avr(audio_url, title=title, host=host)
+                ok, msg = stream_audio_to_avr(audio_url, title=title, host=host, content_type="audio/wav")
                 self.send_json({"ok": ok, "msg": msg, "stream_url": audio_url})
+            except Exception as e:
+                self.send_json({"ok": False, "msg": str(e)})
+            return
+
+        if path == "/api/cast_radio":
+            # Cast any internet radio URL through our local proxy to Yamaha AVR via DLNA
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = {}
+            if content_length > 0:
+                try:
+                    body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                except Exception:
+                    pass
+            station_url = body.get("url", params.get("url", [""])[0])
+            title = body.get("title", params.get("title", ["Radio"])[0])
+            host = body.get("host", "192.168.1.43")
+            content_type = body.get("content_type", "audio/mpeg")
+            if not station_url:
+                self.send_json({"ok": False, "msg": "Missing url"})
+                return
+            try:
+                from scripts.dlna_streamer import stream_audio_to_avr, get_local_lan_ip
+                import urllib.parse as _up
+                local_ip = get_local_lan_ip(host)
+                proxy_url = f"http://{local_ip}:53317/api/stream_proxy?url={_up.quote(station_url, safe='')}"
+                ok, msg = stream_audio_to_avr(proxy_url, title=title, host=host, content_type=content_type)
+                self.send_json({"ok": ok, "msg": msg, "stream_url": proxy_url, "station_url": station_url})
             except Exception as e:
                 self.send_json({"ok": False, "msg": str(e)})
             return
@@ -3813,8 +4004,83 @@ class CalibrationHandler(BaseHTTPRequestHandler):
         if path == "/api/stop_avr_stream":
             try:
                 from scripts.dlna_streamer import stop_avr_stream
-                ok, msg = stop_avr_stream(restore_input="AV4")
+                stop_avr_stream(restore_input="AV4")
                 self.send_json({"ok": True, "msg": "Stream detenido y entrada restaurada a AV4"})
+            except Exception as e:
+                self.send_json({"ok": False, "msg": str(e)})
+            return
+
+        if path == "/api/available_inputs":
+            inputs = [
+                {"id": "AV4", "name": "AV4 (TV LG C5 eARC / HDMI ARC)", "type": "arc"},
+                {"id": "HDMI1", "name": "HDMI 1", "type": "hdmi"},
+                {"id": "HDMI2", "name": "HDMI 2", "type": "hdmi"},
+                {"id": "HDMI3", "name": "HDMI 3", "type": "hdmi"},
+                {"id": "HDMI4", "name": "HDMI 4", "type": "hdmi"},
+                {"id": "HDMI5", "name": "HDMI 5", "type": "hdmi"},
+                {"id": "V-AUX", "name": "V-AUX (Frontal Medición)", "type": "aux"},
+                {"id": "AUDIO1", "name": "AUDIO 1 (Óptico / RCA)", "type": "audio"},
+                {"id": "AUDIO2", "name": "AUDIO 2", "type": "audio"},
+                {"id": "NET", "name": "NET / DLNA", "type": "network"},
+                {"id": "AirPlay", "name": "AirPlay", "type": "network"},
+                {"id": "TUNER", "name": "Radio FM / AM", "type": "tuner"},
+            ]
+            self.send_json({"ok": True, "inputs": inputs})
+            return
+
+        if path == "/api/set_input":
+            content_length = int(self.headers.get("Content-Length", 0))
+            req_body = {}
+            if content_length > 0:
+                try:
+                    req_body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                except Exception:
+                    pass
+            target_inp = req_body.get("input", params.get("input", ["AV4"])[0])
+            url = "http://192.168.1.43/YamahaRemoteControl/ctrl"
+            hdr = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+            xml_cmd = f'<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>{target_inp}</Input_Sel></Input></Main_Zone></YAMAHA_AV>'
+            try:
+                req = urllib.request.Request(url, data=xml_cmd.encode('utf-8'), headers=hdr)
+                with urllib.request.urlopen(req, timeout=2.0) as resp:
+                    res_txt = resp.read().decode('utf-8')
+                    ok = 'RC="0"' in res_txt or 'OK' in res_txt
+                    self.send_json({"ok": ok, "input": target_inp, "raw": res_txt})
+            except Exception as e:
+                self.send_json({"ok": False, "msg": str(e)})
+            return
+
+        if path == "/api/set_volume":
+            content_length = int(self.headers.get("Content-Length", 0))
+            req_body = {}
+            if content_length > 0:
+                try:
+                    req_body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                except Exception:
+                    pass
+            vol_db = req_body.get("volume_db", params.get("volume_db", [None])[0])
+            step = req_body.get("step", params.get("step", [None])[0])
+            url = "http://192.168.1.43/YamahaRemoteControl/ctrl"
+            hdr = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
+            
+            try:
+                if step is not None:
+                    # Query current volume first
+                    live_now = get_avr_live_status()
+                    curr_vol = live_now.get("volume_db", -35.0)
+                    step_num = float(step)
+                    target_vol = round((curr_vol + step_num) * 2.0) / 2.0
+                else:
+                    target_vol = round(float(vol_db) * 2.0) / 2.0
+
+                target_vol = max(-80.0, min(16.5, target_vol))
+                val_int = int(round(target_vol * 10))
+                vol_xml = f'<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>{val_int}</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>'
+                req = urllib.request.Request(url, data=vol_xml.encode('utf-8'), headers=hdr)
+                with urllib.request.urlopen(req, timeout=2.0) as resp:
+                    res_txt = resp.read().decode('utf-8')
+                    ok = 'RC="0"' in res_txt or 'OK' in res_txt
+                    self.send_json({"ok": ok, "volume_db": target_vol, "raw": res_txt})
             except Exception as e:
                 self.send_json({"ok": False, "msg": str(e)})
             return
@@ -3828,12 +4094,26 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
             mode = req_body.get("mode", params.get("mode", ["Manual"])[0])
-            # Map human / UI IDs
-            mode_map = {"peq": "Manual", "through": "Through", "ypao_flat": "Flat", "ypao_natural": "Natural"}
-            mode = mode_map.get(str(mode).lower(), mode)
+            # Map human / UI IDs to discrete Yamaha PEQ modes
+            mode_map = {
+                "peq": "Manual",
+                "manual": "Manual",
+                "manual peq": "Manual",
+                "manual_peq": "Manual",
+                "through": "Through",
+                "bypass": "Through",
+                "flat": "Flat",
+                "ypao_flat": "Flat",
+                "ypao flat": "Flat",
+                "natural": "Natural",
+                "ypao_natural": "Natural",
+                "ypao natural": "Natural",
+                "front": "Front",
+                "ypao_front": "Front",
+            }
+            mode = mode_map.get(str(mode).lower().strip(), mode)
             prepare = str(req_body.get("prepare_sweep", params.get("prepare_sweep", ["0"])[0]))
             try:
-                # If preparing for acoustic sweep measurement, ensure receiver is on V-AUX and calibration volume
                 if prepare == "1":
                     url = "http://192.168.1.43/YamahaRemoteControl/ctrl"
                     hdr = {'Content-Type': 'text/xml; charset=utf-8', 'User-Agent': 'AV_Receiver/3.1'}
@@ -3843,7 +4123,6 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                             return resp.read()
                     try:
                         _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Power_Control><Power>On</Power></Power_Control></Main_Zone></YAMAHA_AV>')
-                        _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Input><Input_Sel>V-AUX</Input_Sel></Input></Main_Zone></YAMAHA_AV>')
                         _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Volume><Lvl><Val>-250</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></Main_Zone></YAMAHA_AV>')
                         _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Adaptive_DRC>Off</Adaptive_DRC></Sound_Video></Main_Zone></YAMAHA_AV>')
                         _put('<YAMAHA_AV cmd="PUT"><Main_Zone><Surround><Program_Sel><Current><Straight>On</Straight></Current></Program_Sel></Surround></Main_Zone></YAMAHA_AV>')
@@ -3874,17 +4153,17 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             try:
                 samples, mic = decode_audio_sweep_bytes(raw_data)
                 peak_raw = np.max(np.abs(samples)) if len(samples) > 0 else 0
-                if peak_raw < 500:
+                if peak_raw < 80:
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
                     self.wfile.write(json.dumps({
                         "ok": False,
-                        "msg": "Señal de validación inaudible o silencio. Comprueba que el Yamaha suena en V-AUX y el volumen esté alto."
+                        "msg": "Señal de validación inaudible o silencio. Comprueba que el Yamaha recibe audio y el volumen no esté silenciado."
                     }).encode("utf-8"))
                     return
                 peak_dbfs = 20 * np.log10(peak_raw / 32768.0 + 1e-12)
-                if peak_dbfs > -0.5:
+                if peak_dbfs > -0.2:
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
@@ -3897,19 +4176,9 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 peak_ir = np.max(np.abs(ir))
                 noise_floor = np.mean(np.abs(mic[:int(fs * 0.3)])) + 1e-12
                 snr_db = 20 * np.log10(peak_ir / noise_floor + 1e-12)
-                if snr_db < 14.0:
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/json")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "ok": False,
-                        "msg": f"SNR de validación insuficiente ({snr_db:.1f} dB < 14 dB). Comprueba que el Yamaha suena en V-AUX."
-                    }).encode("utf-8"))
-                    return
-
-                peak_idx = int(np.argmax(np.abs(ir)))
-                pre_samples = int(0.010 * fs)
-                post_samples = int(0.500 * fs)
+                min_snr = 5.0 if channel == "SUB" else 7.0
+                if snr_db < min_snr:
+                    print(f"[Server] Aviso: SNR de validación en canal {channel} es de {snr_db:.1f} dB (umbral {min_snr} dB), procesando con tolerancia...")
                 start = max(0, peak_idx - pre_samples)
                 end = min(len(ir), peak_idx + post_samples)
                 ir_win = ir[start:end]

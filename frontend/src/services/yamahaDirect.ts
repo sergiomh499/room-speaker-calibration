@@ -133,40 +133,53 @@ export class YamahaDirectController {
   /**
    * Envía un flujo de audio DLNA DMR al receptor (puerto 8080).
    */
-  async playDlnaStream(audioUrl: string, title: string = 'Calibración Acústica'): Promise<boolean> {
+  async playDlnaStream(audioUrl: string, title: string = 'Calibración Acústica', contentType: string = 'audio/wav'): Promise<boolean> {
+    // Map MIME → DLNA PN
+    const dlnaPn: Record<string, string> = {
+      'audio/wav': 'LPCM', 'audio/x-wav': 'LPCM',
+      'audio/mpeg': 'MP3', 'audio/mp3': 'MP3',
+      'audio/flac': 'FLAC', 'audio/x-flac': 'FLAC',
+      'audio/ogg': 'OGG', 'audio/aac': 'AAC_ISO',
+    };
+    const pn = dlnaPn[contentType] ?? 'MP3';
+    const protocolInfo = `http-get:*:${contentType}:DLNA.ORG_PN=${pn}`;
+
+    // Automatically route any non-local URL through local proxy to avoid Yamaha HTTPS/Access error
+    let targetUrl = audioUrl;
+    if (!audioUrl.startsWith('http://192.168.') && !audioUrl.startsWith('http://127.0.0.1')) {
+      const serverUrl = localStorage.getItem('octave_server_url') || 'http://192.168.1.45:53317';
+      targetUrl = `${serverUrl}/api/stream_proxy?url=${encodeURIComponent(audioUrl)}`;
+    }
+
     const didl = `<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/">
 <item id="1" parentID="0" restricted="1">
 <dc:title>${title}</dc:title>
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>
-<res protocolInfo="http-get:*:audio/wav:DLNA.ORG_PN=LPCM">${audioUrl}</res>
+<res protocolInfo="${protocolInfo}">${targetUrl}</res>
 </item>
 </DIDL-Lite>`;
 
     await this.setInput('SERVER');
+
+    const urlCtrl = `http://${this.ip}:8080/AVTransport/ctrl`;
+
+    // 1. Send Stop first to flush buffer and avoid playing residual sweep audio
+    const bodyStop = `<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body><u:Stop xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID></u:Stop></s:Body>
+</s:Envelope>`;
 
     const bodySetUri = `<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
   <s:Body>
     <u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
       <InstanceID>0</InstanceID>
-      <CurrentURI>${audioUrl}</CurrentURI>
+      <CurrentURI>${targetUrl}</CurrentURI>
       <CurrentURIMetaData><![CDATA[${didl}]]></CurrentURIMetaData>
-    </u:SetAVTransportURI>
   </s:Body>
 </s:Envelope>`;
 
-    const urlCtrl = `http://${this.ip}:8080/AVTransport/ctrl`;
-    if (Capacitor.isNativePlatform()) {
-      await CapacitorHttp.post({
-        url: urlCtrl,
-        data: bodySetUri,
-        headers: {
-          'Content-Type': 'text/xml; charset="utf-8"',
-          'SOAPAction': '"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI"'
-        }
-      });
-
-      const bodyPlay = `<?xml version="1.0" encoding="utf-8"?>
+    const bodyPlay = `<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
   <s:Body>
     <u:Play xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
@@ -176,17 +189,28 @@ export class YamahaDirectController {
   </s:Body>
 </s:Envelope>`;
 
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await CapacitorHttp.post({
+          url: urlCtrl,
+          data: bodyStop,
+          headers: { 'Content-Type': 'text/xml; charset="utf-8"', 'SOAPAction': '"urn:schemas-upnp-org:service:AVTransport:1#Stop"' }
+        });
+      } catch {}
+      await CapacitorHttp.post({
+        url: urlCtrl,
+        data: bodySetUri,
+        headers: { 'Content-Type': 'text/xml; charset="utf-8"', 'SOAPAction': '"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI"' }
+      });
+      await new Promise(r => setTimeout(r, 400));
       await CapacitorHttp.post({
         url: urlCtrl,
         data: bodyPlay,
-        headers: {
-          'Content-Type': 'text/xml; charset="utf-8"',
-          'SOAPAction': '"urn:schemas-upnp-org:service:AVTransport:1#Play"'
-        }
+        headers: { 'Content-Type': 'text/xml; charset="utf-8"', 'SOAPAction': '"urn:schemas-upnp-org:service:AVTransport:1#Play"' }
       });
       return true;
     }
-
+    // Browser: delegate to backend
     const resp = await fetch('/api/stream_to_avr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

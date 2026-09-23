@@ -19,8 +19,8 @@ export interface RecordingResult {
   fileName: string;
   durationMs: number;
   fileSizeBytes: number;
+  base64Audio?: string;
 }
-
 export interface RawAudioRecorderPluginInterface {
   getAudioDevices(): Promise<AudioDevicesResult>;
   startRecording(options?: { filename?: string }): Promise<{

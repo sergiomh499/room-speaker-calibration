@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Square, ExternalLink, Radio, Disc3, Volume2, Sparkles } from 'lucide-react';
+import { Play, Square, Radio, Disc3, Volume2, Cast } from 'lucide-react';
 import { musicCaster } from '../../services/musicCaster';
 import { yamahaDirect } from '../../services/yamahaDirect';
 import { useCalibration } from '../../context/CalibrationContext';
@@ -10,24 +10,13 @@ export const MusicStreamingHub: React.FC = () => {
   const [customTitle, setCustomTitle] = useState('');
   const [isCasting, setIsCasting] = useState(false);
 
-  // Emisoras de alta fidelidad preconfiguradas
+  // Emisoras de alta fidelidad preconfiguradas con streaming verificado
   const PRESET_STATIONS = [
-    { name: 'Radio Paradise (FLAC Lossless)', url: 'http://stream.radioparadise.com/flac', genre: 'Eclectic Rock / Audiophile' },
+    { name: 'Radio Paradise (320k MP3)', url: 'http://stream.radioparadise.com/mp3-320', genre: 'Eclectic Rock / Audiophile' },
     { name: 'Linn Jazz (320k MP3)', url: 'http://radio.linn.co.uk:8000/autodj', genre: 'Acoustic & Vocal Jazz' },
     { name: 'SomaFM Groove Salad (256k)', url: 'http://ice1.somafm.com/groovesalad-256-mp3', genre: 'Ambient / Chillout / Synth' },
     { name: 'KEXP Seattle Live', url: 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3', genre: 'Indie / Live Studio' }
   ];
-
-  const handleLaunchSpotify = async () => {
-    toast('Abriendo Spotify y configurando receptor Yamaha...', 'info');
-    const ok = await musicCaster.launchSpotify();
-    if (ok) {
-      toast('Yamaha preparado en entrada TV/eARC con perfil Harman Music', 'success');
-    } else {
-      toast('No se pudo abrir la app de Spotify', 'warn');
-    }
-  };
-
   const handleCastStream = async (url: string, title: string) => {
     setIsCasting(true);
     toast(`Conectando DLNA con Yamaha: ${title}...`, 'info');
@@ -50,31 +39,21 @@ export const MusicStreamingHub: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Banner Superior Spotify */}
-      <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/60 via-surface-1 to-surface-0 p-6 shadow-xl">
+      {/* Banner Superior Hi-Fi Streaming */}
+      <div className="relative overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/60 via-surface-1 to-surface-0 p-6 shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Transmisión Rápida Móvil</span>
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-400">
+              <Cast className="h-3.5 w-3.5" />
+              <span>Streaming de Audio en Red (DLNA Hi-Fi)</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span>Spotify & Transmisión al Yamaha</span>
+              <span>Audio Streaming de Alta Fidelidad</span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Lanza Spotify en tu teléfono con un toque. La app conmuta automáticamente el Yamaha RX-V673 a la entrada correcta y aplica la curva acústica <strong>Harman Target</strong> en los altavoces Q Acoustics y el subwoofer Focal.
+              Transmite música y flujos de audio directamente al receptor <strong>Yamaha RX-V673</strong> en calidad digital nativa sin pérdidas, con la calibración acústica <strong>Harman Target</strong> (Q Acoustics 3020i + Focal Cub Evo) aplicada en tiempo real.
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={handleLaunchSpotify}
-            className="w-full md:w-auto flex items-center justify-center gap-3 rounded-xl bg-[#1DB954] hover:bg-[#1aa34a] px-6 py-3.5 text-sm font-bold text-black shadow-lg shadow-emerald-900/40 transition-all active:scale-95 shrink-0"
-          >
-            <Play className="h-5 w-5 fill-black" />
-            <span>Abrir Spotify en Móvil</span>
-            <ExternalLink className="h-4 w-4 opacity-70" />
-          </button>
         </div>
       </div>
 
@@ -169,7 +148,7 @@ export const MusicStreamingHub: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { label: 'TV eARC / Spotify', input: 'AV4' },
+                { label: 'TV Audio (HDMI eARC)', input: 'AV4' },
                 { label: 'DLNA Server', input: 'SERVER' },
                 { label: 'Net Radio', input: 'NET_RADIO' },
                 { label: 'Entrada Frontal', input: 'V-AUX' }

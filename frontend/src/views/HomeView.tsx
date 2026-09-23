@@ -8,8 +8,9 @@ import { FrequencyGraph, CurveDataPoint } from '../components/charts/FrequencyGr
 import { api } from '../services/api';
 
 export const HomeView: React.FC = () => {
-  const { setView, setWizardStep, avrStatus, topology } = useCalibration();
+  const { setView, setWizardStep, avrStatus, profiles, activeProfileId, setActiveProfileId, toast } = useCalibration();
   const [curveData, setCurveData] = useState<CurveDataPoint[]>([]);
+  const [deploying, setDeploying] = useState<boolean>(false);
   const [acousticsData, setAcousticsData] = useState<{
     t60_s: number;
     schroeder_frequency_hz: number;
@@ -55,7 +56,8 @@ export const HomeView: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    api.getMeasuredCurve('harman_wide_room')
+    const profileToFetch = activeProfileId || 'harman_wide_room';
+    api.getMeasuredCurve(profileToFetch)
       .then(res => {
         if (!isMounted) return;
         if (res && res.freqs && res.freqs.length > 0) {
@@ -79,7 +81,22 @@ export const HomeView: React.FC = () => {
       .catch(() => {
         if (isMounted) setCurveData(fallbackCurve());
       });
+  }, [activeProfileId]);
 
+  const handleDeployProfile = async () => {
+    setDeploying(true);
+    try {
+      await api.deployPEQ(activeProfileId);
+      toast(`✓ Perfil '${profiles.find(p => p.id === activeProfileId)?.name || activeProfileId}' aplicado al Yamaha RX-V673 en NVRAM`, 'success');
+    } catch (err: any) {
+      toast(`Error al aplicar perfil: ${err.message || 'Error de red'}`, 'warn');
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
     api.getRoomAcousticsAdvanced()
       .then(res => {
         if (!isMounted) return;
@@ -98,7 +115,7 @@ export const HomeView: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-6 pb-28 md:pb-8">
+    <div className="space-y-6 pb-36 md:pb-12">
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-surface-1 via-surface-1 to-indigo-950/40 border border-border-subtle p-6 sm:p-8">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -107,7 +124,7 @@ export const HomeView: React.FC = () => {
           <div className="space-y-2 max-w-2xl">
             <div className="flex items-center gap-2">
               <Pill variant="emerald" icon={<CheckCircle2 className="w-3.5 h-3.5" />}>
-                Calibración Activa: Harman 2.1
+                Calibración Activa: {profiles.find(p => p.id === activeProfileId)?.name?.split('(')[0]?.trim() || 'Harman 2.1'}
               </Pill>
               <Pill variant="neutral">
                 ITU-R BS.1116 (5 Puntos)
@@ -138,8 +155,8 @@ export const HomeView: React.FC = () => {
               size="lg"
               icon={<Music className="w-4 h-4" />}
               onClick={() => {
-                setWizardStep(topology === '2.0' ? 3 : 4);
-                setView('calibrate');
+                const el = document.getElementById('perfiles-peq-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
             >
               Cambiar Perfil PEQ
@@ -223,9 +240,79 @@ export const HomeView: React.FC = () => {
         </Card>
       </div>
 
+      {/* Interactive Profile Selector & Curve Header */}
+      <div id="perfiles-peq-section" className="space-y-3 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                Perfiles Acústicos PEQ
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                {profiles.length} disponibles
+              </span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight mt-1">
+              Selecciona tu Curva Objetivo
+            </h2>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={deploying}
+            icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+            onClick={handleDeployProfile}
+          >
+            {deploying ? 'Aplicando...' : 'Aplicar al Yamaha RX-V673'}
+          </Button>
+        </div>
+
+        {/* Profile Chips Carousel */}
+        <div className="flex gap-2 overflow-x-auto pb-2 pt-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+          {profiles.map(p => {
+            const isSelected = p.id === activeProfileId;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setActiveProfileId(p.id)}
+                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-left border transition-all text-xs font-medium ${
+                  isSelected
+                    ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-md'
+                    : 'bg-surface-1 border-border-subtle text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-indigo-400 animate-pulse' : 'bg-slate-600'}`} />
+                <span className="font-semibold text-slate-200">
+                  {p.name.split('(')[0].trim()}
+                </span>
+                {p.badge && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-2 text-indigo-300 border border-border-subtle">
+                    {p.badge.replace(/[🥇🥈🥉🎯💥⚡]/g, '').trim().slice(0, 16)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active Profile Info Banner */}
+        {profiles.find(p => p.id === activeProfileId) && (
+          <div className="p-3 rounded-xl bg-surface-1/60 border border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <p className="text-slate-300 leading-relaxed max-w-2xl">
+              <strong className="text-white">{profiles.find(p => p.id === activeProfileId)?.name}: </strong>
+              {profiles.find(p => p.id === activeProfileId)?.description}
+            </p>
+            <span className="shrink-0 text-slate-400 font-mono text-[11px] self-start sm:self-auto">
+              Categoría: <strong className="text-indigo-300">{profiles.find(p => p.id === activeProfileId)?.category}</strong>
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Main Acoustic Frequency Response Graph */}
       <FrequencyGraph
-        title="Medición Acústica Espacial & Corrección Activa"
+        title={`Respuesta Acústica & Curva: ${profiles.find(p => p.id === activeProfileId)?.name?.split('(')[0]?.trim() || activeProfileId}`}
         data={curveData}
         height={340}
       />

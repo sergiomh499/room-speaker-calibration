@@ -1,4 +1,4 @@
-import { yamahaDirect } from './yamahaDirect';
+import { fetchApi } from './api';
 
 export interface MusicTrackInfo {
   title: string;
@@ -6,7 +6,23 @@ export interface MusicTrackInfo {
   album: string;
   albumArtUrl?: string;
   isPlaying: boolean;
-  source: 'spotify' | 'dlna' | 'net_radio' | 'airplay';
+  source: 'dlna' | 'net_radio' | 'airplay';
+}
+
+const DLNA_CONTENT_TYPE: Record<string, string> = {
+  '.mp3': 'audio/mpeg',
+  '.flac': 'audio/flac',
+  '.ogg': 'audio/ogg',
+  '.aac': 'audio/aac',
+  '.wav': 'audio/wav',
+};
+
+function guessContentType(url: string): string {
+  const lower = url.toLowerCase().split('?')[0];
+  for (const [ext, mime] of Object.entries(DLNA_CONTENT_TYPE)) {
+    if (lower.endsWith(ext)) return mime;
+  }
+  return 'audio/mpeg';
 }
 
 export class MusicCasterService {
@@ -15,70 +31,47 @@ export class MusicCasterService {
     artist: 'Yamaha RX-V673',
     album: 'En espera',
     isPlaying: false,
-    source: 'spotify'
+    source: 'dlna'
   };
 
   /**
-   * Lanza la aplicación Spotify directamente en Android mediante deep-linking
-   * y configura automáticamente el receptor Yamaha en la entrada eARC/TV o SERVER con perfil acústico óptimo.
+   * Envía cualquier flujo de audio (radio online o archivo) al receptor Yamaha RX-V673 vía DLNA.
+   * SIEMPRE pasa a través del proxy del servidor local para garantizar compatibilidad total
+   * (resuelve HTTPS, transcodifica si es necesario y evita el error "Access Error" del receptor).
    */
-  async launchSpotify(spotifyUri: string = 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M'): Promise<boolean> {
+  async castAudioStream(url: string, title: string = 'Transmisión'): Promise<boolean> {
+    const contentType = guessContentType(url);
+
     try {
-      // 1. Conmutar el receptor Yamaha a AV4 (Audio TV / eARC) o SERVER
-      await yamahaDirect.setInput('AV4');
-      // 2. Activar perfil acústico Harman Music (Escena 1)
-      await yamahaDirect.selectScene(1);
+      const res = await fetchApi<{ ok: boolean; msg?: string }>('/api/cast_radio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, title, content_type: contentType })
+      });
 
-      // 3. Abrir la app de Spotify nativa en Android
-      if (typeof window !== 'undefined') {
-        const intentUrl = `intent://#Intent;package=com.spotify.music;action=android.intent.action.VIEW;data=${encodeURIComponent(spotifyUri)};end`;
-        const fallbackUrl = `https://open.spotify.com/`;
-
-        // Intentar abrir el Intent de Spotify o la app
-        window.location.href = intentUrl;
-        setTimeout(() => {
-          window.open(fallbackUrl, '_blank');
-        }, 1500);
+      if (res && res.ok) {
+        this.currentTrack = {
+          title,
+          artist: 'Transmisión Digital Directa',
+          album: 'DLNA Local Stream',
+          isPlaying: true,
+          source: 'dlna'
+        };
+        return true;
       }
-      return true;
+      return false;
     } catch (e) {
-      console.error('Error lanzando Spotify:', e);
+      console.error('Error enviando stream a través de API:', e);
       return false;
     }
   }
 
   /**
-   * Envía un flujo de audio DLNA DMR directo al puerto 8080 del receptor Yamaha.
-   * Soporta cualquier URL pública o local (MP3, FLAC, WAV, stream de radio por internet).
-   */
-  async castAudioStream(url: string, title: string = 'Transmisión Móvil'): Promise<boolean> {
-    const success = await yamahaDirect.playDlnaStream(url, title);
-    if (success) {
-      this.currentTrack = {
-        title,
-        artist: 'Flujo Digital Directo',
-        album: 'DLNA Lossless Cast',
-        isPlaying: true,
-        source: 'dlna'
-      };
-    }
-    return success;
-  }
-
-  /**
-   * Conmuta el receptor Yamaha a entrada NET_RADIO y sintoniza una emisora preestablecida.
-   */
-  async setNetRadio(): Promise<boolean> {
-    return await yamahaDirect.setInput('NET_RADIO');
-  }
-
-  /**
-   * Pausa o detiene la reproducción activa en el receptor.
+   * Detiene la reproducción activa y restaura la entrada a AV4.
    */
   async stopPlayback(): Promise<boolean> {
     try {
-      const xml = `<YAMAHA_AV cmd="PUT"><Main_Zone><Play_Control><Playback>Stop</Playback></Play_Control></Main_Zone></YAMAHA_AV>`;
-      await yamahaDirect.sendYncXml(xml);
+      await fetchApi('/api/stop_avr_stream', { method: 'POST' });
       this.currentTrack.isPlaying = false;
       return true;
     } catch {

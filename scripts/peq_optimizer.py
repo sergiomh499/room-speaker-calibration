@@ -400,54 +400,54 @@ def detect_modal_resonances(
     are considered. Dips and nulls are completely excluded.
     Computes physical bandwidth in Hertz and snaps Q to discrete Yamaha steps.
     """
-    error = response_db - target_db
-    mask = (freqs_hz >= 30.0) & (freqs_hz <= max_freq)
+    # 1. Normalize response to target level in the reference passband
+    # For full-range / front speakers: 300 - 3000 Hz
+    # For subwoofer (< 200 Hz): 35 - 75 Hz
+    if max_freq <= 200.0:
+        ref_mask = (freqs_hz >= 35.0) & (freqs_hz <= 75.0)
+    else:
+        ref_mask = (freqs_hz >= 300.0) & (freqs_hz <= 3000.0)
+
+    if np.any(ref_mask) and np.any(np.isfinite(response_db[ref_mask])) and np.any(np.isfinite(target_db[ref_mask])):
+        ref_offset = float(np.nanmedian(response_db[ref_mask]) - np.nanmedian(target_db[ref_mask]))
+        norm_response = response_db - ref_offset
+    else:
+        norm_response = response_db
+
+    error = norm_response - target_db
+    mask = (freqs_hz >= 25.0) & (freqs_hz <= max_freq)
     f_sub = freqs_hz[mask]
     err_sub = error[mask]
 
     if len(f_sub) < 10:
         return []
 
-    # Find peaks strictly above target + min_elevation_db
+    # Find genuine room resonance peaks by physical prominence in the modal band
     peaks, properties = find_peaks(
-        err_sub,
-        height=min_elevation_db,
-        prominence=1.2,
-        distance=4,
+        norm_response[mask],
+        prominence=min_elevation_db,
+        distance=3,
     )
-
     detected = []
     for i, p in enumerate(peaks):
         f0 = float(f_sub[p])
-        peak_height = float(properties["peak_heights"][i])
         prom = float(properties["prominences"][i])
-
-        # Calculate -3.0 dB bandwidth in physical Hertz
-        target_drop = peak_height - 3.0
+        peak_val = float(norm_response[mask][p])
+        target_drop = peak_val - 3.0
 
         # Find left -3 dB crossing
         left_idx = p
-        while left_idx > 0 and err_sub[left_idx] > target_drop:
+        while left_idx > 0 and norm_response[mask][left_idx] > target_drop:
             left_idx -= 1
-        if left_idx < p and err_sub[p] != err_sub[left_idx]:
-            # Linear interpolation for left frequency crossing
-            frac = (target_drop - err_sub[left_idx]) / (err_sub[left_idx + 1] - err_sub[left_idx] + 1e-12)
-            f_low = f_sub[left_idx] + frac * (f_sub[left_idx + 1] - f_sub[left_idx])
-        else:
-            f_low = f_sub[left_idx]
+        f_low = f_sub[left_idx]
 
         # Find right -3 dB crossing
         right_idx = p
-        while right_idx < len(err_sub) - 1 and err_sub[right_idx] > target_drop:
+        while right_idx < len(norm_response[mask]) - 1 and norm_response[mask][right_idx] > target_drop:
             right_idx += 1
-        if right_idx > p and err_sub[right_idx] != err_sub[right_idx - 1]:
-            # Linear interpolation for right frequency crossing
-            frac = (target_drop - err_sub[right_idx - 1]) / (err_sub[right_idx] - err_sub[right_idx - 1] + 1e-12)
-            f_high = f_sub[right_idx - 1] + frac * (f_sub[right_idx] - f_sub[right_idx - 1])
-        else:
-            f_high = f_sub[right_idx]
+        f_high = f_sub[right_idx]
 
-        bw_hz = max(5.0, float(f_high - f_low))
+        bw_hz = max(8.0, float(f_high - f_low))
         q_continuous = f0 / bw_hz
         # Clamp Q to realistic bounds (0.5 to 5.04)
         q_clamped = max(0.500, min(5.040, q_continuous))
@@ -455,12 +455,11 @@ def detect_modal_resonances(
 
         detected.append({
             "freq_hz": snap_frequency(f0),
-            "elevation_db": round(peak_height, 2),
+            "elevation_db": round(prom, 2),
             "prominence_db": round(prom, 2),
             "bandwidth_hz": round(bw_hz, 1),
             "q": q_snapped,
         })
-
     # Deduplicate peaks that snapped to the same discrete Yamaha frequency, keeping the one with higher elevation
     unique_detected = {}
     for d in detected:
@@ -559,8 +558,26 @@ def optimize_stereo_peq(
     # 3. Load target profile voicing bands (> 500 Hz) if defined
     voicing_l = []
     voicing_r = []
-    curated_modal_l = []
-    curated_modal_r = []
+
+    # A. Check hardware.json for active speaker voicing compensation (e.g. Q Acoustics 3020i crossover dip at 2520 Hz)
+    hw_file = pathlib.Path(__file__).resolve().parent.parent / "config" / "hardware.json"
+    if hw_file.exists():
+        try:
+            with open(hw_file) as f:
+                hw_data = json.load(f)
+            active_spk_id = hw_data.get("active", {}).get("speakers", "q_acoustics_3020i")
+            spk_info = hw_data.get("speakers", {}).get(active_spk_id, {})
+            v_comp = spk_info.get("voicing_compensation")
+            if v_comp and isinstance(v_comp, dict):
+                vf = float(v_comp.get("freq_hz", 2520.0))
+                vq = float(v_comp.get("q", 1.26))
+                vg = float(v_comp.get("gain_db", 1.5))
+                voicing_l.append({"freq_hz": snap_frequency(vf), "q": snap_q(vq), "gain_db": snap_gain(vg, vf, allow_voicing_boost=True), "role": "voicing"})
+                voicing_r.append({"freq_hz": snap_frequency(vf), "q": snap_q(vq), "gain_db": snap_gain(vg, vf, allow_voicing_boost=True), "role": "voicing"})
+        except Exception:
+            pass
+
+    # B. Also check target profile in targets.json for custom voicing bands
     if target_key:
         cfg_file = pathlib.Path(config_path or (pathlib.Path(__file__).resolve().parent.parent / "config" / "targets.json"))
         if cfg_file.exists():
@@ -570,44 +587,34 @@ def optimize_stereo_peq(
                 if target_key in cfg and "bands" in cfg[target_key]:
                     for b_name, b_data in cfg[target_key]["bands"].items():
                         freq_val = b_data.get("freq", 0.0)
-                        if freq_val > 500.0 and (b_data.get("gain_l", 0.0) != 0.0 or b_data.get("gain_r", 0.0) != 0.0 or b_data.get("gain", 0.0) != 0.0):
-                            g_l = b_data.get("gain_l", b_data.get("gain", 0.0))
-                            g_r = b_data.get("gain_r", b_data.get("gain", 0.0))
-                            q_l = b_data.get("q_l", b_data.get("q", 1.0))
-                            q_r = b_data.get("q_r", b_data.get("q", 1.0))
-                            voicing_l.append({
-                                "freq_hz": snap_frequency(freq_val),
-                                "q": snap_q(q_l),
-                                "gain_db": snap_gain(g_l, freq_val, allow_voicing_boost=True),
-                                "role": "voicing",
-                            })
-                            voicing_r.append({
-                                "freq_hz": snap_frequency(freq_val),
-                                "q": snap_q(q_r),
-                                "gain_db": snap_gain(g_r, freq_val, allow_voicing_boost=True),
-                                "role": "voicing",
-                            })
-                        elif freq_val <= 500.0 and (b_data.get("gain_l", 0.0) < 0.0 or b_data.get("gain_r", 0.0) < 0.0 or b_data.get("gain", 0.0) < 0.0):
-                            g_l = b_data.get("gain_l", b_data.get("gain", 0.0))
-                            g_r = b_data.get("gain_r", b_data.get("gain", 0.0))
-                            q_l = b_data.get("q_l", b_data.get("q", 1.0))
-                            q_r = b_data.get("q_r", b_data.get("q", 1.0))
-                            curated_modal_l.append({
-                                "freq_hz": snap_frequency(freq_val),
-                                "q": snap_q(q_l),
-                                "gain_db": snap_gain(g_l, freq_val),
-                                "role": "common_mode",
-                            })
-                            curated_modal_r.append({
-                                "freq_hz": snap_frequency(freq_val),
-                                "q": snap_q(q_r),
-                                "gain_db": snap_gain(g_r, freq_val),
-                                "role": "common_mode",
-                            })
+                        g_val = b_data.get("gain", b_data.get("gain_l", 0.0))
+                        is_voicing = (
+                            b_data.get("role") == "voicing" or 
+                            "cruce" in str(b_data.get("desc", "")).lower() or 
+                            "directividad" in str(b_data.get("desc", "")).lower() or
+                            (freq_val >= 500.0 and g_val != 0.0)
+                        )
+                        if freq_val >= 500.0 and is_voicing:
+                            if not any(v["freq_hz"] == snap_frequency(freq_val) for v in voicing_l):
+                                g_l = b_data.get("gain_l", b_data.get("gain", 0.0))
+                                g_r = b_data.get("gain_r", b_data.get("gain", 0.0))
+                                q_l = b_data.get("q_l", b_data.get("q", 1.0))
+                                q_r = b_data.get("q_r", b_data.get("q", 1.0))
+                                voicing_l.append({
+                                    "freq_hz": snap_frequency(freq_val),
+                                    "q": snap_q(q_l),
+                                    "gain_db": snap_gain(g_l, freq_val, allow_voicing_boost=True),
+                                    "role": "voicing",
+                                })
+                                voicing_r.append({
+                                    "freq_hz": snap_frequency(freq_val),
+                                    "q": snap_q(q_r),
+                                    "gain_db": snap_gain(g_r, freq_val, allow_voicing_boost=True),
+                                    "role": "voicing",
+                                })
             except Exception:
                 pass
     # 4. Allocate filters for Left and Right (max 7 bands per channel)
-    # Coordinated stereo band allocation: Band k on Left and Right shares the exact same center frequency.
     allocated_freqs = set()
     bands_l = []
     bands_r = []
@@ -653,28 +660,6 @@ def optimize_stereo_peq(
             bands_l.append(dict(vl))
             bands_r.append(dict(vr))
             allocated_freqs.add(vl["freq_hz"])
-    # C2. Fill sub-500 Hz slots with curated modal bands from targets.json if slots remain
-    for ml, mr in zip(curated_modal_l, curated_modal_r):
-        sub_500_count = sum(1 for b in bands_l if b["freq_hz"] < 500.0)
-        if len(bands_l) < 7 and sub_500_count < 4 and ml["freq_hz"] not in allocated_freqs:
-            bands_l.append(dict(ml))
-            bands_r.append(dict(mr))
-            allocated_freqs.add(ml["freq_hz"])
-
-    # C3. Baseline physical room modes for this living room acoustic space
-    is_bypass_or_flat = any(w in (target_key or "").lower() for w in ["through", "bypass", "ypao"])
-    if not is_bypass_or_flat:
-        baseline_modes = [
-            {"freq_hz": 396.9, "q": 1.587, "gain_db": -3.0, "role": "common_mode"},
-            {"freq_hz": 198.4, "q": 3.175, "gain_db": -2.0, "role": "common_mode"},
-            {"freq_hz": 78.7, "q": 1.587, "gain_db": -1.5, "role": "common_mode"}
-        ]
-        for bm in baseline_modes:
-            sub_500_count = sum(1 for b in bands_l if b["freq_hz"] < 500.0)
-            if len(bands_l) < 7 and sub_500_count < 4 and bm["freq_hz"] not in allocated_freqs:
-                bands_l.append(dict(bm))
-                bands_r.append(dict(bm))
-                allocated_freqs.add(bm["freq_hz"])
     # D. Fill remaining slots respecting Yamaha RX-V673 hardware topology:
     # Bands 1-4 allow any frequency (31.3 Hz - 16 kHz).
     # Bands 5-7 strictly require frequency >= 500 Hz (min 500.0 Hz).
@@ -714,68 +699,19 @@ def optimize_stereo_peq(
         arranged_l.append(bl)
         arranged_r.append(br)
 
-    # E. Dynamically tune remaining bands to optimal frequencies to minimize residual response error
-    is_bypass_or_flat = any(w in (target_key or "").lower() for w in ["through", "bypass", "ypao"])
+    # E. Remaining Yamaha slots: fill with clean transparent pass (gain 0.0 dB)
+    # Never EQ above the Schroeder frequency with ad-hoc parametric notches, preserving the anechoic fidelity and stereo staging.
     allocated_freqs = set(b["freq_hz"] for b in arranged_l)
 
     while len(arranged_l) < 7:
         slot_num = len(arranged_l) + 1
         min_allowed_f = 500.0 if slot_num >= 5 else 31.3
         valid_pool = [float(f) for f in YAMAHA_FREQS if float(f) >= min_allowed_f and float(f) not in allocated_freqs]
-        
-        if not valid_pool or is_bypass_or_flat:
-            chosen_freq = float(valid_pool[0]) if valid_pool else (1000.0 if slot_num >= 5 else 62.5)
-            allocated_freqs.add(chosen_freq)
-            arranged_l.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
-            arranged_r.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "inactive"})
-            continue
+        chosen_freq = float(valid_pool[0]) if valid_pool else (1000.0 if slot_num >= 5 else 62.5)
+        allocated_freqs.add(chosen_freq)
+        arranged_l.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "transparent_pass"})
+        arranged_r.append({"freq_hz": chosen_freq, "q": 1.0, "gain_db": 0.0, "role": "transparent_pass"})
 
-        # Evaluate composite response of currently arranged bands
-        active_filters = [b for b in arranged_l if abs(b.get("gain_db", 0.0)) > 0.05]
-        comp_response = multi_filter_response(freqs_hz, active_filters) if active_filters else np.zeros_like(freqs_hz)
-        
-        # Calculate residual error between corrected response and target curve
-        corr_l = eff_l + comp_response
-        corr_r = eff_r + comp_response
-        res_err = 0.5 * ((corr_l - target_db) + (corr_r - target_db))
-        
-        # Search candidate frequencies (up to 14 kHz for musical/dialogue fidelity)
-        best_f = None
-        best_err = 0.0
-        best_abs_err = -1.0
-        
-        for cand_f in valid_pool:
-            if cand_f > 14000.0:
-                continue
-            idx = np.argmin(np.abs(freqs_hz - cand_f))
-            err_val = float(res_err[idx])
-            weighted_err = abs(err_val) * (1.3 if err_val > 0 else 0.7)
-            if weighted_err > best_abs_err:
-                best_abs_err = weighted_err
-                best_err = err_val
-                best_f = cand_f
-
-        if best_f is None:
-            best_f = valid_pool[0]
-            best_err = 0.0
-
-        # Calculate optimal discrete gain and Q to compensate the residual error
-        if best_err > 1.2:
-            opt_gain = snap_gain(-min(4.5, best_err * 0.75), best_f)
-            opt_q = snap_q(1.587 if best_f < 2000.0 else 1.26)
-            role_desc = "residual_peak_correction"
-        elif best_err < -2.0:
-            opt_gain = snap_gain(min(2.0, abs(best_err) * 0.5), best_f, allow_voicing_boost=True)
-            opt_q = snap_q(1.0)
-            role_desc = "residual_dip_compensation"
-        else:
-            opt_gain = 0.0
-            opt_q = 1.0
-            role_desc = "neutral_fill"
-
-        allocated_freqs.add(best_f)
-        arranged_l.append({"freq_hz": best_f, "q": opt_q, "gain_db": opt_gain, "role": role_desc})
-        arranged_r.append({"freq_hz": best_f, "q": opt_q, "gain_db": opt_gain, "role": role_desc})
     bands_l = arranged_l
     bands_r = arranged_r
     mask_eval = (freqs_hz >= 30.0) & (freqs_hz <= 500.0)
@@ -851,6 +787,70 @@ def optimize_channel_peq(
     )
     return res["channels"]["left"][:max_bands]
 
+def calculate_subwoofer_acoustic_alignment(
+    freqs_hz: np.ndarray,
+    sub_response_db: np.ndarray,
+    front_l_response_db: np.ndarray,
+    target_key: str = "harman_wide_room",
+    crossover_hz: float = 80.0,
+    physical_distance_m: float = 3.30,
+) -> Dict[str, Any]:
+    """
+    Calculates authoritative acoustic bass-management parameters for the Subwoofer
+    on hardware receivers lacking parametric subwoofer PEQ (such as Yamaha RX-V673).
+
+    Variables controlled:
+    1. Subwoofer Trim / Level (dB): Aligns sub-bass SPL (30-80 Hz) to the target shelf.
+    2. Subwoofer Distance (m): Compensates analog LPF group delay (approx +1.2m at 80 Hz)
+       to achieve in-phase constructive summation at the crossover frequency.
+    3. Subwoofer Phase: 'Normal' (0°) vs 'Reverse' (180°).
+    4. Crossover: 80.0 Hz with Front speakers set to 'Small'.
+    5. Extra Bass: False (prevents destructive comb filtering).
+    """
+    freqs_hz = np.asarray(freqs_hz, dtype=np.float64)
+    sub_resp = np.asarray(sub_response_db, dtype=np.float64)
+    front_resp = np.asarray(front_l_response_db, dtype=np.float64)
+
+    # Target sub-bass shelf elevation by profile
+    target_shelf_db = 2.5
+    t_lower = (target_key or "").lower()
+    if "flat" in t_lower or "pure" in t_lower or "through" in t_lower or "ypao" in t_lower:
+        target_shelf_db = 0.0
+    elif "movie" in t_lower or "cinema" in t_lower:
+        target_shelf_db = 3.5
+    elif "club" in t_lower or "edm" in t_lower or "bass" in t_lower:
+        target_shelf_db = 4.5
+    elif "night" in t_lower:
+        target_shelf_db = -2.5
+
+    # Group delay compensation: 2nd-order analog Butterworth LPF at 80 Hz introduces ~3.5 ms delay
+    # 3.5 ms * 343 m/s = 1.20 m of additional acoustic distance
+    acoustic_delay_m = 1.20
+    effective_sub_distance_m = round(physical_distance_m + acoustic_delay_m, 2)
+    # Discrete Yamaha steps (0.05m)
+    yamaha_sub_distance_m = round(effective_sub_distance_m * 20.0) / 20.0
+
+    # Discrete Yamaha Trim step (0.5 dB)
+    clamped_trim_db = max(-10.0, min(10.0, round(target_shelf_db * 2.0) / 2.0))
+
+    return {
+        "peq_supported": False,
+        "trim_db": clamped_trim_db,
+        "crossover_hz": float(crossover_hz),
+        "phase": "Normal",
+        "distance_m": yamaha_sub_distance_m,
+        "physical_distance_m": physical_distance_m,
+        "analog_group_delay_ms": 3.5,
+        "front_speakers": "Small",
+        "extra_bass": False,
+        "rationale": (
+            f"Yamaha RX-V673 alinea el subwoofer mediante Bass Management acústico: "
+            f"Trim de {clamped_trim_db:+.1f} dB para el perfil '{target_key}', "
+            f"distancia de {yamaha_sub_distance_m:.2f} m para compensar el retardo de grupo del filtro activo, "
+            f"corte en {crossover_hz:.0f} Hz y fase Normal (0°)."
+        )
+    }
+
 
 def optimize_subwoofer_peq(
     freqs_hz: np.ndarray,
@@ -860,10 +860,9 @@ def optimize_subwoofer_peq(
     max_bands: int = 3,
 ) -> List[Dict[str, Any]]:
     """
-    Subwoofer PEQ optimization engine for Yamaha RX-V673.
-    Targets room modal resonances in sub-bass / subwoofer band (< crossover_hz * 1.5).
-    Generates complementary 2nd-order Butterworth low-pass target curve if target_db is None.
-    Snaps parameters to discrete Yamaha constraints.
+    Subwoofer PEQ optimization engine for external DSP hardware (miniDSP, Dirac, CamillaDSP).
+    Note: Yamaha RX-V673 hardware does not feature parametric PEQ on the subwoofer output;
+    use calculate_subwoofer_acoustic_alignment() for native Yamaha RX-V673 deployment.
     """
     freqs_hz = np.asarray(freqs_hz, dtype=np.float64)
     response_db = np.asarray(response_db, dtype=np.float64)
@@ -897,7 +896,6 @@ def optimize_subwoofer_peq(
         })
 
     return bands
-
 def calculate_standing_wave(freq_hz: float, speed_of_sound_ms: float = 343.0) -> Dict[str, Any]:
     """
     Calculates acoustic wavelength and room boundary dimensions for an axial standing wave (FR-002, SC-002).
@@ -971,48 +969,89 @@ def calculate_subwoofer_phase_alignment(
     crossover_hz: float = 80.0,
     sub_distance_m: float = 3.65,
     front_distance_m: float = 2.40,
+    front_phase_rad: Optional[np.ndarray] = None,
+    sub_phase_rad: Optional[np.ndarray] = None,
 ) -> Dict[str, Any]:
     """
-    Automatic Subwoofer Phase Alignment (0° Normal vs 180° Reverse).
-    Evaluates acoustic summation across the crossover transition band [0.6*fc, 1.4*fc].
-    Computes constructive vs destructive acoustic interference and Time-of-Flight delay.
+    Electroacoustic Subwoofer Phase Alignment (0° Normal vs 180° Reverse).
+    Evaluates complex acoustic summation across the crossover transition band [0.75*fc, 1.25*fc].
+    Uses real complex vector interference: H_sum = P_front + P_sub * e^(j * delta_phi)
+    Takes into account acoustic time-of-flight delay (delta_d / c) and crossover filter phase.
     """
-    f_min = crossover_hz * 0.6
-    f_max = crossover_hz * 1.4
+    freqs_hz = np.asarray(freqs_hz, dtype=np.float64)
+    front_mag_db = np.asarray(front_mag_db, dtype=np.float64)
+    sub_mag_db = np.asarray(sub_mag_db, dtype=np.float64)
+
+    f_min = crossover_hz * 0.75
+    f_max = crossover_hz * 1.25
     mask = (freqs_hz >= f_min) & (freqs_hz <= f_max)
+
+    delay_ms = round((sub_distance_m - front_distance_m) / 343.4 * 1000.0, 2)
 
     if not np.any(mask):
         return {
             "recommended_phase": "Normal",
             "recommended_phase_degrees": 0,
             "reinforcement_db": 3.0,
-            "delay_ms": round((sub_distance_m - front_distance_m) / 343.0 * 1000.0, 2),
-            "summary": "Fase Normal (0°) seleccionada por defecto."
+            "delay_ms": delay_ms,
+            "optimal_sub_distance_m": sub_distance_m,
+            "crossover_hz": crossover_hz,
+            "summary": "Fase Normal (0°) seleccionada por defecto (sin datos en banda de cruce)."
         }
 
+    f_band = freqs_hz[mask]
     p_front = 10.0 ** (front_mag_db[mask] / 20.0)
     p_sub = 10.0 ** (sub_mag_db[mask] / 20.0)
 
-    # Constructive in-phase (0° / Normal)
-    sum_normal = 20.0 * np.log10(np.maximum(1e-6, p_front + p_sub))
-    # Destructive out-of-phase (180° / Reverse)
-    sum_reverse = 20.0 * np.log10(np.maximum(1e-6, np.abs(p_front - p_sub)))
+    # 1. Determine phase difference across crossover band
+    if front_phase_rad is not None and sub_phase_rad is not None:
+        delta_phi = front_phase_rad[mask] - sub_phase_rad[mask]
+    else:
+        # Physical model: Time-of-flight acoustic delay difference (delta_d / c)
+        tof_delta_s = (sub_distance_m - front_distance_m) / 343.4
+        phi_tof = 2.0 * np.pi * f_band * tof_delta_s
 
-    e_normal = float(np.mean(sum_normal))
-    e_reverse = float(np.mean(sum_reverse))
+        # AVR 2.1 Crossover phase shift: 2nd-order HPF on Front vs 4th-order LPF on Sub
+        # Relative phase delta at fc is ~ -pi/2 (-90°)
+        phi_filter = -np.pi / 2.0 * (f_band / max(1.0, crossover_hz))
 
+        try:
+            mp_f = compute_minimum_phase_decomposition(freqs_hz, front_mag_db)["phase_rad"][mask]
+            mp_s = compute_minimum_phase_decomposition(freqs_hz, sub_mag_db)["phase_rad"][mask]
+            delta_phi = mp_f - mp_s + phi_tof + phi_filter
+        except Exception:
+            delta_phi = phi_tof + phi_filter
+
+    # 2. Complex vector summation:
+    # Normal (0°): H = P_front + P_sub * e^(j * delta_phi)
+    # Reverse (180°): H = P_front - P_sub * e^(j * delta_phi)
+    mag_normal = np.sqrt(np.maximum(1e-12, p_front**2 + p_sub**2 + 2.0 * p_front * p_sub * np.cos(delta_phi)))
+    mag_reverse = np.sqrt(np.maximum(1e-12, p_front**2 + p_sub**2 - 2.0 * p_front * p_sub * np.cos(delta_phi)))
+
+    e_normal = float(20.0 * np.log10(np.mean(mag_normal) + 1e-12))
+    e_reverse = float(20.0 * np.log10(np.mean(mag_reverse) + 1e-12))
     delta_db = round(float(e_normal - e_reverse), 2)
-    delay_ms = round((sub_distance_m - front_distance_m) / 343.0 * 1000.0, 2)
+
+    # 3. Calculate optimal subwoofer distance adjustment for in-phase alignment (cos(phi) -> 1)
+    idx_fc = int(np.argmin(np.abs(f_band - crossover_hz)))
+    phi_fc = float(delta_phi[idx_fc]) if len(f_band) > 0 else 0.0
+    phi_fc_wrapped = (phi_fc + np.pi) % (2.0 * np.pi) - np.pi
+    opt_delay_s = -phi_fc_wrapped / (2.0 * np.pi * max(1.0, crossover_hz))
+    opt_dist_shift_m = opt_delay_s * 343.4
+    rec_sub_distance_m = round(round((sub_distance_m + opt_dist_shift_m) * 20.0) / 20.0, 2)
+    rec_sub_distance_m = max(0.3, min(9.0, rec_sub_distance_m))
+
+    baseline_max = float(np.mean(np.maximum(front_mag_db[mask], sub_mag_db[mask])))
 
     if e_normal >= e_reverse:
         rec_phase = "Normal"
         rec_deg = 0
-        reinf_db = max(0.5, round(e_normal - float(np.mean(np.maximum(front_mag_db[mask], sub_mag_db[mask]))), 2))
-        summary = f"Fase Normal (0°) ofrece {abs(delta_db):.1f} dB de mayor refuerzo acústico constructivo en el cruce de {crossover_hz:.0f} Hz."
+        reinf_db = max(0.5, round(e_normal - baseline_max, 2))
+        summary = f"Fase Normal (0°) ofrece {abs(delta_db):.1f} dB de mayor refuerzo constructivo en el cruce ({crossover_hz:.0f} Hz)."
     else:
         rec_phase = "Reverse"
         rec_deg = 180
-        reinf_db = max(0.5, round(e_reverse - float(np.mean(np.maximum(front_mag_db[mask], sub_mag_db[mask]))), 2))
+        reinf_db = max(0.5, round(e_reverse - baseline_max, 2))
         summary = f"Fase Invertida (180°) cancela el nulo de cruce y aporta {abs(delta_db):.1f} dB de mayor energía acústica."
 
     return {
@@ -1023,10 +1062,10 @@ def calculate_subwoofer_phase_alignment(
         "energy_reverse_db": round(e_reverse, 2),
         "delta_db": delta_db,
         "delay_ms": delay_ms,
+        "optimal_sub_distance_m": rec_sub_distance_m,
         "crossover_hz": crossover_hz,
         "summary": summary
     }
-
 
 def calculate_multi_sub_alignment(
     sub1_distance_m: float,

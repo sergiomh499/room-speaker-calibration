@@ -55,41 +55,55 @@ def compute_and_save_average():
         fpath = f"{DATA_DIR}/medicion_punto_{num}.npz"
         if os.path.exists(fpath):
             d = np.load(fpath)
-            smooth_l = d["smooth_l"] if "smooth_l" in d else d.get("l_smooth")
-            smooth_r = d["smooth_r"] if "smooth_r" in d else d.get("r_smooth")
-            smooth_sub = d.get("smooth_sub") if "smooth_sub" in d else d.get("raw_sub")
+            # Priorizar respuesta acústica cruda sin suavizar para evitar ensanchamiento artificial de modos
+            raw_l = d["raw_l"] if "raw_l" in d else (d["smooth_l"] if "smooth_l" in d else d.get("l_smooth"))
+            raw_r = d["raw_r"] if "raw_r" in d else (d["smooth_r"] if "smooth_r" in d else d.get("r_smooth"))
+            raw_sub = d.get("raw_sub") if "raw_sub" in d else d.get("smooth_sub")
             measurements.append({
+                "num": num,
                 "label": label,
                 "freqs": d["freqs"],
-                "smooth_l": smooth_l,
-                "smooth_r": smooth_r,
-                "smooth_sub": smooth_sub
+                "raw_l": raw_l,
+                "raw_r": raw_r,
+                "raw_sub": raw_sub,
+                "smooth_l": d.get("smooth_l", raw_l),
+                "smooth_r": d.get("smooth_r", raw_r)
             })
 
     if not measurements:
         print("[!] No se encontraron puntos medidos (medicion_punto_*.npz).")
         return
 
-    print(f"[*] Promediando {len(measurements)} puntos espaciales...")
-    freqs = measurements[0]["freqs"]
     n_meas = len(measurements)
-    
+    print(f"[*] Promediando {n_meas} puntos espaciales con ponderación acústica Harman (70% Sweet Spot / 30% Periferia)...")
+    freqs = measurements[0]["freqs"]
+
+    # Ponderación espacial acústica de referencia (Dr. Floyd Toole / Harman Cluster):
+    # 70% posición primaria de escucha (Punto 1 / Sweet Spot), 30% distribuido entre la periferia
+    has_sweet_spot = any(m["num"] == 1 for m in measurements)
+    weights = []
+    if has_sweet_spot and n_meas > 1:
+        periph_w = 0.30 / float(n_meas - 1)
+        for m in measurements:
+            weights.append(0.70 if m["num"] == 1 else periph_w)
+    else:
+        weights = [1.0 / float(n_meas)] * n_meas
+
     p_l_total = np.zeros_like(freqs, dtype=float)
     p_r_total = np.zeros_like(freqs, dtype=float)
     p_sub_total = np.zeros_like(freqs, dtype=float)
-    sub_count = 0
-    
-    for m in measurements:
-        p_l_total += 10.0 ** (m["smooth_l"] / 10.0)
-        p_r_total += 10.0 ** (m["smooth_r"] / 10.0)
-        if m.get("smooth_sub") is not None:
-            p_sub_total += 10.0 ** (m["smooth_sub"] / 10.0)
-            sub_count += 1
-        
-    avg_l = 10.0 * np.log10(p_l_total / float(n_meas) + 1e-12)
-    avg_r = 10.0 * np.log10(p_r_total / float(n_meas) + 1e-12)
-    avg_sub = 10.0 * np.log10(p_sub_total / float(max(1, sub_count)) + 1e-12) if sub_count > 0 else None
+    sub_weights_sum = 0.0
 
+    for m, w in zip(measurements, weights):
+        p_l_total += w * (10.0 ** (m["raw_l"] / 10.0))
+        p_r_total += w * (10.0 ** (m["raw_r"] / 10.0))
+        if m.get("raw_sub") is not None:
+            p_sub_total += w * (10.0 ** (m["raw_sub"] / 10.0))
+            sub_weights_sum += w
+
+    avg_l = 10.0 * np.log10(p_l_total + 1e-12)
+    avg_r = 10.0 * np.log10(p_r_total + 1e-12)
+    avg_sub = 10.0 * np.log10(p_sub_total / max(1e-6, sub_weights_sum) + 1e-12) if sub_weights_sum > 0 else None
     def professional_psychoacoustic_smooth(freqs, mag_db):
         valid = (freqs >= 20.0) & (freqs <= 20000.0)
         f_val = freqs[valid]

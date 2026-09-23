@@ -182,6 +182,16 @@ public class RawAudioRecorderPlugin extends Plugin {
             res.put("fileName", currentWavFile.getName());
             res.put("durationMs", durationMs);
             res.put("fileSizeBytes", currentWavFile.length());
+
+            if (currentWavFile != null && currentWavFile.exists()) {
+                try {
+                    byte[] bytes = java.nio.file.Files.readAllBytes(currentWavFile.toPath());
+                    String b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP);
+                    res.put("base64Audio", b64);
+                } catch (Exception e) {
+                    Log.w(TAG, "Error codificando WAV a Base64: " + e.getMessage());
+                }
+            }
             call.resolve(res);
 
         } catch (Exception e) {

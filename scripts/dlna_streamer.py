@@ -93,23 +93,36 @@ def stream_audio_to_avr(
     host: str = DEFAULT_AVR_IP,
     port: int = DEFAULT_UPNP_PORT,
     auto_switch_input: bool = True,
+    content_type: str = "audio/wav",
 ) -> Tuple[bool, str]:
     """
     Directly streams an audio URL to the Yamaha RX-V673 over Wi-Fi / Ethernet via DLNA.
-    Switches input to SERVER, loads AVTransport URI with DIDL-Lite metadata, and executes Play.
+    Switches input to SERVER, flushes previous buffer with Stop, loads AVTransport URI, and executes Play.
     """
+    # 1. First send Stop to flush any previous buffer (avoids playing lingering sweep signals)
+    send_soap_command("Stop", "<InstanceID>0</InstanceID>", host=host, port=port)
+
     if auto_switch_input:
         curr_in = get_current_avr_input(host)
         if curr_in != "SERVER":
             set_avr_input("SERVER", host=host)
-            time.sleep(0.4)
+            time.sleep(0.3)
+
+    # Map MIME → DLNA PN and flags
+    clean_ct = content_type.split(";")[0].strip().lower()
+    if "wav" in clean_ct:
+        protocol_info = "http-get:*:audio/wav:DLNA.ORG_PN=LPCM;DLNA.ORG_OP=01;DLNA.ORG_CI=0"
+    elif "flac" in clean_ct:
+        protocol_info = "http-get:*:audio/flac:DLNA.ORG_PN=FLAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0"
+    else:
+        protocol_info = "http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000"
 
     # Build DIDL-Lite metadata
     didl = f"""<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/">
 <item id="1" parentID="0" restricted="1">
 <dc:title>{html.escape(title)}</dc:title>
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>
-<res protocolInfo="http-get:*:audio/wav:DLNA.ORG_PN=LPCM">{html.escape(audio_url)}</res>
+<res protocolInfo="{protocol_info}">{html.escape(audio_url)}</res>
 </item>
 </DIDL-Lite>"""
 
@@ -121,8 +134,25 @@ def stream_audio_to_avr(
     if status != 200:
         return False, f"Error SetAVTransportURI (HTTP {status}): {resp}"
 
-    # Send Play
-    status, resp = send_soap_command("Play", "<InstanceID>0</InstanceID><Speed>1</Speed>", host=host, port=port)
+    # Wait for Yamaha to transition internal state from TRANSITIONING to STOPPED / READY
+    time.sleep(0.4)
+
+    # Send Play with retry logic for UPnP 701 (Transition not available)
+    play_body = "<InstanceID>0</InstanceID><Speed>1</Speed>"
+    for attempt in range(4):
+        status, resp = send_soap_command("Play", play_body, host=host, port=port)
+        if status == 200:
+            return True, "Streaming iniciado correctamente en Yamaha RX-V673."
+        if "701" in resp or "Transition not available" in resp:
+            time.sleep(0.6)
+            continue
+        break
+
+    # Check if Yamaha started playing or is transitioning successfully
+    t_st = get_avr_transport_status(host=host, port=port)
+    if t_st.get("state") in ["PLAYING", "TRANSITIONING"]:
+        return True, "Streaming iniciado correctamente en Yamaha RX-V673."
+
     if status != 200:
         return False, f"Error Play (HTTP {status}): {resp}"
 

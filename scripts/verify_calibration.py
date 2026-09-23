@@ -7,22 +7,25 @@ realistic Target Curves (Harman In-Room with 64 Hz acoustic roll-off).
 Evaluates which curve is best mathematically and acoustically, generating
 a multi-curve comparative benchmark and 4-panel comparison figures.
 """
-
 import os
+import sys
 import json
 import time
 from datetime import datetime
+from pathlib import Path
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-REPO_DIR = "/home/sergio/room-speaker-calibration"
+REPO_DIR = str(Path(__file__).resolve().parent.parent)
+if REPO_DIR not in sys.path:
+    sys.path.insert(0, REPO_DIR)
+
 DATA_DIR = f"{REPO_DIR}/data"
 CONFIG_DIR = f"{REPO_DIR}/config"
 FIG_DIR = f"{REPO_DIR}/figures"
 os.makedirs(FIG_DIR, exist_ok=True)
-
 def professional_psychoacoustic_smooth(freqs, mag_db):
     """
     State-of-the-art REW/Dirac style Psychoacoustic Smoothing:
@@ -391,6 +394,10 @@ def run_verification(profile="harman_wide_room", save_fig=True):
             "source_file": c_data.get("source_file", "")
         }
         comparative_results.append(c_summary)
+
+    # Ordenar rigurosamente por porcentaje de alineación al Target (mayor es mejor) y menor error RMS
+    comparative_results.sort(key=lambda x: (-x["target_alignment_pct"], x["rms_avg_db"]))
+
     for rank_idx, r in enumerate(comparative_results, start=1):
         r["rank"] = rank_idx
         if rank_idx == 1:

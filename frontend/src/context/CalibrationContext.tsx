@@ -30,7 +30,7 @@ const defaultAVR: AVRStatus = {
   ok: true,
   avr_power: 'On',
   avr_input: 'AV4',
-  avr_volume_db: -25.0,
+  avr_volume_db: -35.0,
   avr_peq_mode: 'Manual PEQ',
   avr_drc: 'Off',
   points_measured: 5,

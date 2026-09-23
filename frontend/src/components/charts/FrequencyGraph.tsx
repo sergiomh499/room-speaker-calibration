@@ -126,7 +126,7 @@ export const FrequencyGraph: React.FC<FrequencyGraphProps> = ({
       {/* Recharts Container */}
       <div className="w-full relative" style={{ height: `${height}px` }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 10, right: 12, left: -2, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
             <XAxis
               dataKey="freq"
@@ -145,7 +145,8 @@ export const FrequencyGraph: React.FC<FrequencyGraphProps> = ({
               stroke="#64748b"
               fontSize={11}
               fontFamily="JetBrains Mono"
-              unit=" dB"
+              width={46}
+              tickFormatter={(val: number) => `${val > 0 ? `+${val}` : val} dB`}
             />
             <Tooltip
               content={({ active, payload }) => {

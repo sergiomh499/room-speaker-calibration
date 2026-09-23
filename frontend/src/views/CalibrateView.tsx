@@ -39,8 +39,8 @@ import { VUMeter } from '../components/ui/VUMeter';
 import { FrequencyGraph, CurveDataPoint } from '../components/charts/FrequencyGraph';
 import { PEQFilterGraph, FilterCurvePoint } from '../components/charts/PEQFilterGraph';
 import { api } from '../services/api';
-
-
+import { Capacitor } from '@capacitor/core';
+import { nativeAudio } from '../services/nativeAudio';
 
 export const CalibrateView: React.FC = () => {
   const {
@@ -123,7 +123,7 @@ export const CalibrateView: React.FC = () => {
       const res = await api.setMeasurementMode();
       setAvrCleanState(res);
       if (!silent) {
-        toast('✓ Yamaha RX-V673 ajustado para medición: V-AUX · -25 dB · PEQ Through · Straight · 80Hz XO', 'success');
+        toast('✓ Yamaha RX-V673 ajustado para medición: Entrada activa conservada · -25 dB · PEQ Through · Straight · 80Hz XO', 'success');
       }
     } catch (err: any) {
       if (!silent) {
@@ -141,7 +141,7 @@ export const CalibrateView: React.FC = () => {
       const res = await api.restoreAvrMode();
       setAvrCleanState(null);
       if (!silent) {
-        toast(res?.msg || '✓ Receptor restaurado a modo escucha estándar (AV4).', 'success');
+        toast(res?.msg || `✓ Receptor restaurado a modo escucha (${res?.input || 'entrada previa'} a ${res?.volume || 'volumen previo'}).`, 'success');
       }
     } catch (err: any) {
       if (!silent) {
@@ -204,12 +204,6 @@ export const CalibrateView: React.FC = () => {
             desc: b.desc || `Filtro modal subgrave (${b.freq ?? 62.5} Hz)`
           });
         });
-      } else if (topology === '2.1') {
-        subBands.push(
-          { band: 1, freq_hz: 49.6, q: 1.587, gain_db: -8.0, category: 'Sub-Bajos', desc: 'Notch modal primario (49.6 Hz)' },
-          { band: 2, freq_hz: 62.5, q: 2.0, gain_db: -8.0, category: 'Sub-Bajos', desc: 'Notch modal secundario (62.5 Hz)' },
-          { band: 3, freq_hz: 78.7, q: 2.52, gain_db: -3.5, category: 'Sub-Bajos', desc: 'Atenuación zona de cruce (78.7 Hz)' }
-        );
       }
       setChannelPEQData({
         Front_L: lBands,
@@ -277,7 +271,7 @@ export const CalibrateView: React.FC = () => {
           if (res && res.state) {
             setSavedListeningState({
               input: res.state.input || 'AV4',
-              volume: res.state.volume_db || '-38.0 dB',
+              volume: res.state.volume_db || '-35.0 dB',
             });
           }
         })
@@ -390,19 +384,20 @@ export const CalibrateView: React.FC = () => {
       ...(topology === '2.1' ? [{ id: 'Subwoofer', name: 'Subwoofer Focal Cub Evo', tag: 'SUB' }] : []),
     ];
     try {
+      // Snapshot user listening state before verification sweep starts
+      await api.snapshotListeningState().catch(() => {});
       // 1. Ensure Yamaha AVR has PEQ Manual active and straight mode on
       setVerifMeasuringChannel('Asegurando receptor Yamaha en modo de escucha calibrado (PEQ Manual)...');
       await api.setPeqMode('manual');
       await new Promise(r => setTimeout(r, 400));
-
       for (let i = 0; i < verifChannels.length; i++) {
         const ch = verifChannels[i];
         setVerifMeasuringChannel(`Grabando barrido acústico con micrófono en directo: ${ch.name} (${i + 1}/${verifChannels.length})...`);
         setVerifProgress(Math.round(((i + 0.1) / verifChannels.length) * 100));
 
-        // 2. Start microphone recording (7.2s buffer)
-        const recPromise = captureSweepAudio(7200);
-        await new Promise(r => setTimeout(r, 200));
+        // 2. Start microphone recording (8s buffer — extra 600ms for DLNA AVR latency)
+        const recPromise = captureSweepAudio(8000);
+        await new Promise(r => setTimeout(r, 800));
 
         // 3. Play acoustic sweep through the calibrated channel on Yamaha
         await api.playSweep(ch.id);
@@ -533,6 +528,8 @@ export const CalibrateView: React.FC = () => {
     } catch (err: any) {
       toast(`Error en validación con micrófono: ${err?.message || 'Fallo de audio'}`, 'error');
     } finally {
+      // Automatically restore user's previous volume and listening state
+      api.restoreAvrMode().catch(() => {});
       setIsVerifyingClosedLoop(false);
       setVerifIsLiveMeasuring(false);
       setVerifMeasuringChannel(null);
@@ -653,56 +650,73 @@ export const CalibrateView: React.FC = () => {
     }
   };
 
-  // Audio capture helper for sweep recording with cross-browser fallback
-  const captureSweepAudio = async (durationMs: number = 7200): Promise<Uint8Array> => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      return generateFallbackPCM(durationMs);
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { sampleRate: 48000, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-      });
-      const preferred = ['audio/webm;codecs=pcm', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
-      let selectedMime = '';
-      for (const m of preferred) {
-        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) {
-          selectedMime = m;
-          break;
-        }
-      }
-      const rec = selectedMime ? new MediaRecorder(stream, { mimeType: selectedMime }) : new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-
-      return new Promise((resolve) => {
-        rec.onstop = async () => {
-          try {
-            stream.getTracks().forEach(t => t.stop());
-            const blob = new Blob(chunks, { type: selectedMime || 'audio/webm' });
-            const arrayBuf = await blob.arrayBuffer();
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            const ctx = new AudioContextClass({ sampleRate: 48000 });
-            const audioBuf = await ctx.decodeAudioData(arrayBuf);
-            const pcm = audioBuf.getChannelData(0);
-            const int16 = new Int16Array(pcm.length);
-            for (let i = 0; i < pcm.length; i++) {
-              int16[i] = Math.max(-1, Math.min(1, pcm[i])) * 0x7FFF;
+  // Audio capture helper for sweep recording with native Android & cross-browser fallback
+  const captureSweepAudio = async (durationMs: number = 9500): Promise<Uint8Array> => {
+    // 1. Prioritize native Android AudioRecord (UNPROCESSED 48kHz PCM via RawAudioRecorderPlugin)
+    if (Capacitor.isNativePlatform() && nativeAudio.isNativeRecorder()) {
+      try {
+        const startRes = await nativeAudio.startRecording();
+        if (startRes && startRes.success) {
+          await new Promise(r => setTimeout(r, durationMs));
+          const stopRes = await nativeAudio.stopRecording();
+          if ('base64Audio' in stopRes && stopRes.base64Audio) {
+            const binStr = window.atob(stopRes.base64Audio);
+            const len = binStr.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binStr.charCodeAt(i);
             }
-            ctx.close();
-            resolve(new Uint8Array(int16.buffer));
-          } catch {
-            resolve(generateFallbackPCM(durationMs));
+            return bytes;
           }
-        };
-        rec.onerror = () => resolve(generateFallbackPCM(durationMs));
-        rec.start();
-        setTimeout(() => {
-          if (rec.state !== 'inactive') rec.stop();
-        }, durationMs);
-      });
-    } catch {
-      return generateFallbackPCM(durationMs);
+        }
+      } catch (err) {
+        console.warn('Native AudioRecord failed, falling back to Web Audio API:', err);
+      }
     }
+
+    // 2. High-fidelity Web Audio API fallback (ScriptProcessor direct PCM capture, bypasses WebM/Opus decode failures)
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { sampleRate: 48000, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        });
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AudioContextClass({ sampleRate: 48000 });
+        const source = ctx.createMediaStreamSource(stream);
+        const processor = ctx.createScriptProcessor(4096, 1, 1);
+        const floatChunks: Float32Array[] = [];
+        processor.onaudioprocess = (e) => {
+          const inputData = e.inputBuffer.getChannelData(0);
+          floatChunks.push(new Float32Array(inputData));
+        };
+        source.connect(processor);
+        processor.connect(ctx.destination);
+
+        await new Promise(r => setTimeout(r, durationMs));
+
+        source.disconnect();
+        processor.disconnect();
+        stream.getTracks().forEach(t => t.stop());
+        ctx.close();
+
+        let totalSamples = 0;
+        for (const c of floatChunks) totalSamples += c.length;
+        const int16 = new Int16Array(totalSamples);
+        let offset = 0;
+        for (const c of floatChunks) {
+          for (let i = 0; i < c.length; i++) {
+            int16[offset + i] = Math.max(-1, Math.min(1, c[i])) * 0x7FFF;
+          }
+          offset += c.length;
+        }
+        return new Uint8Array(int16.buffer);
+      } catch (err) {
+        console.warn('Web Audio capture failed:', err);
+      }
+    }
+
+    // 3. Fallback
+    return generateFallbackPCM(durationMs);
   };
 
   const generateFallbackPCM = (durationMs: number = 7200): Uint8Array => {
@@ -763,10 +777,10 @@ export const CalibrateView: React.FC = () => {
         setMeasuringChannel(`Canal ${i + 1}/${activeChannels.length}: ${ch.name}${syncText}`);
         setSweepProgress(Math.round(((i + 0.1) / activeChannels.length) * 100));
 
-        // 1. Start audio recording BEFORE triggering the sweep with generous buffer (7.2s)
+        // 1. Start audio recording BEFORE triggering the sweep (8s — extra 600ms for DLNA AVR startup latency)
         const tStart = performance.now();
-        const recPromise = captureSweepAudio(7200);
-        await new Promise(r => setTimeout(r, 200));
+        const recPromise = captureSweepAudio(9500);
+        await new Promise(r => setTimeout(r, 800));
         const leadMs = Math.round(performance.now() - tStart);
 
         // 2. Play sweep on Yamaha AVR and measure network ping latency
@@ -805,10 +819,16 @@ export const CalibrateView: React.FC = () => {
         await new Promise(r => setTimeout(r, 1000));
       }
       // Update state with validated channels
+      const isFullyMeasured = activeChannels.every(c => channelResults[c.id]?.measured);
       setPoints(prev =>
-        prev.map(p => (p.id === pointId ? { ...p, measured: true, channels: channelResults } : p))
+        prev.map(p => (p.id === pointId ? { ...p, measured: isFullyMeasured, channels: channelResults } : p))
       );
-      toast(`¡Punto ${pointId} completado: todos los canales validados!`, 'success');
+      if (isFullyMeasured) {
+        toast(`¡Punto ${pointId} completado: todos los canales validados!`, 'success');
+      } else {
+        const failedNames = activeChannels.filter(c => !channelResults[c.id]?.measured).map(c => c.name).join(', ');
+        toast(`Punto ${pointId}: canales con advertencia (${failedNames}). Pulsa el botón del canal para re-medirlo.`, 'warn');
+      }
     } catch (err: any) {
       console.error(err);
       toast(`Error en Punto ${pointId}: ${err?.message || 'Fallo de sweep'}`, 'error');
@@ -831,8 +851,8 @@ export const CalibrateView: React.FC = () => {
 
     try {
       const tStart = performance.now();
-      const recPromise = captureSweepAudio(7200);
-      await new Promise(r => setTimeout(r, 200));
+      const recPromise = captureSweepAudio(9500);
+      await new Promise(r => setTimeout(r, 800));
       const leadMs = Math.round(performance.now() - tStart);
 
       const tPlayStart = performance.now();
@@ -1064,7 +1084,7 @@ export const CalibrateView: React.FC = () => {
   }, [topology, filteredProfiles, activeProfileId]);
 
   return (
-    <div className="space-y-6 pb-24 md:pb-8">
+    <div className="space-y-6 pb-36 md:pb-12">
       {/* Dynamic Stepper Header */}
       <div className="bg-surface-1/90 border border-border-subtle rounded-2xl p-4 sm:p-6 backdrop-blur">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
@@ -1299,7 +1319,7 @@ export const CalibrateView: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1 text-xs font-mono text-slate-300">
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  <span>Entrada: <strong className="text-white">V-AUX</strong></span>
+                  <span>Entrada: <strong className="text-white">{avrCleanState?.input || 'Activa (Emisión Móvil)'}</strong></span>
                   <span>Volumen: <strong className="text-white">-25.0 dB</strong></span>
                   <span>PEQ: <strong className="text-emerald-400">Through (Bypass 100%)</strong></span>
                   <span>Modo: <strong className="text-emerald-400">Straight On</strong></span>
@@ -1307,7 +1327,7 @@ export const CalibrateView: React.FC = () => {
                   <span>Crossover: <strong className="text-cyan-400">80 Hz (Front Small)</strong></span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1 font-sans">
-                  Al terminar los barridos se restaurará automáticamente tu estado de escucha previo: <strong className="text-amber-400">{savedListeningState?.input || 'AV4'}</strong> a <strong className="text-amber-400">{savedListeningState?.volume || '-38.0 dB'}</strong>.
+                  Calibración fijada a <strong className="text-white">-25.0 dB</strong> (SNR acústico óptimo). Al finalizar se restaurará automáticamente tu volumen normal de escucha: <strong className="text-amber-400">{savedListeningState?.input || 'AV4'}</strong> a <strong className="text-amber-400">{savedListeningState?.volume || '-35.0 dB'}</strong>.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">

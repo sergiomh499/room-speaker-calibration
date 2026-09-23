@@ -1,13 +1,14 @@
 {
   "saved": true,
   "input": "AV4",
-  "volume_val": "-375",
-  "volume_db": "-37.5 dB",
+  "volume_val": "-400",
+  "volume_db": "-40.0 dB",
   "mute": "Off",
-  "straight": "Off",
+  "straight": "On",
   "pure_direct": "Off",
   "enhancer": "Off",
   "drc": "Off",
   "peq": "Manual",
-  "timestamp": 1789928208.1078095
+  "timestamp": 1790145746.5134187,
+  "restored_at": 1790186260.9752607
 }

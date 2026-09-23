@@ -280,6 +280,31 @@ export const api = {
       body: JSON.stringify({ mode, prepare_sweep: '0' })
     });
   },
+  async setMasterVolume(volume_db: number): Promise<any> {
+    return fetchApi<any>('/api/set_volume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volume_db })
+    });
+  },
+  async adjustVolumeStep(step: number): Promise<any> {
+    return fetchApi<any>('/api/set_volume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step })
+    });
+  },
+  async setInput(input: string): Promise<any> {
+    return fetchApi<any>('/api/set_input', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input })
+    });
+  },
+  async getAvailableInputs(): Promise<Array<{ id: string; name: string; type: string }>> {
+    const res = await fetchApi<{ ok: boolean; inputs: Array<{ id: string; name: string; type: string }> }>('/api/available_inputs');
+    return res.inputs || [];
+  },
   async selectScene(num: number): Promise<any> {
     return fetchApi<any>(`/api/select_scene?num=${num}`, { method: 'POST' });
   },

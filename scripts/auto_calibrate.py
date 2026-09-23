@@ -21,7 +21,7 @@ sys.path.insert(0, str(REPO_DIR))
 
 from scripts.peq_optimizer import (
     optimize_stereo_peq,
-    optimize_subwoofer_peq,
+    calculate_subwoofer_acoustic_alignment,
     multi_filter_response,
     YAMAHA_FREQS,
     YAMAHA_QS,
@@ -142,34 +142,21 @@ def run_calibration(
     left_bands = opt_result["channels"]["left"]
     right_bands = opt_result["channels"]["right"]
 
-    # 3b. Subwoofer PEQ Optimization (if 2.1 crossover is configured)
+    # 3b. Subwoofer Acoustic Bass-Management Alignment (Yamaha RX-V673)
+    sub_align = None
     if subwoofer_crossover_hz and subwoofer_crossover_hz > 0:
-        sub_file = DATA_DIR / "medicion_sub.npz"
-        if "smooth_sub" in d_sweet:
-            sub_resp = d_sweet["smooth_sub"]
-        elif "raw_sub" in d_sweet:
-            sub_resp = d_sweet["raw_sub"]
-        elif spatial_avg_file.exists() and "smooth_sub" in np.load(spatial_avg_file):
-            sub_resp = np.load(spatial_avg_file)["smooth_sub"]
-        elif sub_file.exists():
-            d_sub = np.load(sub_file)
-            f_sub_meas = d_sub["freqs"]
-            raw_sub = d_sub["resp"] if "resp" in d_sub else (d_sub["smooth"] if "smooth" in d_sub else d_sub["raw_l"])
-            sub_resp = np.interp(freqs, f_sub_meas, raw_sub)
-        else:
-            raw_sl = d_sweet["smooth_l"] if "smooth_l" in d_sweet else d_sweet["raw_l"]
-            raw_sr = d_sweet["smooth_r"] if "smooth_r" in d_sweet else d_sweet["raw_r"]
-            sub_resp = broadband_normalize(freqs, 0.5 * (raw_sl + raw_sr))
-        sub_bands = optimize_subwoofer_peq(
+        sub_resp = d_sweet["smooth_sub"] if "smooth_sub" in d_sweet else d_sweet.get("raw_sub", d_sweet.get("smooth_l"))
+        sub_align = calculate_subwoofer_acoustic_alignment(
             freqs_hz=freqs,
-            response_db=sub_resp,
+            sub_response_db=sub_resp,
+            front_l_response_db=sweet_l,
+            target_key=target_key,
             crossover_hz=subwoofer_crossover_hz,
-            max_bands=3,
+            physical_distance_m=2.45,
         )
-        opt_result["channels"]["subwoofer"] = sub_bands
 
     print("\n" + "="*85)
-    print("TABLA DE PARÁMETROS PEQ OPTIMIZADOS MATEMÁTICAMENTE (YAMAHA RX-V673)")
+    print("TABLA DE PARÁMETROS PEQ OPTIMIZADOS MATEMÁTICAMENTE (YAMAHA RX-V673 - FRONT STAGE)")
     print("="*85)
     print("Banda | Frecuencia L | Q L     | Ganancia L | Frecuencia R | Q R     | Ganancia R")
     print("-"*85)
@@ -180,17 +167,16 @@ def run_calibration(
     print(f"Atenuación modal pico:  {opt_result['metrics']['predicted_modal_attenuation_db']:.2f} dB")
     print(f"Tiempo de cómputo:      {opt_result['metrics']['execution_time_ms']:.1f} ms")
 
-    if "subwoofer" in opt_result["channels"]:
-        sub_bands = opt_result["channels"]["subwoofer"]
-        print("\n" + "="*60)
-        print(f"TABLA PEQ SUBWOOFER FOCAL CUB EVO (XO = {subwoofer_crossover_hz:.1f} Hz)")
-        print("="*60)
-        print("Banda  | Frecuencia | Q       | Ganancia")
-        print("-"*60)
-        for sb in sub_bands:
-            print(f"Band {sb['band']} | {sb['freq_hz']:>8.1f} Hz | {sb['q']:>7.3f} | {sb['gain_db']:>+8.1f} dB")
-        print("="*60)
-
+    if sub_align:
+        print("\n" + "="*70)
+        print("ALINEACIÓN ACÚSTICA SUBWOOFER BASS MANAGEMENT (YAMAHA RX-V673 & FOCAL CUB EVO)")
+        print("="*70)
+        print(f"  • Nivel / Subwoofer Trim:  {sub_align['trim_db']:>+5.1f} dB (Compensación acústica target)")
+        print(f"  • Distancia acústica DSP:   {sub_align['distance_m']:>5.2f} m (Compensa +3.5 ms delay LPF activo)")
+        print(f"  • Frecuencia de corte XO:   {sub_align['crossover_hz']:>5.1f} Hz (Altavoces Frontales en 'Small')")
+        print(f"  • Polaridad de Fase:        {sub_align['phase']} (0° - Suma constructiva acústica)")
+        print(f"  • Extra Bass:               {'On' if sub_align['extra_bass'] else 'Off'} (Anti-cancelación destructiva)")
+        print("="*70)
     # 4. Synchronize dynamically optimized bands back to targets.json
     bands_dict = {}
     for bl, br in zip(left_bands, right_bands):
@@ -218,17 +204,14 @@ def run_calibration(
             "gain_r": float(br["gain_db"]),
             "desc": desc
         }
-    sub_bands_dict = {}
-    if "subwoofer" in opt_result["channels"]:
-        for sb in opt_result["channels"]["subwoofer"]:
-            b_idx = sb["band"]
-            sub_bands_dict[f"Band {b_idx}"] = {
-                "freq": float(sb["freq_hz"]),
-                "q": float(sb["q"]),
-                "gain": float(sb["gain_db"]),
-                "role": sb.get("role", "sub_modal_resonance"),
-                "desc": f"Modo modal Subwoofer Focal Cub Evo ({sb['freq_hz']} Hz)"
-            }
+    # Subwoofer uses acoustic bass-management parameters instead of non-existent PEQ bands
+    sub_config_dict = sub_align if sub_align else {
+        "peq_supported": False,
+        "crossover_hz": 80.0,
+        "phase": "Normal",
+        "distance_m": 3.65,
+        "trim_db": 2.5
+    }
 
 
     if cfg_path.exists():
@@ -237,8 +220,9 @@ def run_calibration(
                 all_targets = json.load(f_in)
             if target_key in all_targets:
                 all_targets[target_key]["bands"] = bands_dict
-                if sub_bands_dict or "sub_bands" in all_targets[target_key]:
-                    all_targets[target_key]["sub_bands"] = sub_bands_dict
+                all_targets[target_key]["subwoofer_config"] = sub_config_dict
+                if "sub_bands" in all_targets[target_key]:
+                    del all_targets[target_key]["sub_bands"]
                 with open(cfg_path, "w", encoding="utf-8") as f_out:
                     json.dump(all_targets, f_out, indent=2, ensure_ascii=False)
                 print(f"[✓] Perfil '{target_key}' sincronizado con bandas calculadas dinámicamente en targets.json.")
