@@ -113,15 +113,20 @@ export const api = {
     const layoutParam = layout ? `&layout=${encodeURIComponent(layout)}` : '';
     const leadParam = leadMs !== undefined ? `&lead_ms=${encodeURIComponent(leadMs)}` : '';
     const pingParam = pingMs !== undefined ? `&ping_ms=${encodeURIComponent(pingMs)}` : '';
-    const res = await fetch(`${getBaseUrl()}/api/upload_sweep?point=${point}&channel=${encodeURIComponent(channel)}${layoutParam}${leadParam}${pingParam}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: bytes as unknown as BodyInit
-    });
-    if (!res.ok) {
-      throw new Error(`Error en upload: ${res.status} ${res.statusText}`);
+    
+    // Convert binary to Base64 to bypass CapacitorHttp UTF-8 corruption on Android
+    let binary = '';
+    const chunk = 8192;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
     }
-    return res.json();
+    const audioB64 = window.btoa(binary);
+
+    return fetchApi<any>(`/api/upload_sweep?point=${point}&channel=${encodeURIComponent(channel)}${layoutParam}${leadParam}${pingParam}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio_b64: audioB64 })
+    });
   },
   async configure2_1(crossoverHz: number, phaseDeg: number = 0, subTrimDb: number = 0): Promise<any> {
     return fetchApi<any>('/api/configure_2_1', {
@@ -180,18 +185,20 @@ export const api = {
     profile: string = 'harman_wide_room',
     audioBytes: Uint8Array
   ): Promise<any> {
+    let binary = '';
+    const chunk = 8192;
+    for (let i = 0; i < audioBytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, Array.from(audioBytes.subarray(i, i + chunk)));
+    }
+    const audioB64 = window.btoa(binary);
+
     const url = `/api/upload_verification_sweep?channel=${encodeURIComponent(channel)}&mode=${encodeURIComponent(mode)}&profile=${encodeURIComponent(profile)}`;
-    const res = await fetch(url, {
+    return fetchApi<any>(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-      },
-      body: new Blob([audioBytes.buffer as ArrayBuffer]),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio_b64: audioB64 })
     });
-    return res.json();
   },
-
-
   async setChannelDistances(distances: Record<string, number>): Promise<any> {
     return fetchApi<any>('/api/set_channel_distances', {
       method: 'POST',

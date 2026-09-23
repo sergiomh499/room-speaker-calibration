@@ -1311,8 +1311,19 @@ except ImportError:
 def decode_audio_sweep_bytes(raw_bytes: bytes) -> tuple[np.ndarray, np.ndarray]:
     """
     Decodes uploaded audio bytes to (samples_int16, mic_float64).
-    Supports WAV, FLAC, AIFF (via soundfile) as well as raw 16-bit PCM.
+    Supports JSON with base64 payload, WAV/FLAC/AIFF (via soundfile), and raw 16-bit PCM.
     """
+    stripped = raw_bytes.strip()
+    if stripped.startswith(b"{") and b"audio_b64" in stripped:
+        try:
+            import json
+            import base64
+            payload = json.loads(stripped.decode("utf-8"))
+            if "audio_b64" in payload:
+                raw_bytes = base64.b64decode(payload["audio_b64"])
+        except Exception as e:
+            print(f"[Aviso] Falló decodificando audio_b64 JSON: {e}")
+
     if raw_bytes.startswith(b"RIFF") or raw_bytes.startswith(b"fLaC") or raw_bytes.startswith(b"FORM"):
         try:
             import soundfile as sf
