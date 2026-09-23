@@ -47,11 +47,13 @@ def capture_point(point_num):
     np.savez(out_file_latest, **data)
     print(f"[v] {label} capturado y guardado en:\n  - {out_file_ts}\n  - {out_file_latest}")
 
-def compute_and_save_average():
+def compute_and_save_average(points_subset=None):
     print("=== PROCESANDO PROMEDIO ESPACIAL MULTIPUNTO (DR. FLOYD TOOLE) ===")
     
     measurements = []
     for num, label in POINTS_DEF.items():
+        if points_subset is not None and num not in points_subset:
+            continue
         fpath = f"{DATA_DIR}/medicion_punto_{num}.npz"
         if os.path.exists(fpath):
             d = np.load(fpath)
@@ -271,12 +273,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multipoint Spatial Averaging Engine")
     parser.add_argument("--point", type=int, choices=[1, 2, 3, 4, 5], help="Capture a specific spatial point (1-5)")
     parser.add_argument("--average", action="store_true", help="Compute spatial average from captured points")
+    parser.add_argument("--points", type=int, nargs="+", help="Specific point numbers to average, e.g. --points 1 2 3")
     args = parser.parse_args()
     
     if args.point:
         capture_point(args.point)
-        compute_and_save_average()
+        compute_and_save_average(points_subset=args.points)
     elif args.average:
-        compute_and_save_average()
+        compute_and_save_average(points_subset=args.points)
     else:
         parser.print_help()

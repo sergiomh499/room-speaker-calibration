@@ -143,8 +143,9 @@ export const api = {
   async autoAlignLevels(): Promise<any> {
     return fetchApi<any>('/api/auto_align_levels', { method: 'POST' });
   },
-  async finalizeCalibration(profile: string = 'harman_wide_room'): Promise<any> {
-    return fetchApi<any>(`/api/finalize_calibration?profile=${encodeURIComponent(profile)}`);
+  async finalizeCalibration(profile: string = 'harman_wide_room', points?: number[]): Promise<any> {
+    const q = `/api/finalize_calibration?profile=${encodeURIComponent(profile)}${points && points.length ? `&points=${points.join(',')}` : ''}`;
+    return fetchApi<any>(q);
   },
 
   async getChannelLayout(): Promise<any> {

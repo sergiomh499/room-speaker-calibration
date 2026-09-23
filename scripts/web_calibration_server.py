@@ -3765,13 +3765,16 @@ class CalibrationHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/finalize_calibration":
             prof = params.get("profile", ["harman_wide_room"])[0]
-            print(f"[Server] Ejecutando promediado espacial y pipeline de análisis acústico para perfil '{prof}'...")
+            points_param = params.get("points", [None])[0]
+            print(f"[Server] Ejecutando promediado espacial y pipeline de análisis acústico para perfil '{prof}' (puntos: {points_param or 'todos'})...")
             try:
                 # 1. Spatial average
-                subprocess.run(["python3", f"{REPO_DIR}/scripts/spatial_average.py", "--average"], check=True)
+                sp_cmd = ["python3", f"{REPO_DIR}/scripts/spatial_average.py", "--average"]
+                if points_param:
+                    sp_cmd.extend(["--points"] + [p.strip() for p in points_param.split(",") if p.strip()])
+                subprocess.run(sp_cmd, check=True)
                 # 2. Dynamic PEQ optimization & targets.json synchronization
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/auto_calibrate.py", "--profile", prof, "--multipoint"], check=True)
-                # 3. Plot responses
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/02_plot_responses.py"], check=True)
                 # 4. Waterfall CSD
                 subprocess.run(["python3", f"{REPO_DIR}/scripts/csd_waterfall.py"], check=True)

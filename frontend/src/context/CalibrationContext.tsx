@@ -17,6 +17,8 @@ interface CalibrationContextType {
   refreshStatus: () => Promise<void>;
   points: MeasurementPoint[];
   setPoints: React.Dispatch<React.SetStateAction<MeasurementPoint[]>>;
+  numCalibrationPoints: 1 | 3 | 5;
+  setNumCalibrationPoints: (n: 1 | 3 | 5) => void;
   profiles: TargetProfile[];
   activeProfileId: string;
   setActiveProfileId: (id: string) => void;
@@ -55,6 +57,12 @@ export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [avrStatus, setAvrStatus] = useState<AVRStatus>(defaultAVR);
   const [points, setPoints] = useState<MeasurementPoint[]>(initialPoints);
+  const [numCalibrationPoints, setNumCalibrationPointsState] = useState<1 | 3 | 5>(5);
+
+  const setNumCalibrationPoints = (n: 1 | 3 | 5) => {
+    setNumCalibrationPointsState(n);
+    set('octave_num_cal_points', n).catch(() => {});
+  };
   const [profiles, setProfiles] = useState<TargetProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string>('harman_wide_room');
   const [subwooferConfig, setSubwooferConfig] = useState<SubwooferConfig>({
@@ -67,7 +75,6 @@ export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ childre
     ],
   });
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: string }>>([]);
-
   // Dynamic step count: 4 steps for 2.0 (skipping Subwoofer), 5 steps for 2.1
   const totalSteps = topology === '2.0' ? 4 : 5;
 
@@ -130,15 +137,20 @@ export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ childre
   }, []);
   // Restore saved state from IndexedDB
   useEffect(() => {
-    get<Topology>('calibration_topology').then(saved => {
-      if (saved) setTopology(saved);
+    get<1 | 3 | 5>('octave_num_cal_points').then(val => {
+      if (val && [1, 3, 5].includes(val)) {
+        setNumCalibrationPointsState(val);
+      }
     }).catch(() => {});
-    get<string>('calibration_active_profile').then(saved => {
-      if (saved) setActiveProfileId(saved);
+
+    get<string>('octave_active_profile').then(val => {
+      if (val) setActiveProfileId(val);
+    }).catch(() => {});
+
+    get<Topology>('octave_topology').then(val => {
+      if (val) setTopology(val);
     }).catch(() => {});
   }, []);
-
-  // Persist state to IndexedDB
   useEffect(() => {
     set('calibration_topology', topology).catch(() => {});
   }, [topology]);
@@ -162,6 +174,8 @@ export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ childre
         refreshStatus,
         points,
         setPoints,
+        numCalibrationPoints,
+        setNumCalibrationPoints,
         profiles,
         activeProfileId,
         setActiveProfileId,

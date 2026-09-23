@@ -51,6 +51,8 @@ export const CalibrateView: React.FC = () => {
     totalSteps,
     points,
     setPoints,
+    numCalibrationPoints,
+    setNumCalibrationPoints,
     profiles,
     activeProfileId,
     setActiveProfileId,
@@ -59,22 +61,27 @@ export const CalibrateView: React.FC = () => {
     toast,
   } = useCalibration();
 
-  // Wizard Step Titles and Mapping
+  const visiblePoints = points.slice(0, numCalibrationPoints);
+  const pointsDesc = numCalibrationPoints === 1
+    ? '1 punto (Sweet Spot rápido)'
+    : numCalibrationPoints === 3
+    ? '3 puntos (Cluster sofá)'
+    : '5 posiciones espaciales';
+
   const stepsList = topology === '2.0'
     ? [
         { num: 1, title: 'Setup & Canales', desc: 'Topología y micrófono' },
-        { num: 2, title: 'Medición Móvil', desc: '5 posiciones espaciales' },
+        { num: 2, title: 'Medición Móvil', desc: pointsDesc },
         { num: 3, title: 'Perfil & PEQ', desc: 'Curva objetivo y 7 bandas' },
         { num: 4, title: 'Yamaha & Verif', desc: 'Despliegue a NVRAM y A/B' },
       ]
     : [
         { num: 1, title: 'Setup & Canales', desc: 'Topología y micrófono' },
-        { num: 2, title: 'Medición Móvil', desc: '5 posiciones espaciales' },
+        { num: 2, title: 'Medición Móvil', desc: pointsDesc },
         { num: 3, title: 'Graves & Focal', desc: 'Crossover, fase y subwoofer' },
         { num: 4, title: 'Perfil & PEQ', desc: 'Curva objetivo y 7 bandas' },
         { num: 5, title: 'Yamaha & Verif', desc: 'Despliegue a NVRAM y A/B' },
       ];
-
   // Local state for Step 1
   const [playingTone, setPlayingTone] = useState<string | null>(null);
   const [selectedMicId, setSelectedMicId] = useState<string>('iphone_generic');
@@ -915,12 +922,13 @@ export const CalibrateView: React.FC = () => {
 
   // Handle advancing from Step 2: computes spatial average and updates all models with new measurements
   const handleProceedFromStep2 = async () => {
-    const hasMeasured = points.some(p => p.measured);
+    const hasMeasured = visiblePoints.some(p => p.measured);
     if (hasMeasured) {
       setProcessingSpatialAvg(true);
       toast('Calculando promedio espacial acústico con las nuevas mediciones...', 'info');
       try {
-        await api.finalizeCalibration(activeProfileId);
+        const pointsSubset = visiblePoints.map(p => p.id);
+        await api.finalizeCalibration(activeProfileId, pointsSubset);
         // Refresh measured curve
         const res = await api.getMeasuredCurve(activeProfileId);
         if (res && res.freqs) {
@@ -1212,10 +1220,72 @@ export const CalibrateView: React.FC = () => {
               </button>
             </div>
           </Card>
+          {/* Points Mode Selector */}
+          <Card
+            title="2. Modo de Medición Espacial"
+            subtitle="Selecciona el número de posiciones de escucha para la calibración"
+            icon={<Sliders className="w-5 h-5 text-indigo-400" />}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setNumCalibrationPoints(1)}
+                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  numCalibrationPoints === 1
+                    ? 'bg-indigo-600/10 border-indigo-500 shadow-md shadow-indigo-500/10'
+                    : 'bg-surface-2/40 border-border-subtle hover:border-slate-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white">1 Punto (Rápido)</span>
+                  <Pill variant="neutral" size="sm">Sweet Spot</Pill>
+                </div>
+                <p className="text-[11px] text-slate-300 mt-1">
+                  Solo posición central primaria. Medición instantánea en ~30s sin mover el teléfono.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setNumCalibrationPoints(3)}
+                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  numCalibrationPoints === 3
+                    ? 'bg-indigo-600/10 border-indigo-500 shadow-md shadow-indigo-500/10'
+                    : 'bg-surface-2/40 border-border-subtle hover:border-slate-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white">3 Puntos (Sofá)</span>
+                  <Pill variant="indigo" size="sm">Recomendado</Pill>
+                </div>
+                <p className="text-[11px] text-slate-300 mt-1">
+                  Sweet spot + oído izquierdo (+40cm) + oído derecho (+40cm). Ideal para salón/sofá.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setNumCalibrationPoints(5)}
+                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  numCalibrationPoints === 5
+                    ? 'bg-indigo-600/10 border-indigo-500 shadow-md shadow-indigo-500/10'
+                    : 'bg-surface-2/40 border-border-subtle hover:border-slate-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white">5 Puntos (Estudio)</span>
+                  <Pill variant="cyan" size="sm">ITU-R</Pill>
+                </div>
+                <p className="text-[11px] text-slate-300 mt-1">
+                  Cluster completo de 5 posiciones (cruz 3D). Máximo rigor espacial profesional.
+                </p>
+              </button>
+            </div>
+          </Card>
 
           {/* Real-time Microphone Check & Calibration Curve */}
           <Card
-            title="2. Micrófono del Smartphone & Calibración (.cal)"
+            title="3. Micrófono del Smartphone & Calibración (.cal)"
             subtitle="Compensación de cápsula acústica (curvas estándar para iPhone, Android o UMIK-1)"
             icon={<Radio className="w-5 h-5 text-emerald-400" />}
           >
@@ -1254,7 +1324,7 @@ export const CalibrateView: React.FC = () => {
 
           {/* Channel Test Tones */}
           <Card
-            title="3. Comprobación de Canales y Emisión"
+            title="4. Comprobación de Canales y Emisión"
             subtitle="Verifica que cada altavoz responde correctamente antes del barrido"
             icon={<Volume2 className="w-5 h-5 text-amber-400" />}
           >
@@ -1354,8 +1424,8 @@ export const CalibrateView: React.FC = () => {
           </Card>
 
           <Card
-            title="Matriz de Medición Espacial (5 Puntos)"
-            subtitle="Realiza el sweep logarítmico (20 Hz - 20 kHz) en cada posición clave"
+            title={`Matriz de Medición Espacial (${numCalibrationPoints} ${numCalibrationPoints === 1 ? 'Punto' : 'Puntos'})`}
+            subtitle={`Realiza el sweep logarítmico (20 Hz - 20 kHz) en cada posición requerida (${numCalibrationPoints === 1 ? 'Sweet Spot' : numCalibrationPoints === 3 ? 'Sofá: Centro + L + R' : 'Cluster ITU-R de 5 posiciones'})`}
             icon={<Sliders className="w-5 h-5 text-indigo-400" />}
             action={
               <div className="flex items-center gap-2">
@@ -1401,9 +1471,8 @@ export const CalibrateView: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {points.map(p => (
+              {visiblePoints.map(p => (
                 <div
-                  key={p.id}
                   className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3.5 shadow-sm ${
                     p.measured
                       ? 'bg-surface-2/70 border-emerald-500/40 shadow-emerald-950/20'
