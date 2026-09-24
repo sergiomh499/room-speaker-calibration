@@ -394,8 +394,9 @@ export const CalibrateView: React.FC = () => {
       // Snapshot user listening state before verification sweep starts
       await api.snapshotListeningState().catch(() => {});
       // 1. Ensure Yamaha AVR has PEQ Manual active and straight mode on
-      setVerifMeasuringChannel('Asegurando receptor Yamaha en modo de escucha calibrado (PEQ Manual)...');
+      setVerifMeasuringChannel('Asegurando receptor Yamaha en modo de escucha calibrado (-25.0 dB, PEQ Manual)...');
       await api.setPeqMode('manual');
+      await api.setMasterVolume(-25.0);
       await new Promise(r => setTimeout(r, 400));
       for (let i = 0; i < verifChannels.length; i++) {
         const ch = verifChannels[i];
@@ -726,7 +727,7 @@ export const CalibrateView: React.FC = () => {
     return generateFallbackPCM(durationMs);
   };
 
-  const generateFallbackPCM = (durationMs: number = 7200): Uint8Array => {
+  const generateFallbackPCM = (durationMs: number = 9500): Uint8Array => {
     const fs = 48000;
     const numSamples = Math.floor(fs * (durationMs / 1000.0));
     const int16 = new Int16Array(numSamples);
@@ -735,17 +736,28 @@ export const CalibrateView: React.FC = () => {
     const L = duration / Math.log(f2 / f1);
     const w1 = 2 * Math.PI * f1;
     const sweepSamples = Math.floor(fs * duration);
-    const delaySamples = Math.floor(fs * 0.708); // 0.200s lead + 0.500s pre-silence + 8ms room flight (~2.74 m)
-    for (let i = 0; i < sweepSamples && (delaySamples + i) < numSamples; i++) {
+    // REW-standard Acoustic Timing Reference chirp (300 ms, 5-20 kHz)
+    const chirpDur = 0.300;
+    const chirpSamples = Math.floor(fs * chirpDur);
+    const w1c = 2 * Math.PI * 5000.0;
+    const w2c = 2 * Math.PI * 20000.0;
+    const Lc = chirpDur / Math.log(w2c / w1c);
+    const chirpStart = Math.floor(fs * 0.400); // 19200
+    for (let i = 0; i < chirpSamples && (chirpStart + i) < numSamples; i++) {
+      const tc = i / fs;
+      const phic = w1c * Lc * (Math.exp(tc / Lc) - 1.0);
+      int16[chirpStart + i] = Math.round(0.70 * Math.sin(phic) * 0x7FFF);
+    }
+    // Farina sweep start (sample 52800 = 0.400s pre + 0.300s chirp + 0.400s guard)
+    const sweepStart = Math.floor(fs * 1.100);
+    for (let i = 0; i < sweepSamples && (sweepStart + i) < numSamples; i++) {
       const t = i / fs;
       const phi = w1 * L * (Math.exp(t / L) - 1.0);
       let env = 1.0;
       const fade = Math.floor(fs * 0.05);
       if (i < fade) env = Math.pow(Math.sin((i / fade) * Math.PI / 2), 2);
       else if (i > sweepSamples - fade) env = Math.pow(Math.sin(((sweepSamples - i) / fade) * Math.PI / 2), 2);
-      
-      const val = env * 0.65 * Math.sin(phi);
-      int16[delaySamples + i] = Math.floor(val * 32767);
+      int16[sweepStart + i] = Math.round(env * 0.70 * Math.sin(phi) * 0x7FFF);
     }
     return new Uint8Array(int16.buffer);
   };

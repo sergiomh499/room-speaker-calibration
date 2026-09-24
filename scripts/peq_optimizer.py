@@ -422,10 +422,11 @@ def detect_modal_resonances(
     if len(f_sub) < 10:
         return []
 
-    # Find genuine room resonance peaks by physical prominence in the modal band
+    # Find genuine room resonance peaks by physical prominence and height strictly above target
     peaks, properties = find_peaks(
-        norm_response[mask],
-        prominence=min_elevation_db,
+        err_sub,
+        height=min_elevation_db,
+        prominence=1.2,
         distance=3,
     )
     detected = []

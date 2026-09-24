@@ -19,26 +19,6 @@
     "recommended_scene": "SCENE 1 (Música Hi-Fi)",
     "bands": {
       "Band 1": {
-        "freq": 125.0,
-        "q": 1.587,
-        "gain": -4.5,
-        "q_l": 1.587,
-        "q_r": 1.587,
-        "gain_l": -4.5,
-        "gain_r": 0.0,
-        "desc": "Modo modal Front L (125.0 Hz) con pase neutro en R"
-      },
-      "Band 2": {
-        "freq": 78.7,
-        "q": 1.587,
-        "gain": 0.0,
-        "q_l": 1.587,
-        "q_r": 1.587,
-        "gain_l": 0.0,
-        "gain_r": -5.0,
-        "desc": "Modo modal Front R (78.7 Hz) con pase neutro en L"
-      },
-      "Band 3": {
         "freq": 2520.0,
         "q": 1.26,
         "gain": 1.5,
@@ -46,9 +26,9 @@
         "q_r": 1.26,
         "gain_l": 1.5,
         "gain_r": 1.5,
-        "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
+        "desc": "Ajuste en Medios (2520.0 Hz)"
       },
-      "Band 4": {
+      "Band 2": {
         "freq": 31.3,
         "q": 1.0,
         "gain": 0.0,
@@ -56,7 +36,27 @@
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
+        "desc": "Ajuste en Bajos (31.3 Hz)"
+      },
+      "Band 3": {
+        "freq": 39.4,
+        "q": 1.0,
+        "gain": 0.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Ajuste en Bajos (39.4 Hz)"
+      },
+      "Band 4": {
+        "freq": 49.6,
+        "q": 1.0,
+        "gain": 0.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Ajuste en Bajos (49.6 Hz)"
       },
       "Band 5": {
         "freq": 500.0,
@@ -66,7 +66,7 @@
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (500.0 Hz)"
+        "desc": "Ajuste en Medios (500.0 Hz)"
       },
       "Band 6": {
         "freq": 630.0,
@@ -76,7 +76,7 @@
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (630.0 Hz)"
+        "desc": "Ajuste en Medios (630.0 Hz)"
       },
       "Band 7": {
         "freq": 793.7,
@@ -86,15 +86,34 @@
         "q_r": 1.0,
         "gain_l": 0.0,
         "gain_r": 0.0,
-        "desc": "Preservación anecoica / Fase neutra (793.7 Hz)"
+        "desc": "Ajuste en Medios (793.7 Hz)"
       }
     },
     "subwoofer_config": {
       "peq_supported": false,
+      "trim_db": 2.5,
       "crossover_hz": 80.0,
       "phase": "Normal",
       "distance_m": 3.65,
-      "trim_db": 2.5
+      "physical_distance_m": 2.45,
+      "analog_group_delay_ms": 3.5,
+      "front_speakers": "Small",
+      "extra_bass": false,
+      "rationale": "Yamaha RX-V673 alinea el subwoofer mediante Bass Management acústico: Trim de +2.5 dB para el perfil 'harman_wide_room', distancia de 3.65 m para compensar el retardo de grupo del filtro activo, corte en 80 Hz y fase Normal (0°)."
+    },
+    "sub_bands": {
+      "Band 1": {
+        "freq": 99.2,
+        "q": 5.04,
+        "gain": -5.5,
+        "desc": "Supresión modal subgrave (99.2 Hz)"
+      },
+      "Band 2": {
+        "freq": 78.7,
+        "q": 2.52,
+        "gain": -1.5,
+        "desc": "Supresión modal subgrave (78.7 Hz)"
+      }
     }
   },
   "harman_bass_boost": {
@@ -194,26 +213,6 @@
     "recommended_scene": "SCENE 3 (Música / Melómano)",
     "bands": {
       "Band 1": {
-        "freq": 125.0,
-        "q": 1.587,
-        "gain": -4.5,
-        "q_l": 1.587,
-        "q_r": 1.587,
-        "gain_l": -4.5,
-        "gain_r": 0.0,
-        "desc": "Modo modal Front L (125.0 Hz) con pase neutro en R"
-      },
-      "Band 2": {
-        "freq": 78.7,
-        "q": 1.587,
-        "gain": 0.0,
-        "q_l": 1.587,
-        "q_r": 1.587,
-        "gain_l": 0.0,
-        "gain_r": -5.0,
-        "desc": "Modo modal Front R (78.7 Hz) con pase neutro en L"
-      },
-      "Band 3": {
         "freq": 2520.0,
         "q": 1.26,
         "gain": 1.5,
@@ -223,7 +222,7 @@
         "gain_r": 1.5,
         "desc": "Compensación de cruce y directividad del altavoz (2520.0 Hz)"
       },
-      "Band 4": {
+      "Band 2": {
         "freq": 10080.0,
         "q": 1.0,
         "gain": -1.5,
@@ -232,6 +231,26 @@
         "gain_l": -1.5,
         "gain_r": -1.5,
         "desc": "Compensación de cruce y directividad del altavoz (10080.0 Hz)"
+      },
+      "Band 3": {
+        "freq": 31.3,
+        "q": 1.0,
+        "gain": 0.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (31.3 Hz)"
+      },
+      "Band 4": {
+        "freq": 39.4,
+        "q": 1.0,
+        "gain": 0.0,
+        "q_l": 1.0,
+        "q_r": 1.0,
+        "gain_l": 0.0,
+        "gain_r": 0.0,
+        "desc": "Preservación anecoica / Fase neutra (39.4 Hz)"
       },
       "Band 5": {
         "freq": 500.0,

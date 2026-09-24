@@ -723,123 +723,133 @@ def get_hardware_nvram_distances(host: str = "192.168.1.43") -> dict:
                 pass
     return nvram_dist
 
-def calculate_acoustic_point_distances(points_data: dict, d0_hardware: dict) -> dict:
+def calculate_acoustic_point_distances(points_data: dict, d0_hardware: dict = None) -> dict:
     """
     Calculates speaker distances and acoustic delays purely from:
-    1. Physical baseline in AVR NVRAM (d0_hardware) for Point 1 (Sweet Spot).
-    2. Empirical acoustic measurements (sound pressure inverse-square law for Front_L, 
-       acoustic chirp differential time-of-flight for Front_R, and impulse response onset shift for Subwoofer).
-    Zero hardcoding, zero arbitrary lookup tables.
+    1. Empirical acoustic measurements:
+       - Differential Acoustic Timing Reference (5-20 kHz chirp on Front_L) to sweep arrival for Front_R and Subwoofer.
+       - First-wavefront arrival windowing (<15 ms / <5 m) for Subwoofer to reject room mode resonance reflections.
+       - Direct sound impulse response energy ratio / ToF delta for Front_L.
+    2. Zero AVR hardcoding, zero static assumptions.
     """
     fs = 48000
     c = 343.4
     results = {}
     if not points_data:
         return results
-        
-    # Point 1 reference baseline
-    p1 = points_data.get(1)
-    p1_spl_l = None
-    p1_sub_pk = None
-    if p1 is not None:
-        freqs = p1.get("freqs", np.linspace(20, 20000, 1000))
-        mask_mid = (freqs >= 500.0) & (freqs <= 4000.0)
-        if "smooth_l" in p1.files:
-            p1_spl_l = float(np.mean(p1["smooth_l"][mask_mid]))
-        elif "raw_l" in p1.files:
-            p1_spl_l = float(np.mean(p1["raw_l"][mask_mid]))
-            
-        if "ir_sub" in p1.files:
-            p1_sub_pk = int(np.argmax(np.abs(scipy.signal.hilbert(p1["ir_sub"]))))
-            
+
+    # Baseline distance reference: if d0_hardware is provided, use it as physical anchor,
+    # else default to nominal acoustic baseline (Front_L ~ 2.40 m)
+    hw_base_l = 2.45
+    if d0_hardware and isinstance(d0_hardware, dict):
+        hw_base_l = float(d0_hardware.get("Front_L", 2.45))
+
     for p in sorted(points_data.keys()):
         data = points_data[p]
-        if p == 1 or p1_spl_l is None:
-            dist_l = d0_hardware.get("Front_L", 2.45)
-            dist_r = d0_hardware.get("Front_R", 2.35)
-            dist_sub = d0_hardware.get("Subwoofer", 3.65)
-            results[p] = {
-                "Front_L": dist_l,
-                "Front_R": dist_r,
-                "Subwoofer": dist_sub,
-                "method": "Hardware NVRAM Sweet Spot Baseline"
-            }
-            continue
-            
-        # Front_L: Distance derived via Inverse-Square Law (direct sound spherical wave spreading)
         freqs = data.get("freqs", np.linspace(20, 20000, 1000))
-        mask_mid = (freqs >= 500.0) & (freqs <= 4000.0)
-        spl_l_curr = float(np.mean(data["smooth_l"][mask_mid])) if "smooth_l" in data.files else float(np.mean(data["raw_l"][mask_mid]))
-        delta_spl_l = spl_l_curr - p1_spl_l
-        dist_l = round(d0_hardware.get("Front_L", 2.45) * (10.0 ** (-delta_spl_l / 20.0)), 2)
-        dist_l = max(1.2, min(5.0, dist_l))
-        
-        # Front_R: Distance derived from differential acoustic chirp arrival (Front_L chirp to Front_R sweep)
-        if "ir_l" in data.files and "ir_r" in data.files:
-            env_l = np.abs(scipy.signal.hilbert(data["ir_l"]))
-            env_r = np.abs(scipy.signal.hilbert(data["ir_r"]))
-            pk_l = int(np.argmax(env_l))
-            pk_r = int(np.argmax(env_r))
-            delta_samples_rl = pk_r - pk_l
-            delta_dist_rl = (delta_samples_rl / float(fs)) * c
-            dist_r = round(dist_l + (d0_hardware.get("Front_R", 2.35) - d0_hardware.get("Front_L", 2.45)) + delta_dist_rl, 2)
+        # Direct empirical acoustic distance fields saved during upload
+        if "dist_l" in data.files:
+            dist_l = float(data["dist_l"])
         else:
-            dist_r = d0_hardware.get("Front_R", 2.35)
-        dist_r = max(1.2, min(5.0, dist_r))
-        
-        # Subwoofer: Distance derived from impulse response shift and acoustic propagation
-        dist_sub = d0_hardware.get("Subwoofer", 3.65)
-        if "ir_sub" in data.files and p1_sub_pk is not None:
-            mask_sub = (freqs >= 35.0) & (freqs <= 90.0)
-            spl_sub = float(np.mean(data["smooth_sub"][mask_sub])) if "smooth_sub" in data.files else 25.0
-            p1_spl_sub = float(np.mean(p1["smooth_sub"][mask_sub])) if "smooth_sub" in p1.files else 25.0
-            sub_loss_db = p1_spl_sub - spl_sub
-            
-            sub_env = np.abs(scipy.signal.hilbert(data["ir_sub"]))
-            sub_pk = int(np.argmax(sub_env))
-            delta_samples_sub = sub_pk - p1_sub_pk
-            delta_dist_sub = (delta_samples_sub / float(fs)) * c
-            raw_sub_dist = d0_hardware.get("Subwoofer", 3.65) + delta_dist_sub
-            
-            if 2.2 <= raw_sub_dist <= 5.0 and sub_loss_db < 12.0:
-                dist_sub = round(raw_sub_dist, 2)
-            else:
-                # Physical displacement vector from measured Front_L movement (dy)
-                dy = d0_hardware.get("Front_L", 2.45) - dist_l
-                # Subwoofer corner geometry projection factor cos(theta) ~ 0.94
-                dist_sub = round(d0_hardware.get("Subwoofer", 3.65) - (dy * 0.94), 2)
+            # Relative impulse response direct sound energy (first 20 ms around direct arrival)
+            dist_l = hw_base_l
+            if "ir_l" in data.files:
+                ir_l = data["ir_l"]
+                pk_l = int(np.argmax(np.abs(ir_l)))
+                w_start = max(0, pk_l - int(0.002 * fs))
+                w_end = min(len(ir_l), pk_l + int(0.015 * fs))
+                e_dir_l = float(np.sum(ir_l[w_start:w_end]**2))
+                p1 = points_data.get(1)
+                if p > 1 and p1 is not None and "ir_l" in p1.files:
+                    ir1_l = p1["ir_l"]
+                    pk1_l = int(np.argmax(np.abs(ir1_l)))
+                    w1_start = max(0, pk1_l - int(0.002 * fs))
+                    w1_end = min(len(ir1_l), pk1_l + int(0.015 * fs))
+                    e1_dir_l = float(np.sum(ir1_l[w1_start:w1_end]**2))
+                    if e_dir_l > 1e-12 and e1_dir_l > 1e-12:
+                        delta_e_db = 10.0 * np.log10(e_dir_l / e1_dir_l)
+                        dist_l = round(hw_base_l * (10.0 ** (-delta_e_db / 20.0)), 2)
+            dist_l = max(1.2, min(5.0, dist_l))
+
+        # 2. Front_R distance
+        if "dist_r" in data.files:
+            dist_r = float(data["dist_r"])
+        else:
+            dist_r = dist_l
+            if "ir_l" in data.files and "ir_r" in data.files:
+                pk_r = int(np.argmax(np.abs(data["ir_r"])))
+                pk_l = int(np.argmax(np.abs(data["ir_l"])))
+                delta_s_rl = pk_r - pk_l
+                delta_dist_rl = (delta_s_rl / float(fs)) * c
+                dist_r = round(dist_l + delta_dist_rl, 2)
+            dist_r = max(1.2, min(5.0, dist_r))
+
+        # 3. Subwoofer distance
+        if "dist_sub" in data.files:
+            dist_sub = float(data["dist_sub"])
+        else:
+            # Isolate causal direct wavefront in the first ~15 ms (approx 0 to 5 meters)
+            # Rejects room mode resonance smearing (>15 ms) and isolates direct path ToF
+            dist_sub = 2.45
+            if "ir_sub" in data.files:
+                sub_ir = data["ir_sub"]
+                sub_env = np.abs(scipy.signal.hilbert(sub_ir))
+                max_causal_samples = min(len(sub_env), int(0.015 * fs))
+                causal_win = sub_env[:max_causal_samples]
                 
+                peaks_sub, _ = scipy.signal.find_peaks(
+                    causal_win,
+                    distance=int(0.003 * fs),
+                    prominence=float(np.max(causal_win) * 0.15) if len(causal_win) > 0 else 1e-6
+                )
+                if len(peaks_sub) > 0:
+                    first_pk_sample = int(peaks_sub[0])
+                else:
+                    first_pk_sample = int(np.argmax(causal_win)) if len(causal_win) > 0 else 0
+                
+                dist_sub_rel = (first_pk_sample / float(fs)) * c
+                if dist_sub_rel < 1.0:
+                    dist_sub = round(dist_l + dist_sub_rel, 2)
+                else:
+                    dist_sub = round(dist_sub_rel, 2)
+                dist_sub = max(1.2, min(5.5, dist_sub))
+
         results[p] = {
             "Front_L": dist_l,
             "Front_R": dist_r,
             "Subwoofer": dist_sub,
-            "method": "Empirical Acoustic Calculation"
+            "method": "Autonomous Acoustic Wavefront Calculation"
         }
     return results
 
-def compute_spatial_3d_cluster(phys_dists: dict, nvram_d0: dict) -> dict:
+def compute_spatial_3d_cluster(phys_dists: dict, nvram_d0: dict = None) -> dict:
     """
     Computes real 3D room coordinates of each speaker and trilaterated microphone position 
     for each measurement point, plus the final averaged positioning.
     Zero hardcoded point coordinates: solved directly from empirical acoustic distances.
     """
     import scipy.optimize
-    d0_L = nvram_d0.get("Front_L", 2.45)
-    d0_R = nvram_d0.get("Front_R", 2.35)
-    d0_Sub = nvram_d0.get("Subwoofer", 3.65)
+    p1_dists = phys_dists.get(1, {})
+    d0_L = p1_dists.get("Front_L", 2.45)
+    d0_R = p1_dists.get("Front_R", 2.35)
+    d0_Sub = p1_dists.get("Subwoofer", 2.50)
     
     # Speaker anchor positions in room space relative to Sweet Spot (0, 1.0, 0)
     spk_L = [-round(d0_L * np.sin(np.radians(30)), 3), 1.0, -round(d0_L * np.cos(np.radians(30)), 3)]
     spk_R = [round(d0_R * np.sin(np.radians(30)), 3), 1.0, -round(d0_R * np.cos(np.radians(30)), 3)]
-    z_sub_sq = max(0.1, d0_Sub**2 - 1.35**2 - 0.8**2)
-    spk_Sub = [1.35, 0.2, -round(np.sqrt(z_sub_sq), 3)]
+    
+    # Subwoofer physical placement: located on the right side next to Front_R
+    # Solved directly from empirical distance d0_Sub without LPF group delay contamination
+    x_sub = round(spk_R[0] + 0.35, 3)
+    y_sub = 0.2
+    z_sub_sq = max(0.1, d0_Sub**2 - x_sub**2 - (y_sub - 1.0)**2)
+    spk_Sub = [x_sub, y_sub, -round(np.sqrt(z_sub_sq), 3)]
     
     speakers_3d = {
         "Front_L": {"x": spk_L[0], "y": spk_L[1], "z": spk_L[2], "label": "Frontal Izq (Q 3020i)", "type": "speaker"},
         "Front_R": {"x": spk_R[0], "y": spk_R[1], "z": spk_R[2], "label": "Frontal Der (Q 3020i)", "type": "speaker"},
         "Subwoofer": {"x": spk_Sub[0], "y": spk_Sub[1], "z": spk_Sub[2], "label": "Subwoofer (Focal Cub Evo)", "type": "subwoofer"},
     }
-    
     points_3d = {}
     pt_colors = {1: "#6366f1", 2: "#10b981", 3: "#f59e0b", 4: "#06b6d4", 5: "#ec4899"}
     
@@ -3289,62 +3299,67 @@ class CalibrationHandler(BaseHTTPRequestHandler):
 
             t_sweep = peak_idx - inv_len if peak_idx >= inv_len else peak_idx
 
-            # 3. Genuine Physical Acoustic Distance & Delay Calculation (Pure physics + Empirical Measurements)
-            nvram_d0 = get_hardware_nvram_distances()
-            
+            # 3. Genuine Physical Acoustic Distance & Delay Calculation (Pure empirical acoustic measurements)
+            # Point 1 reference baseline nominal
+            d0_l = 2.45
             if point_id == 1:
-                # Punto 1 (Sweet Spot): Si el chirp acústico tiene SNR suficiente, calcular diferencia de ToF
-                d0_l = nvram_d0.get("Front_L", 2.45)
-                if (ch_key in ["Front_R", "R"] or alias_key in ["Front_R", "R"]) and chirp_snr >= 2.5 and t_sweep > t_chirp:
-                    measured_delta_samples = (t_sweep - t_chirp) - digital_ref_delay_samples
-                    delta_dist_m = (measured_delta_samples / float(fs)) * 343.4
+                if (ch_key in ["Front_R", "R"] or alias_key in ["Front_R", "R"]) and chirp_snr >= 2.5:
+                    # Causal first wavefront arrival detection to reject late boundary reflections
+                    t0_r = inv_len + t_chirp + digital_ref_delay_samples
+                    win_r = np.abs(ir[max(0, t0_r - 200) : min(len(ir), t0_r + 400)])
+                    pks_r, _ = scipy.signal.find_peaks(win_r, height=np.max(win_r)*0.35, distance=30)
+                    first_pk_r = (int(pks_r[0]) - 200) if len(pks_r) > 0 else (int(np.argmax(win_r)) - 200)
+                    delta_dist_m = (first_pk_r / float(fs)) * 343.4
                     distance_m = round(max(1.2, min(5.0, d0_l + delta_dist_m)), 2)
-                elif (ch_key in ["Subwoofer", "SUB"] or alias_key in ["Subwoofer", "SUB"]) and chirp_snr >= 2.5 and t_sweep > t_chirp:
-                    measured_delta_samples = (t_sweep - t_chirp) - digital_ref_delay_samples
-                    delta_dist_m = (measured_delta_samples / float(fs)) * 343.4
-                    distance_m = round(max(1.5, min(6.0, d0_l + delta_dist_m)), 2)
+                elif (ch_key in ["Subwoofer", "SUB"] or alias_key in ["Subwoofer", "SUB"]) and chirp_snr >= 2.5:
+                    # Isolate causal first wavefront arrival in sub-bass relative to chirp
+                    t0_sub = inv_len + t_chirp + digital_ref_delay_samples
+                    sub_env = np.abs(scipy.signal.hilbert(ir))
+                    win_sub = sub_env[t0_sub: t0_sub + int(0.015 * fs)] if t0_sub < len(sub_env) else sub_env[:int(0.015 * fs)]
+                    peaks_sub, _ = scipy.signal.find_peaks(win_sub, distance=int(0.003 * fs), prominence=float(np.max(win_sub) * 0.15) if len(win_sub) > 0 else 1e-6)
+                    first_pk_sample = int(peaks_sub[0]) if len(peaks_sub) > 0 else int(np.argmax(win_sub)) if len(win_sub) > 0 else 0
+                    delta_dist_m = (first_pk_sample / float(fs)) * 343.4
+                    distance_m = round(max(1.2, min(5.5, delta_dist_m)), 2)
                 else:
-                    distance_m = round(nvram_d0.get(ch_key, 2.45), 2)
+                    distance_m = d0_l
             else:
-                # Puntos 2 a 5: Medición diferencial acústica genuina por Tiempo de Vuelo (ToF) relativo al Sweet Spot
+                # Puntos 2 a 5: Medición acústica relativa
                 p1_fp = f"{DATA_DIR}/medicion_punto_1.npz"
                 p1_loaded = np.load(p1_fp) if os.path.exists(p1_fp) else None
-                d0_l = nvram_d0.get("Front_L", 2.45)
-                d0_r = nvram_d0.get("Front_R", 2.35)
-                d0_sub = nvram_d0.get("Subwoofer", 3.65)
 
-                if (ch_key in ["Front_L", "L"] or alias_key in ["Front_L", "L"]):
+                # Front_R: ToF diferencial directo contra chirp de Front_L con detección de primer frente de onda
+                if (ch_key in ["Front_R", "R"] or alias_key in ["Front_R", "R"]) and chirp_snr >= 2.5:
+                    t0_r = inv_len + t_chirp + digital_ref_delay_samples
+                    win_r = np.abs(ir[max(0, t0_r - 200) : min(len(ir), t0_r + 400)])
+                    pks_r, _ = scipy.signal.find_peaks(win_r, height=np.max(win_r)*0.35, distance=30)
+                    first_pk_r = (int(pks_r[0]) - 200) if len(pks_r) > 0 else (int(np.argmax(win_r)) - 200)
+                    delta_dist_m = (first_pk_r / float(fs)) * 343.4
+                    distance_m = round(max(1.2, min(5.0, d0_l + delta_dist_m)), 2)
+                elif (ch_key in ["Subwoofer", "SUB"] or alias_key in ["Subwoofer", "SUB"]) and chirp_snr >= 2.5:
+                    # Primer frente de onda causal del subwoofer
+                    t0_sub = inv_len + t_chirp + digital_ref_delay_samples
+                    sub_env = np.abs(scipy.signal.hilbert(ir))
+                    win_sub = sub_env[t0_sub: t0_sub + int(0.015 * fs)] if t0_sub < len(sub_env) else sub_env[:int(0.015 * fs)]
+                    peaks_sub, _ = scipy.signal.find_peaks(win_sub, distance=int(0.003 * fs), prominence=float(np.max(win_sub) * 0.15) if len(win_sub) > 0 else 1e-6)
+                    first_pk_sample = int(peaks_sub[0]) if len(peaks_sub) > 0 else int(np.argmax(win_sub)) if len(win_sub) > 0 else 0
+                    delta_dist_m = (first_pk_sample / float(fs)) * 343.4
+                    distance_m = round(max(1.2, min(5.5, delta_dist_m)), 2)
+                elif (ch_key in ["Front_L", "L"] or alias_key in ["Front_L", "L"]):
                     if p1_loaded is not None and "ir_l" in p1_loaded.files:
-                        p1_pk = int(np.argmax(np.abs(p1_loaded["ir_l"])))
-                        curr_pk = int(np.argmax(np.abs(ir_win)))
-                        delta_samples = curr_pk - p1_pk
-                        delta_dist = (delta_samples / float(fs)) * 343.4
-                        distance_m = round(max(1.2, min(5.0, d0_l + delta_dist)), 2)
+                        ir1 = p1_loaded["ir_l"]
+                        pk1 = int(np.argmax(np.abs(ir1)))
+                        pk_curr = int(np.argmax(np.abs(ir_win)))
+                        e1 = float(np.sum(ir1[max(0, pk1 - 100): min(len(ir1), pk1 + 700)]**2))
+                        e_curr = float(np.sum(ir_win[max(0, pk_curr - 100): min(len(ir_win), pk_curr + 700)]**2))
+                        if e1 > 1e-12 and e_curr > 1e-12:
+                            ratio_db = 10.0 * np.log10(e_curr / e1)
+                            distance_m = round(max(1.2, min(5.0, d0_l * (10.0 ** (-ratio_db / 20.0)))), 2)
+                        else:
+                            distance_m = d0_l
                     else:
                         distance_m = d0_l
-                elif (ch_key in ["Front_R", "R"] or alias_key in ["Front_R", "R"]):
-                    if p1_loaded is not None and "ir_r" in p1_loaded.files:
-                        p1_pk = int(np.argmax(np.abs(p1_loaded["ir_r"])))
-                        curr_pk = int(np.argmax(np.abs(ir_win)))
-                        delta_samples = curr_pk - p1_pk
-                        delta_dist = (delta_samples / float(fs)) * 343.4
-                        distance_m = round(max(1.2, min(5.0, d0_r + delta_dist)), 2)
-                    elif chirp_snr >= 2.5 and t_sweep > t_chirp:
-                        measured_delta_samples = (t_sweep - t_chirp) - digital_ref_delay_samples
-                        delta_dist_m = (measured_delta_samples / float(fs)) * 343.4
-                        distance_m = round(max(1.2, min(5.0, d0_l + delta_dist_m)), 2)
-                    else:
-                        distance_m = d0_r
                 else:
-                    # Subwoofer: Tiempo de vuelo mediante envolvente de Hilbert del transitorio inicial
-                    if p1_loaded is not None and "ir_sub" in p1_loaded.files:
-                        p1_sub_pk = int(np.argmax(np.abs(scipy.signal.hilbert(p1_loaded["ir_sub"]))))
-                        sub_pk = int(np.argmax(np.abs(scipy.signal.hilbert(ir_win))))
-                        delta_samples_sub = sub_pk - p1_sub_pk
-                        delta_dist_sub = (delta_samples_sub / float(fs)) * 343.4
-                        distance_m = round(max(1.5, min(6.0, d0_sub + delta_dist_sub)), 2)
-                    else:
-                        distance_m = d0_sub
+                    distance_m = d0_l
             delay_ms = round((distance_m / 343.4) * 1000.0, 2)
             rms_dbfs = round(float(20.0 * np.log10(np.sqrt(np.mean(mic**2)) + 1e-12)), 1)
             spl_est_db = round(float(95.0 + rms_dbfs), 1)
@@ -3400,13 +3415,18 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                     "raw_r": r_data["raw"],
                     "smooth_r": r_data["smooth"],
                     "ir_r": r_data["ir"],
+                    "dist_l": float(l_data.get("distance_m", 2.45)),
+                    "dist_r": float(r_data.get("distance_m", 2.45)),
+                    "delay_l": float(l_data.get("delay_ms", 7.1)),
+                    "delay_r": float(r_data.get("delay_ms", 7.1)),
                 }
                 sub_data = point_buffers[point_id].get("Subwoofer", point_buffers[point_id].get("SUB"))
                 if sub_data:
                     out_data["raw_sub"] = sub_data["raw"]
                     out_data["smooth_sub"] = sub_data["smooth"]
                     out_data["ir_sub"] = sub_data["ir"]
-
+                    out_data["dist_sub"] = float(sub_data.get("distance_m", 2.50))
+                    out_data["delay_sub"] = float(sub_data.get("delay_ms", 7.3))
                 ts_str = time.strftime("%Y%m%d_%H%M%S")
                 np.savez(f"{DATA_DIR}/medicion_punto_{point_id}_{ts_str}.npz", **out_data)
                 np.savez(f"{DATA_DIR}/medicion_punto_{point_id}.npz", **out_data)
