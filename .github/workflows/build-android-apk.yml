@@ -1,9 +1,13 @@
-name: Build Android APK
+name: Build and Release Android APK
 
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -18,6 +22,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -36,8 +41,27 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
+      - name: Rename APK for Release
+        run: |
+          cd frontend/android/app/build/outputs/apk/debug
+          cp app-debug.apk Octave-Calibration-${{ github.ref_name || 'latest' }}.apk
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: OctaveStudioPro-Debug-APK
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            frontend/android/app/build/outputs/apk/debug/app-debug.apk
+            frontend/android/app/build/outputs/apk/debug/Octave-Calibration-${{ github.ref_name }}.apk
+          name: Octave Room Calibration ${{ github.ref_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
