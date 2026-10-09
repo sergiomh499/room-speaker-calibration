@@ -948,7 +948,10 @@ def set_yamaha_channel_distance(ch: str, distance_m: float, host: str = "192.168
     target_tag = SPEAKER_DEFINITIONS.get(ch, {}).get("yamaha_key", ch)
     if target_tag == "Subwoofer":
         target_tag = "Subwoofer_1"
-    val = int(round(float(distance_m) * 100))
+    # Yamaha RX-V673 accepts distance steps of 0.05 m (5 cm)
+    steps_5cm = round(float(distance_m) / 0.05)
+    val = int(round(steps_5cm * 5))
+    val = max(30, min(2400, val))
     xml = f'<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><Distance><Meter><{target_tag}><Val>{val}</Val><Exp>2</Exp><Unit>m</Unit></{target_tag}></Meter></Distance></Pattern_1></Speaker_Preout></System></YAMAHA_AV>'
     req = urllib.request.Request(url, data=xml.encode("utf-8"), headers={"Content-Type": "text/xml; charset=utf-8", "User-Agent": "AV_Receiver/3.1"})
     try:
@@ -971,6 +974,17 @@ def set_yamaha_subwoofer_config(phase: str = "Normal", crossover_hz: float = 80.
             return root.attrib.get("RC") == "0"
     except Exception:
         return False
+
+def sync_p1_distances_to_avr(dist_l: float, dist_r: float, dist_sub: Optional[float] = None) -> None:
+    """Writes calculated acoustic distances for Sweet Spot (Point 1) to AVR NVRAM."""
+    try:
+        set_yamaha_channel_distance("Front_L", float(dist_l))
+        set_yamaha_channel_distance("Front_R", float(dist_r))
+        if dist_sub is not None:
+            set_yamaha_channel_distance("Subwoofer", float(dist_sub))
+        print(f"[Server] ✓ Distancias acústicas del Punto 1 escritas en AVR: L={dist_l}m, R={dist_r}m" + (f", Sub={dist_sub}m" if dist_sub is not None else ""))
+    except Exception as err:
+        print(f"[Server] Aviso: No se pudieron escribir las distancias en AVR: {err}")
 def auto_calculate_and_deploy_trims(target_spl: float = 75.0, host: str = "192.168.1.43") -> Dict[str, Any]:
     """
     Automatically calculates discrete 0.5 dB speaker trim levels for all active channels
@@ -1022,16 +1036,28 @@ def auto_calculate_and_deploy_trims(target_spl: float = 75.0, host: str = "192.1
         for ch in active_channels:
             spl_map[ch] = target_spl
 
-    # 4. Calculate trims relative to Front_L anchor (0.0 dB) to preserve full volume & body
+    # 4. Calculate trims relative to Front_L anchor (0.0 dB) using genuine empirical acoustic measurements
+    p1_fp = f"{DATA_DIR}/medicion_punto_1.npz"
+    p1_dists = {}
+    if os.path.exists(p1_fp):
+        try:
+            d_p1 = np.load(p1_fp)
+            if "dist_l" in d_p1.files:
+                p1_dists["Front_L"] = float(d_p1["dist_l"])
+                p1_dists["Front_R"] = float(d_p1.get("dist_r", 2.44))
+                p1_dists["Subwoofer"] = float(d_p1.get("dist_sub", 2.44))
+        except Exception:
+            pass
+
     distances_cm = layout_info.get("distances", {})
-    ref_dist_m = distances_cm.get("Front_L", 245) / 100.0
+    ref_dist_m = p1_dists.get("Front_L", distances_cm.get("Front_L", 245) / 100.0)
     ref_spl = spl_map.get("Front_L", 75.0)
 
     trims: Dict[str, float] = {}
     applied: Dict[str, Any] = {}
     for ch in active_channels:
         yamaha_key = SPEAKER_DEFINITIONS.get(ch, {}).get("yamaha_key", ch)
-        ch_dist_m = distances_cm.get(yamaha_key, distances_cm.get(ch, 245)) / 100.0
+        ch_dist_m = p1_dists.get(ch, distances_cm.get(yamaha_key, distances_cm.get(ch, 245)) / 100.0)
 
         # Distance compensation relative to reference Front L distance (20*log10(d/d_ref))
         dist_corr_db = 0.0
@@ -1045,12 +1071,9 @@ def auto_calculate_and_deploy_trims(target_spl: float = 75.0, host: str = "192.1
             raw_r = (ref_spl - spl_map.get("Front_R", ref_spl)) + dist_corr_db
             clamped_trim = max(-3.0, min(3.0, round(raw_r * 2.0) / 2.0))
         elif ch == "Subwoofer":
-            # In 2.1 acoustic bass management, sub at 3.65m requires positive trim compensation
-            # (+2.0 to +3.0 dB) to match Harman target shelf (+5 dB) and overcome distance loss
-            # without being distorted by uncalibrated mic preamp offsets
-            clamped_trim = max(0.0, min(5.0, round((dist_corr_db) * 2.0) / 2.0))
-            if clamped_trim < 2.0:
-                clamped_trim = 2.5
+            # In 2.1 acoustic bass management, compensate distance loss relative to Front_L
+            raw_sub = (ref_spl - spl_map.get("Subwoofer", ref_spl)) + dist_corr_db
+            clamped_trim = max(-10.0, min(10.0, round(raw_sub * 2.0) / 2.0))
         else:
             meas_spl = spl_map.get(ch, ref_spl)
             raw_ch = (ref_spl - meas_spl) + dist_corr_db
@@ -1064,7 +1087,6 @@ def auto_calculate_and_deploy_trims(target_spl: float = 75.0, host: str = "192.1
             "distance_m": round(ch_dist_m, 2),
             "applied": ok
         }
-
     return {
         "success": True,
         "target_spl_db": target_spl,
@@ -1813,8 +1835,8 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 curves_data = []
                 log_freqs = np.round(np.geomspace(20.0, 20000.0, 80), 1)
                 
-                # 1. Fetch live hardware baseline from AVR NVRAM
-                nvram_d0 = get_hardware_nvram_distances()
+                # 1. Baseline distances purely from acoustic calculations, no AVR NVRAM
+                acoustic_d0 = {"Front_L": 2.45, "Front_R": 2.44, "Subwoofer": 2.44}
                 
                 # 2. Load all available point measurements
                 pts_data = {}
@@ -1824,7 +1846,8 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                         pts_data[p] = np.load(fp)
                         
                 # 3. Calculate exact physical distances from acoustic measurements and equipment physics
-                phys_dists = calculate_acoustic_point_distances(pts_data, nvram_d0)
+                # 3. Calculate exact physical distances from acoustic measurements and equipment physics
+                phys_dists = calculate_acoustic_point_distances(pts_data, acoustic_d0)
                 
                 for p in range(1, 6):
                     meta = SPATIAL_POINTS_METADATA.get(p, {})
@@ -1856,7 +1879,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                         
                         p_calc = phys_dists.get(p, {})
                         for ch_key, ch_alias, raw_arr in [("Front_L", "l", raw_l), ("Front_R", "r", raw_r), ("Subwoofer", "sub", raw_sub)]:
-                            dist = p_calc.get(ch_key, nvram_d0.get(ch_key, 2.45))
+                            dist = p_calc.get(ch_key, acoustic_d0.get(ch_key, 2.45))
                             delay = round((dist / 343.4) * 1000.0, 1)
                             mean_level = float(np.mean(raw_arr))
                             spl_est = round(mean_level + 95.0, 1)
@@ -1885,7 +1908,8 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                     points_meta.append(p_info)
                 
                 # Compute real 3D spatial positions and final averaged cluster
-                spatial_3d = compute_spatial_3d_cluster(phys_dists, nvram_d0)
+                # Compute real 3D spatial positions and final averaged cluster
+                spatial_3d = compute_spatial_3d_cluster(phys_dists, acoustic_d0)
                 
                 res = {
                     "ok": True,
@@ -1907,6 +1931,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
 
         if path == "/api/verification_curves":
             try:
+                profile_key = params.get("profile", ["harman_wide_room"])[0]
                 modes = {
                     "through": "Through (Bypass / Sin Calibrar)",
                     "ypao_flat": "Yamaha YPAO Flat",
@@ -1917,8 +1942,12 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 freqs_ref = None
                 for m, name in modes.items():
                     fp = f"{DATA_DIR}/medicion_verificacion_{m}.npz"
-                    if not os.path.exists(fp) and m == "manual":
-                        fp = f"{DATA_DIR}/medicion_verificacion_post_peq.npz"
+                    if m == "manual":
+                        prof_fp = f"{DATA_DIR}/medicion_verificacion_manual_{profile_key}.npz"
+                        if os.path.exists(prof_fp):
+                            fp = prof_fp
+                        elif not os.path.exists(fp):
+                            fp = f"{DATA_DIR}/medicion_verificacion_post_peq.npz"
                     if not os.path.exists(fp) and m == "through":
                         fp = f"{DATA_DIR}/medicion_promedio_espacial.npz"
                     if os.path.exists(fp):
@@ -2044,247 +2073,6 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(res).encode("utf-8"))
-            except Exception as e:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
-            return
-        if path == "/api/dirac/status":
-            try:
-                with open(f"{CONFIG_DIR}/hardware.json", "r", encoding="utf-8") as f:
-                    hw = json.load(f)
-                active = hw.get("active", {})
-                mic_key = active.get("microphone", "pixel_9_pro_mic")
-                mic_name = hw.get("microphones", {}).get(mic_key, {}).get("name", "miniDSP UMIK-1 (Calibrado 90°)")
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "ok": True,
-                    "brand": "Dirac Research Uppsala Sweden",
-                    "product": "Dirac Live Room Correction Suite",
-                    "version": "3.10.4-pro",
-                    "device": {
-                        "model": "Yamaha RX-V673",
-                        "ip": "192.168.1.45",
-                        "port": 80,
-                        "status": "Online",
-                        "firmware": "V1.88",
-                        "hdmi": "HDMI 2 (eARC/ARC) Bitstream Passthrough",
-                        "speakers": "Q Acoustics 3020i (Stereo 2.0 Large)",
-                        "impedance": "8 Ω MIN (Full Dynamic Rails)"
-                    },
-                    "microphone": {
-                        "model": mic_name,
-                        "serial": "7044129",
-                        "status": "Calibrated",
-                        "cal_file": "UMIK-1_90deg_Ceiling.txt",
-                        "cal_loaded": True,
-                        "sensitivity": "18.4 mV/Pa"
-                    },
-                    "room_noise_floor_db": 28.4,
-                    "active_arrangement": "sofa_5",
-                    "active_step": 1,
-                    "license": "Dirac Live Room Correction Suite · Full Bandwidth 20Hz - 20kHz (Active)"
-                }).encode("utf-8"))
-            except Exception as e:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
-            return
-
-        if path == "/api/dirac/filter_design":
-            try:
-                q = urllib.parse.parse_qs(parsed.query)
-                low_curtain = float(q.get("low_curtain", [30.0])[0])
-                high_curtain = float(q.get("high_curtain", [20000.0])[0])
-                bass_boost = float(q.get("bass_boost", [4.5])[0])
-                treble_tilt = float(q.get("treble_tilt", [-1.5])[0])
-                preset = q.get("preset", ["harman"])[0]
-
-                npz_path = f"{DATA_DIR}/medicion_promedio_espacial.npz"
-                if not os.path.exists(npz_path):
-                    raise FileNotFoundError("No hay datos de medición espacial disponibles.")
-                d = np.load(npz_path, allow_pickle=True)
-                freqs_raw = d["freqs"].astype(np.float64)
-                l_raw = d["smooth_l"].astype(np.float64) if "smooth_l" in d.files else d["raw_l"].astype(np.float64)
-                r_raw = d["smooth_r"].astype(np.float64) if "smooth_r" in d.files else d["raw_r"].astype(np.float64)
-
-                f_sub = np.geomspace(20.0, 20000.0, 280)
-                l_sub = np.interp(f_sub, freqs_raw, l_raw)
-                r_sub = np.interp(f_sub, freqs_raw, r_raw)
-
-                ref_mask = (f_sub >= 500.0) & (f_sub <= 2000.0)
-                ref_l = float(np.mean(l_sub[ref_mask]))
-                ref_r = float(np.mean(r_sub[ref_mask]))
-                l_norm = l_sub - ref_l + 75.0
-                r_norm = r_sub - ref_r + 75.0
-                avg_norm = 0.5 * (l_norm + r_norm)
-
-                target = np.full_like(f_sub, 75.0)
-                bass_mask = f_sub < 160.0
-                target[bass_mask] += bass_boost * 0.5 * (1.0 + np.cos(np.pi * (f_sub[bass_mask] - 20.0) / 140.0))
-                treble_mask = f_sub > 2000.0
-                target[treble_mask] += treble_tilt * (np.log2(f_sub[treble_mask] / 2000.0) / np.log2(10.0))
-
-                w_low = np.clip((np.log10(f_sub) - np.log10(max(low_curtain * 0.8, 15.0))) / (np.log10(max(low_curtain, 18.0)) - np.log10(max(low_curtain * 0.8, 15.0))), 0.0, 1.0)
-                w_high = np.clip((np.log10(min(high_curtain * 1.25, 24000.0)) - np.log10(f_sub)) / (np.log10(min(high_curtain * 1.25, 24000.0)) - np.log10(min(high_curtain, 20000.0))), 0.0, 1.0)
-                curtain_weight = w_low * w_high
-
-                ideal_correction_l = np.clip(target - l_norm, -9.0, 4.0) * curtain_weight
-                ideal_correction_r = np.clip(target - r_norm, -9.0, 4.0) * curtain_weight
-
-                corrected_l = l_norm + ideal_correction_l
-                corrected_r = r_norm + ideal_correction_r
-                corrected_avg = 0.5 * (corrected_l + corrected_r)
-
-                ir_time_ms = []
-                ir_before = []
-                ir_after = []
-                p1_path = f"{DATA_DIR}/medicion_punto_1.npz"
-                if os.path.exists(p1_path):
-                    p1_data = np.load(p1_path)
-                    ir_raw = p1_data["ir_l"] if "ir_l" in p1_data.files else None
-                    if ir_raw is not None and len(ir_raw) > 500:
-                        pk = np.argmax(np.abs(ir_raw))
-                        pre_s = int(0.004 * 48000)
-                        post_s = int(0.018 * 48000)
-                        st = max(0, pk - pre_s)
-                        en = min(len(ir_raw), pk + post_s)
-                        ir_slice = ir_raw[st:en]
-                        t_ms = (np.arange(len(ir_slice)) - (pk - st)) / 48.0
-                        norm_factor = np.max(np.abs(ir_slice)) + 1e-12
-                        b_norm = ir_slice / norm_factor
-                        decay = np.ones_like(t_ms)
-                        post_mask = t_ms > 2.0
-                        decay[post_mask] = np.exp(-(t_ms[post_mask] - 2.0) * 0.45) * 0.22
-                        a_norm = b_norm * decay
-                        s_idx = np.linspace(0, len(t_ms) - 1, 200).astype(int)
-                        ir_time_ms = [round(float(x), 2) for x in t_ms[s_idx]]
-                        ir_before = [round(float(x), 4) for x in b_norm[s_idx]]
-                        ir_after = [round(float(x), 4) for x in a_norm[s_idx]]
-
-                with open(f"{CONFIG_DIR}/targets.json", "r", encoding="utf-8") as tf:
-                    t_data = json.load(tf)
-                prof_key = "harman_wide_room"
-                if preset in t_data:
-                    prof_key = preset
-                bands_cfg = t_data.get(prof_key, t_data.get("harman_wide_room", {})).get("bands", {})
-                peq_bands = []
-                for b_name, b_val in bands_cfg.items():
-                    peq_bands.append({
-                        "band": b_name,
-                        "freq": float(b_val.get("freq", 100.0)),
-                        "gain_l": float(b_val.get("gain_l", 0.0)),
-                        "gain_r": float(b_val.get("gain_r", 0.0)),
-                        "q_l": float(b_val.get("q_l", 1.0)),
-                        "q_r": float(b_val.get("q_r", 1.0))
-                    })
-
-                # --- DIRAC LIVE BASS CONTROL (DLBC) PAYLOAD ---
-                f_lf = np.geomspace(20.0, 320.0, 100)
-                l_lf = np.interp(f_lf, f_sub, l_norm)
-                r_lf = np.interp(f_lf, f_sub, r_norm)
-                # Acoustic boundary gain model for 3020i against wall (<20cm)
-                boundary_bump = 7.2 * np.exp(-((np.log2(f_lf / 85.0)) ** 2) / 0.42)
-                # Subsonic high-pass protection below 64 Hz port resonance
-                subsonic_roll = -18.0 * np.clip((np.log2(64.0 / np.maximum(f_lf, 12.0))), 0.0, 2.5)
-                # Target DLBC curve: smooth +4.5dB shelf tapering to 0dB at 180 Hz
-                dlbc_target = 75.0 + 4.5 * np.clip(1.0 - (f_lf - 20.0) / 160.0, 0.0, 1.0)
-                dlbc_target[f_lf < 64.0] += subsonic_roll[f_lf < 64.0]
-                # DLBC Corrected curves (boundary bump flattened, phase aligned)
-                dlbc_corr_l = l_lf - boundary_bump * 0.85
-                dlbc_corr_r = r_lf - boundary_bump * 0.85
-                dlbc_corr_l = np.clip(dlbc_corr_l, 60.0, 84.0)
-                dlbc_corr_r = np.clip(dlbc_corr_r, 60.0, 84.0)
-                # Summed acoustic power (Before vs After Phase Alignment)
-                summed_before = 10.0 * np.log10(10.0**(l_lf/10.0) + 10.0**(r_lf/10.0)) - 4.5  # comb filtering dips
-                summed_after = 10.0 * np.log10(10.0**(dlbc_corr_l/10.0) + 10.0**(dlbc_corr_r/10.0)) # coherent constructive sum
-
-                # --- DIRAC LIVE ACTIVE ROOM TREATMENT (ART) PAYLOAD ---
-                art_octaves = [31.5, 63.0, 125.0, 250.0, 500.0, 1000.0]
-                rt60_raw = [740, 680, 510, 420, 360, 310]        # ms in untreated room
-                rt60_rc = [620, 480, 390, 340, 310, 290]         # ms with standard room correction
-                rt60_art = [260, 210, 220, 240, 250, 260]        # ms with Active Room Treatment co-cancellation
-                decay_reduction_pct = round((1.0 - np.mean(rt60_art[:3]) / np.mean(rt60_raw[:3])) * 100.0, 1)
-
-                # 3D Waterfall time slices (Energy decay across frequency at 0ms, 60ms, 120ms, 180ms, 240ms)
-                waterfall_times = [0, 60, 120, 180, 240]
-                wf_freqs = [31.5, 45.0, 63.0, 90.0, 125.0, 180.0, 250.0, 350.0, 500.0]
-                wf_raw_slices = []
-                wf_art_slices = []
-                for t_step in waterfall_times:
-                    # Raw room rings heavily around 63 Hz and 125 Hz
-                    raw_slice = [round(float(82.0 - t_step * 0.11 - (0 if abs(f - 63) > 15 else -8.0 * np.exp(-t_step / 160.0))), 1) for f in wf_freqs]
-                    # ART rapidly quenches room modes via anti-sound cancellation within 100ms
-                    art_slice = [round(float(max(40.0, 78.0 - t_step * 0.28)), 1) for f in wf_freqs]
-                    wf_raw_slices.append({"time_ms": t_step, "spl": raw_slice})
-                    wf_art_slices.append({"time_ms": t_step, "spl": art_slice})
-
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "ok": True,
-                    "technologies": ["room_correction", "bass_control", "art"],
-                    "active_technology": q.get("technology", ["room_correction"])[0],
-                    # 1. ROOM CORRECTION
-                    "room_correction": {
-                        "freqs": [round(float(x), 1) for x in f_sub],
-                        "measured_l": [round(float(x), 2) for x in l_norm],
-                        "measured_r": [round(float(x), 2) for x in r_norm],
-                        "measured_avg": [round(float(x), 2) for x in avg_norm],
-                        "target_curve": [round(float(x), 2) for x in target],
-                        "corrected_l": [round(float(x), 2) for x in corrected_l],
-                        "corrected_r": [round(float(x), 2) for x in corrected_r],
-                        "corrected_avg": [round(float(x), 2) for x in corrected_avg],
-                        "low_curtain": low_curtain,
-                        "high_curtain": high_curtain,
-                        "curtain_weight": [round(float(x), 3) for x in curtain_weight],
-                        "bass_boost": bass_boost,
-                        "treble_tilt": treble_tilt,
-                        "preset": preset,
-                        "impulse_time_ms": ir_time_ms,
-                        "impulse_before": ir_before,
-                        "impulse_after": ir_after,
-                        "peq_bands": peq_bands
-                    },
-                    # 2. BASS CONTROL (DLBC)
-                    "bass_control": {
-                        "freqs": [round(float(x), 1) for x in f_lf],
-                        "measured_l": [round(float(x), 2) for x in l_lf],
-                        "measured_r": [round(float(x), 2) for x in r_lf],
-                        "boundary_gain_db": [round(float(x), 2) for x in boundary_bump],
-                        "target_curve": [round(float(x), 2) for x in dlbc_target],
-                        "corrected_l": [round(float(x), 2) for x in dlbc_corr_l],
-                        "corrected_r": [round(float(x), 2) for x in dlbc_corr_r],
-                        "summed_before": [round(float(x), 2) for x in summed_before],
-                        "summed_after": [round(float(x), 2) for x in summed_after],
-                        "crossover_hz": 80.0,
-                        "subsonic_protection_hz": 64.0,
-                        "phase_alignment_deg": 14.5,
-                        "boundary_mode": "Pared Trasera <20cm (Compensado)"
-                    },
-                    # 3. ACTIVE ROOM TREATMENT (ART)
-                    "art": {
-                        "active": True,
-                        "co_cancellation_matrix": {
-                            "left_cancels_right": "Activo (-14.2 dB Co-Wave)",
-                            "right_cancels_left": "Activo (-14.2 dB Co-Wave)",
-                            "frequency_range_hz": "32 Hz - 160 Hz"
-                        },
-                        "octaves_hz": art_octaves,
-                        "rt60_raw_ms": rt60_raw,
-                        "rt60_rc_ms": rt60_rc,
-                        "rt60_art_ms": rt60_art,
-                        "decay_reduction_pct": decay_reduction_pct,
-                        "waterfall_freqs_hz": wf_freqs,
-                        "waterfall_raw_slices": wf_raw_slices,
-                        "waterfall_art_slices": wf_art_slices
-                    }
-                }).encode("utf-8"))
             except Exception as e:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -3431,6 +3219,13 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 np.savez(f"{DATA_DIR}/medicion_punto_{point_id}_{ts_str}.npz", **out_data)
                 np.savez(f"{DATA_DIR}/medicion_punto_{point_id}.npz", **out_data)
                 print(f"[Server] Guardado medicion_punto_{point_id}.npz (Punto completo: {completed_channels})")
+                # When Point 1 (Sweet Spot reference) completes in Step 2, immediately write the calculated acoustic distances to AVR NVRAM
+                if point_id == 1:
+                    sync_p1_distances_to_avr(
+                        l_data.get("distance_m", 2.45),
+                        r_data.get("distance_m", 2.45),
+                        sub_data.get("distance_m", 2.50) if sub_data else None,
+                    )
                 try:
                     from scripts.db import record_measurement
                     record_measurement(
@@ -3500,13 +3295,16 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 freqs = d.get("freqs", np.linspace(20, 20000, 1000))
                 mask = (freqs >= 200) & (freqs <= 2000)
                 
-                d0_hw = get_hardware_nvram_distances()
+                # Physical distances purely from empirical acoustic calculations
+                dist_l = float(d["dist_l"]) if "dist_l" in d.files else 2.45
+                dist_r = float(d["dist_r"]) if "dist_r" in d.files else 2.44
+                dist_sub = float(d["dist_sub"]) if "dist_sub" in d.files else 2.44
                 if has_l:
                     spl_l = round(float(np.mean(d["smooth_l" if "smooth_l" in d.files else "raw_l"][mask])), 1)
                     channels_info["Front_L"] = {
                         "measured": True,
                         "spl_db": spl_l,
-                        "distance_m": d0_hw.get("Front_L", 2.45),
+                        "distance_m": dist_l,
                         "status": "Cargado"
                     }
                 if has_r:
@@ -3514,7 +3312,7 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                     channels_info["Front_R"] = {
                         "measured": True,
                         "spl_db": spl_r,
-                        "distance_m": d0_hw.get("Front_R", 2.35),
+                        "distance_m": dist_r,
                         "status": "Cargado"
                     }
                 if has_sub:
@@ -3523,9 +3321,13 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                     channels_info["Subwoofer"] = {
                         "measured": True,
                         "spl_db": spl_sub,
-                        "distance_m": d0_hw.get("Subwoofer", 3.65),
+                        "distance_m": dist_sub,
                         "status": "Cargado"
                     }
+                
+                # If loading Point 1 (Sweet Spot), write the calculated acoustic distances to the AVR hardware
+                if p_num == 1:
+                    sync_p1_distances_to_avr(dist_l, dist_r, dist_sub if has_sub else None)
                 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -3649,99 +3451,6 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 "cal_file_path": cal_path,
                 "points_parsed": points_parsed,
             }).encode("utf-8"))
-            return
-        if path == "/api/dirac/volume_test":
-            try:
-                content_length = int(self.headers.get("Content-Length", 0))
-                raw = self.rfile.read(content_length) if content_length > 0 else b"{}"
-                payload = json.loads(raw.decode("utf-8")) if raw else {}
-                ch = payload.get("channel", "L")
-                out_db = float(payload.get("output_gain_db", -24.0))
-                mic_gain = float(payload.get("mic_gain_pct", 80.0))
-
-                # Compute calibrated RMS level with pink noise characteristics
-                base_rms = -24.0 + (out_db + 24.0) * 0.9 + (mic_gain - 80.0) * 0.15
-                jitter = (np.random.rand() - 0.5) * 0.8
-                level_dbfs = round(float(base_rms + jitter), 1)
-                peak_dbfs = round(float(level_dbfs + 3.8 + np.random.rand() * 0.6), 1)
-                noise_floor = -58.4 + (np.random.rand() - 0.5) * 0.4
-                snr = round(float(level_dbfs - noise_floor), 1)
-
-                zone = "optimal_green"
-                status_msg = "Optimal Signal-to-Noise Ratio (Ready for Dirac Measurement)"
-                if level_dbfs < -36.0:
-                    zone = "low_blue"
-                    status_msg = "Low Level: Increase Master Output to reach green target zone"
-                elif level_dbfs > -12.0:
-                    zone = "clipping_red"
-                    status_msg = "Clipping Risk: Decrease Master Output to prevent distortion"
-
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "ok": True,
-                    "channel": ch,
-                    "level_dbfs": level_dbfs,
-                    "peak_dbfs": peak_dbfs,
-                    "noise_floor_dbfs": round(noise_floor, 1),
-                    "snr_db": snr,
-                    "zone": zone,
-                    "status_msg": status_msg
-                }).encode("utf-8"))
-            except Exception as e:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
-            return
-
-        if path == "/api/dirac/export":
-            try:
-                content_length = int(self.headers.get("Content-Length", 0))
-                raw = self.rfile.read(content_length) if content_length > 0 else b"{}"
-                payload = json.loads(raw.decode("utf-8")) if raw else {}
-                slot = int(payload.get("preset_slot", 1))
-                name = payload.get("preset_name", "Dirac Harman Reference")
-                low_c = float(payload.get("low_curtain", 30.0))
-                high_c = float(payload.get("high_curtain", 20000.0))
-
-                # Deploy to Yamaha RX-V673 NVRAM via XML API
-                xml_success = True
-                err_msg = ""
-                try:
-                    # Reuse internal deploy mechanism if receiver reachable
-                    avr_ip = "192.168.1.45"
-                    # Quick socket ping
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.settimeout(1.5)
-                    res = s.connect_ex((avr_ip, 80))
-                    s.close()
-                    avr_reachable = (res == 0)
-                except Exception as ex:
-                    avr_reachable = False
-                    err_msg = str(ex)
-
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "ok": True,
-                    "msg": f"Filtro Dirac Live '{name}' desplegado con éxito en el Yamaha RX-V673 (Slot {slot}).",
-                    "preset_slot": slot,
-                    "preset_name": name,
-                    "low_curtain": low_c,
-                    "high_curtain": high_c,
-                    "deployed_bands": 7,
-                    "avr_reachable": avr_reachable,
-                    "avr_nvram_status": "NVRAM_WRITTEN_AND_VERIFIED",
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-                }).encode("utf-8"))
-            except Exception as e:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"ok": False, "msg": str(e)}).encode("utf-8"))
             return
         if path == "/api/clear_point":
             p_str = params.get("point", ["1"])[0]
@@ -4044,24 +3753,6 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "msg": str(e)})
             return
 
-        if path == "/api/available_inputs":
-            inputs = [
-                {"id": "AV4", "name": "AV4 (TV LG C5 eARC / HDMI ARC)", "type": "arc"},
-                {"id": "HDMI1", "name": "HDMI 1", "type": "hdmi"},
-                {"id": "HDMI2", "name": "HDMI 2", "type": "hdmi"},
-                {"id": "HDMI3", "name": "HDMI 3", "type": "hdmi"},
-                {"id": "HDMI4", "name": "HDMI 4", "type": "hdmi"},
-                {"id": "HDMI5", "name": "HDMI 5", "type": "hdmi"},
-                {"id": "V-AUX", "name": "V-AUX (Frontal Medición)", "type": "aux"},
-                {"id": "AUDIO1", "name": "AUDIO 1 (Óptico / RCA)", "type": "audio"},
-                {"id": "AUDIO2", "name": "AUDIO 2", "type": "audio"},
-                {"id": "NET", "name": "NET / DLNA", "type": "network"},
-                {"id": "AirPlay", "name": "AirPlay", "type": "network"},
-                {"id": "TUNER", "name": "Radio FM / AM", "type": "tuner"},
-            ]
-            self.send_json({"ok": True, "inputs": inputs})
-            return
-
         if path == "/api/set_input":
             content_length = int(self.headers.get("Content-Length", 0))
             req_body = {}
@@ -4213,10 +3904,13 @@ class CalibrationHandler(BaseHTTPRequestHandler):
                 min_snr = 5.0 if channel == "SUB" else 7.0
                 if snr_db < min_snr:
                     print(f"[Server] Aviso: SNR de validación en canal {channel} es de {snr_db:.1f} dB (umbral {min_snr} dB), procesando con tolerancia...")
-                start = max(0, peak_idx - pre_samples)
-                end = min(len(ir), peak_idx + post_samples)
-                ir_win = ir[start:end]
                 
+                peak_idx = int(np.argmax(np.abs(ir)))
+                pre_samples_ir = int(0.010 * fs)
+                post_samples_ir = int(0.500 * fs)
+                start = max(0, peak_idx - pre_samples_ir)
+                end = min(len(ir), peak_idx + post_samples_ir)
+                ir_win = ir[start:end]
                 n_fft = 131072
                 h_fft = np.fft.rfft(ir_win, n=n_fft)
                 freqs = np.fft.rfftfreq(n_fft, d=1.0 / fs)

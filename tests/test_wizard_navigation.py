@@ -6,6 +6,7 @@ import unittest
 import urllib.request
 import json
 import time
+import pathlib
 
 SERVER_URL = "http://127.0.0.1:53317"
 
@@ -36,24 +37,21 @@ class TestWizardNavigation(unittest.TestCase):
         if not self.server_online:
             self.skipTest("Web calibration server offline")
 
-        # Clear Point 3
-        req = urllib.request.Request(f"{SERVER_URL}/api/clear_point?point=3", data=b"", method="POST")
-        with urllib.request.urlopen(req, timeout=3.0) as resp:
-            res = json.loads(resp.read().decode("utf-8"))
-            self.assertTrue(res.get("ok"))
-            self.assertFalse(res.get("points", {}).get("punto_3", True))
-            # Verify Point 1 and Point 2 are intact
-            self.assertTrue(res.get("points", {}).get("punto_1", False))
+        p3_path = pathlib.Path(__file__).resolve().parent.parent / "data" / "medicion_punto_3.npz"
+        p3_backup = p3_path.read_bytes() if p3_path.exists() else None
 
-        # Restore Point 3 from file if backup exists
-        req_rec = urllib.request.Request(f"{SERVER_URL}/api/restore_point?point=3", data=b"", method="POST")
         try:
-            with urllib.request.urlopen(req_rec, timeout=2.0) as r:
-                pass
-        except urllib.error.HTTPError as e:
-            e.close()
-        except Exception:
-            pass
+            # Clear Point 3
+            req = urllib.request.Request(f"{SERVER_URL}/api/clear_point?point=3", data=b"", method="POST")
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                self.assertTrue(res.get("ok"))
+                self.assertFalse(res.get("points", {}).get("punto_3", True))
+                # Verify Point 1 and Point 2 are intact
+                self.assertTrue(res.get("points", {}).get("punto_1", False))
+        finally:
+            if p3_backup:
+                p3_path.write_bytes(p3_backup)
 
     def test_web_html_contains_wizard_stepper_elements(self):
         """FR-010: Main web interface contains wizard stepper and navigation pages."""

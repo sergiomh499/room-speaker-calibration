@@ -43,37 +43,24 @@ MAX_BANDS_PER_CHANNEL = 7
 def variable_smooth(freqs_hz: np.ndarray, response_db: np.ndarray) -> np.ndarray:
     """
     REW-standard Variable Smoothing (Var).
-    Applies heavy 1/3-octave smoothing at sub-bass to prevent attempting to equalize
-    narrow physical cancellation nulls, and high-resolution 1/24-1/12 octave smoothing
+    Applies heavy 1/6-octave smoothing at sub-bass to prevent attempting to equalize
+    narrow physical cancellation nulls, and high-resolution 1/24-octave smoothing
     in the modal band (80-400 Hz) to clearly resolve genuine room mode standing waves.
     """
     freqs_hz = np.asarray(freqs_hz, dtype=np.float64)
     response_db = np.asarray(response_db, dtype=np.float64)
-    smoothed = np.copy(response_db)
-    log_f = np.log10(np.maximum(freqs_hz, 1.0))
     n = len(freqs_hz)
     if n < 3:
-        return smoothed
-    window = np.ones(n, dtype=np.float64)
-    # Heavy 1/3-octave smoothing below 80 Hz
-    for i, f in enumerate(freqs_hz):
-        if f < 80.0:
-            window[i] = 12.0  # ~1/3 octave
-        elif f < 400.0:
-            window[i] = 3.0  # ~1/12 octave (surgical for modal band)
-        elif f < 1000.0:
-            window[i] = 6.0
-        else:
-            window[i] = 6.0  # ~1/6 octave
-    for i in range(n):
-        # Width in log-frequency domain
-        w = window[i]
-        df = w * 0.05  # smoothing radius in log-freq
-        lo = np.searchsorted(log_f, log_f[i] - df)
-        hi = np.searchsorted(log_f, log_f[i] + df)
-        if hi > lo:
-            smoothed[i] = np.mean(response_db[lo:hi])
-    return smoothed
+        return np.copy(response_db)
+    log_f = np.log10(np.maximum(freqs_hz, 1.0))
+    # Fractional octave band N: 1/6 sub-bass, 1/24 modal band, 1/12 transition, 1/6 treble
+    oct_frac = np.where(freqs_hz < 80.0, 6.0, np.where(freqs_hz < 400.0, 24.0, np.where(freqs_hz < 1000.0, 12.0, 6.0)))
+    df = np.log10(2.0) / (2.0 * oct_frac)
+    lo = np.searchsorted(log_f, log_f - df)
+    hi = np.searchsorted(log_f, log_f + df)
+    hi = np.maximum(hi, lo + 1)
+    prefix = np.concatenate(([0.0], np.cumsum(response_db)))
+    return (prefix[hi] - prefix[lo]) / (hi - lo)
 
 
 def broadband_normalize(
