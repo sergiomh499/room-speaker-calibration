@@ -8,6 +8,16 @@
 
 **Input**: User description: "profesionaliza el proyecto de cara a que sea realmente usable y utilizable, y util al fin y al cabo, quiero maxima eficiencia y una experiencia profesional donde se vea exactamente como afecta la calibracion, curvas reales, no inventada, quiero profesionalidad y uso, finalmente quiero que sea unicamente una aplicacion movil android"
 
+## Clarifications
+
+### Session 2026-10-09
+
+- Q: How should the standalone Android mobile application route the acoustic measurement sweep signals to the Yamaha audio/video receiver? → A: Dual-mode: Support direct physical cable (USB-C/3.5mm to AVR V-AUX) as the high-precision standard, plus wireless UPnP/DLNA casting over Wi-Fi as a convenience option.
+- Q: How should the mobile application manage frequency calibration curves for the device's built-in microphone versus external USB measurement microphones? → A: Bundled device profile + Custom .cal import: Provide a tested baseline profile for the primary internal microphone, plus full support to import standard .cal calibration files for USB measurement microphones.
+- Q: Should auxiliary non-calibration features (such as internet radio streaming) be removed from the mobile application? → A: Dedicated Calibration Suite: Purge auxiliary streaming player modules; keep only acoustic calibration, receiver hardware control, and acoustic analysis tools.
+- Q: How should the AVR hardware control surface be integrated into the mobile app alongside the calibration suite? → A: Dedicated AVR Control Tab: A primary navigation tab offering full receiver hardware control (Power, 0.5 dB Volume dial, Inputs, PEQ Mode A/B toggle, Pure Direct, Channel Trims, and Scene selection).
+- Q: How should the Android mobile application store and persist calibration sessions, impulse responses, and historical measurement data? → A: Structured Hybrid Storage: Store session metadata, discrete PEQ biquads, and frequency response vectors in local structured database storage for instantaneous retrieval, keep raw impulse responses in app-private storage, and provide a one-tap "Export Calibration Archive" (ZIP/PDF) to device storage.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Standalone Mobile Acoustic Sweep & Real Response Analysis (Priority: P1)
@@ -76,6 +86,20 @@ The user maintains multiple calibration sessions and profiles over time (e.g., e
 1. **Given** multiple calibration sessions have been completed, **When** the user opens the history view, **Then** the app lists all sessions with timestamps, active target profiles, average SPL, and verification status.
 2. **Given** a historical session is selected, **When** the user taps "Deploy to Receiver", **Then** that session's filter matrix is pushed to the hardware and verified via status read-back.
 
+
+### User Story 5 - Real-Time Receiver Hardware Control & Acoustic Monitoring (Priority: P3)
+
+The user adjusts and monitors their receiver's physical acoustic state directly from the mobile app without having to locate the physical remote control. Through a dedicated "AVR Control" navigation tab, the user smoothly adjusts master volume with a precise 0.5 dB dial, switches audio inputs, toggles between Manual PEQ, YPAO, and Through bypass modes for instant A/B acoustic verification, toggles Straight or Pure Direct listening, and fine-tunes individual channel trim levels in real time.
+
+**Why this priority**: Essential companion to acoustic calibration that enables instant A/B subjective evaluation and everyday receiver operation without switching applications.
+
+**Independent Test**: Can be tested independently by opening the AVR Control tab, rotating the volume dial to verify immediate 0.5 dB receiver response, and toggling PEQ Mode to confirm the receiver switches between Manual and Through modes over the local network.
+
+**Acceptance Scenarios**:
+
+1. **Given** the app is connected to the receiver on the local network, **When** the user accesses the AVR Control tab, **Then** live status (power, active input, volume in dB, PEQ mode, and DRC state) is displayed within 1 second.
+2. **Given** the user rotates or taps the volume control, **When** adjusting volume, **Then** commands are debounced to prevent network flooding and the receiver's volume updates in exact 0.5 dB increments.
+3. **Given** the user wants to evaluate calibration impact during music playback, **When** toggling the PEQ mode button between "Manual" (calibrated) and "Through" (unprocessed), **Then** the receiver immediately switches DSP mode without changing input or volume.
 ---
 
 ### Edge Cases
@@ -86,6 +110,7 @@ The user maintains multiple calibration sessions and profiles over time (e.g., e
 - **Excessive Ambient Noise**: If background noise (HVAC, street traffic, voices) causes the signal-to-noise ratio to fall below 14 dB, the app must reject the sweep, highlight the problematic frequency band, and recommend re-measuring in quiet conditions.
 - **Physical Remote Interference**: If another user changes the receiver's volume or input selector via physical remote during an active calibration session, the app's pre-flight check must detect the state mismatch and prompt the user to re-align receiver state before continuing.
 - **Subwoofer Inactive or Unpowered**: If measuring a 2.1 system and the subwoofer produces no measurable acoustic output above the ambient noise floor during its dedicated sweep, the app must notify the user to verify subwoofer power, line-in connection, and gain knob setting.
+- **DLNA Buffer Latency / Wireless Network Jitter**: When using wireless UPnP/DLNA casting mode, network buffer variance or packet jitter can shift arrival timing. The system must employ an acoustic synchronization pre-ping or cross-correlation lead-in to accurately align the deconvolution window regardless of network transmission delay.
 
 ## Requirements *(mandatory)*
 
@@ -104,8 +129,12 @@ The user maintains multiple calibration sessions and profiles over time (e.g., e
 - **FR-011**: The system MUST identify dominant room resonance modes below 500 Hz and report the exact center frequency and peak elevation in dB, demonstrating quantitative modal attenuation after calibration.
 - **FR-012**: The system MUST support single-point sweet spot calibration as well as multi-point spatial cluster averaging (3 to 5 positions) using complex vector averaging to eliminate positional comb-filtering artifacts.
 - **FR-013**: The system MUST automatically capture and persist a snapshot of the receiver's operational settings prior to any hardware modification, enabling one-tap rollback to original settings.
-- **FR-014**: The system MUST support standard microphone frequency calibration curves (e.g., 90-degree diffuse field calibration files) to compensate for transducer-specific response variations.
+- **FR-014**: The system MUST support microphone frequency response compensation via bundled reference calibration profiles for supported internal smartphone microphones (such as Google Pixel 9 Pro UNPROCESSED) and allow user import of standard 90-degree `.cal` text calibration files for external USB measurement microphones (such as miniDSP UMIK-1 or Dayton UMM-6).
 - **FR-015**: The system MUST provide an integrated local network receiver discovery mechanism to detect the receiver's IP address automatically on the local Wi-Fi network.
+- **FR-016**: The system MUST support dual-mode audio excitation delivery: direct physical line out (USB-C or 3.5mm analog/optical to receiver V-AUX input) as the high-precision timing reference, and wireless UPnP/DLNA casting over the local network as an alternative convenience mode.
+- **FR-017**: The mobile application MUST maintain a strictly dedicated acoustic scope by excluding auxiliary internet radio streaming, external music players, or background media scrapers, maximizing runtime performance and battery efficiency.
+- **FR-018**: The system MUST provide a dedicated receiver hardware control view accessible via primary navigation that enables real-time management of power state, master volume in discrete 0.5 dB steps, input selector, DSP PEQ mode (Manual vs. Through vs. YPAO), Straight/Pure Direct modes, and individual channel trim levels directly over local network control.
+- **FR-019**: The system MUST employ structured hybrid local persistence: session metadata, target curves, filter matrices, and smoothed frequency spectra stored in indexed local database storage for instantaneous chart rendering and offline comparison, with raw impulse responses saved in app-private sandboxed storage, and provide a one-tap export function to export complete session archives (ZIP/PDF) to device storage.
 
 ### Key Entities
 
