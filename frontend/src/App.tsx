@@ -1,14 +1,13 @@
 import React, { lazy, Suspense } from 'react';
 import { CalibrationProvider, useCalibration } from './context/CalibrationContext';
 import { Topbar } from './components/layout/Topbar';
-import { HomeView } from './views/HomeView';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, Loader2 } from 'lucide-react';
-import { MusicStreamingHub } from './components/music/MusicStreamingHub';
 
 const CalibrateView = lazy(() => import('./views/CalibrateView').then(m => ({ default: m.CalibrateView })));
+const AvrRemoteView = lazy(() => import('./views/AvrRemoteView').then(m => ({ default: m.AvrRemoteView })));
+const AcousticCurvesView = lazy(() => import('./views/AcousticCurvesView').then(m => ({ default: m.AcousticCurvesView })));
 const HistoryView = lazy(() => import('./views/HistoryView').then(m => ({ default: m.HistoryView })));
 const SettingsView = lazy(() => import('./views/SettingsView').then(m => ({ default: m.SettingsView })));
-
 const ViewFallback: React.FC = () => (
   <div className="flex flex-col items-center justify-center min-h-[400px] gap-3 text-slate-400 font-mono text-xs">
     <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
@@ -25,9 +24,9 @@ const AppContent: React.FC = () => {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4 pb-[calc(4rem+max(env(safe-area-inset-bottom,0px),16px))] md:pb-12 safe-left safe-right">
         <Suspense fallback={<ViewFallback />}>
-          {view === 'control' && <HomeView />}
           {view === 'calibrate' && <CalibrateView />}
-          {view === 'music' && <MusicStreamingHub />}
+          {(view === 'remote' || view === 'control') && <AvrRemoteView />}
+          {view === 'curves' && <AcousticCurvesView />}
           {view === 'history' && <HistoryView />}
           {view === 'settings' && <SettingsView />}
         </Suspense>

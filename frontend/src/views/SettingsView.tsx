@@ -59,11 +59,40 @@ export const SettingsView: React.FC = () => {
                 onChange={e => setMicProfile(e.target.value)}
                 className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-orange-500"
               >
-                <option value="smartphone_cal">Pixel 9 Pro XL (Calibración Óptima Multi-Mic)</option>
+                <option value="pixel_9_pro">Google Pixel 9 Pro (UNPROCESSED Raw MEMS)</option>
                 <option value="umik1_90deg">miniDSP UMIK-1 (90 Grados / Difuso)</option>
-                <option value="umik1_0deg">miniDSP UMIK-1 (0 Grados / Directo)</option>
+                <option value="umm6_90deg">Dayton Audio UMM-6 (90 Grados)</option>
+                <option value="custom_cal">Archivo .cal Personalizado</option>
                 <option value="generic_flat">Respuesta Plana Sin Compensar</option>
               </select>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="file"
+                  accept=".cal,.txt"
+                  id="cal-file-input"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (evt) => {
+                        const content = evt.target?.result as string;
+                        localStorage.setItem('octave_custom_cal', content);
+                        setMicProfile('custom_cal');
+                        toast(`✓ Archivo de calibración cargado: ${file.name}`, 'success');
+                      };
+                      reader.readAsText(file);
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => document.getElementById('cal-file-input')?.click()}
+                >
+                  Importar Archivo .cal
+                </Button>
+              </div>
             </div>
 
             <div className="p-3 rounded-lg bg-zinc-900/40 border border-zinc-800 text-xs text-zinc-400 leading-relaxed font-mono">
@@ -158,7 +187,7 @@ export const SettingsView: React.FC = () => {
               <input
                 type="text"
                 disabled
-                value="+6.0 dB máximo (Anti-clipping)"
+                value="+3.0 dB máx (0 dB > 500 Hz)"
                 className="w-full bg-zinc-900/60 border border-zinc-700 rounded-lg px-3 py-2 text-xs font-mono text-zinc-400"
               />
             </div>

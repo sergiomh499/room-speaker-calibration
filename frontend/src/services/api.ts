@@ -7,6 +7,7 @@ import {
   optimizeStereoPEQ,
   generateTargetCurve,
   formatFreqYamahaXml,
+  biquadPeakingResponse,
   YAMAHA_FREQS,
 } from './dspEngine';
 
@@ -121,17 +122,46 @@ export const api = {
     } catch {
       const freqs = YAMAHA_FREQS;
       const target = generateTargetCurve(freqs, profile);
-      const measured = target.map((t, idx) => (idx === 5 ? t + 5.5 : t + (idx % 2 === 0 ? 0.8 : -0.6)));
-      const corrected = target.map((t) => t + (Math.random() - 0.5) * 0.4);
+
+      // Load real measured points from on-device Farina sweep captures
+      let measuredL = [...target];
+      let measuredR = [...target];
+      let hasRealMeasurements = false;
+
+      if (typeof localStorage !== 'undefined') {
+        const stored = JSON.parse(localStorage.getItem('octave_measured_points') || '{}');
+        if (stored[1]?.Front_L?.response_db && stored[1]?.Front_R?.response_db) {
+          measuredL = stored[1].Front_L.response_db;
+          measuredR = stored[1].Front_R.response_db;
+          hasRealMeasurements = true;
+        }
+      }
+
+      let correctedL = [...measuredL];
+      let correctedR = [...measuredR];
+
+      if (hasRealMeasurements) {
+        const peq = optimizeStereoPEQ(measuredL, measuredR, target, freqs);
+        // Calculate actual physical filter response from biquads
+        for (const band of peq.left) {
+          const biquadResp = biquadPeakingResponse(freqs, band.freq_hz, band.q, band.gain_db);
+          correctedL = correctedL.map((val, i) => Math.round((val + biquadResp[i]) * 10) / 10);
+        }
+        for (const band of peq.right) {
+          const biquadResp = biquadPeakingResponse(freqs, band.freq_hz, band.q, band.gain_db);
+          correctedR = correctedR.map((val, i) => Math.round((val + biquadResp[i]) * 10) / 10);
+        }
+      }
+
       return {
         ok: true,
         profile,
         freqs,
-        measured_l: measured,
-        measured_r: measured,
+        measured_l: hasRealMeasurements ? measuredL : undefined,
+        measured_r: hasRealMeasurements ? measuredR : undefined,
         target,
-        corrected_l: corrected,
-        corrected_r: corrected,
+        corrected_l: hasRealMeasurements ? correctedL : undefined,
+        corrected_r: hasRealMeasurements ? correctedR : undefined,
       };
     }
   },

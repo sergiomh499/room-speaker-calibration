@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { AVRStatus, Topology, TargetProfile, MeasurementPoint, SubwooferConfig } from '../types';
 import { api } from '../services/api';
 import { avrDiscovery } from '../services/avrDiscovery';
-export type AppView = 'control' | 'calibrate' | 'music' | 'history' | 'settings';
+export type AppView = 'calibrate' | 'remote' | 'curves' | 'history' | 'settings' | 'control';
 
 interface CalibrationContextType {
   view: AppView;
@@ -52,7 +52,7 @@ const initialPoints: MeasurementPoint[] = [
 const CalibrationContext = createContext<CalibrationContextType | null>(null);
 
 export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [view, setView] = useState<AppView>('control');
+  const [view, setView] = useState<AppView>('calibrate');
   const [topology, setTopology] = useState<Topology>(() => {
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem('octave_topology');

@@ -41,6 +41,7 @@ import { PEQFilterGraph, FilterCurvePoint } from '../components/charts/PEQFilter
 import { api } from '../services/api';
 import { Capacitor } from '@capacitor/core';
 import { nativeAudio } from '../services/nativeAudio';
+import { avrRollback } from '../services/avrRollback';
 
 export const CalibrateView: React.FC = () => {
   const {
@@ -112,6 +113,10 @@ export const CalibrateView: React.FC = () => {
   const [spatial3d, setSpatial3d] = useState<any>(null);
   const [show3DPreview, setShow3DPreview] = useState<boolean>(false);
   const [historicalModalPoint, setHistoricalModalPoint] = useState<MeasurementPoint | null>(null);
+  useEffect(() => {
+    // Pre-flight disaster recovery snapshot before calibration runs
+    avrRollback.captureSnapshot().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (wizardStep === 2) {

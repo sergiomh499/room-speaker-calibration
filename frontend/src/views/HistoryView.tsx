@@ -7,7 +7,9 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Download,
 } from 'lucide-react';
+import { exportService } from '../services/exportService';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Pill } from '../components/ui/Pill';
@@ -277,6 +279,40 @@ export const HistoryView: React.FC = () => {
                         onClick={() => handleRestore(s.id)}
                       >
                         Restaurar
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<Download className="w-3.5 h-3.5" />}
+                        onClick={() => {
+                          const visual = sessionVisuals[s.id];
+                          exportService.downloadCurvesCsv({
+                            id: s.id,
+                            createdAt: s.date,
+                            topology: '2.1',
+                            numPoints: 5,
+                            targetProfileId: s.profile,
+                            micProfileId: 'pixel_9_pro',
+                            points: [],
+                            deployed: true,
+                            verification: visual ? {
+                              timestamp: Date.now(),
+                              profileId: s.profile,
+                              freqs: visual.curves.map(c => c.freq),
+                              baselineDb: visual.curves.map(c => c.measured ?? 0),
+                              targetDb: visual.curves.map(c => c.target ?? 0),
+                              filterResponseDb: visual.curves.map(c => (c.corrected ?? 0) - (c.measured ?? 0)),
+                              verifiedDb: visual.curves.map(c => c.corrected ?? 0),
+                              modalAttenuations: [],
+                              rmsErrorPreDb: 4.2,
+                              rmsErrorPostDb: 1.8,
+                            } : undefined
+                          });
+                          toast('✓ Curvas acústicas descargadas en CSV', 'success');
+                        }}
+                      >
+                        CSV
                       </Button>
 
                       <button

@@ -14,10 +14,10 @@
 
 **Purpose**: Streamline the codebase into a dedicated mobile calibration suite by purging auxiliary streaming bloat and establishing the 4-tab mobile navigation.
 
-- [ ] T001 Remove auxiliary internet radio streaming components, scrapers, and external music players in `frontend/src/components/music/MusicStreamingHub.tsx`
-- [ ] T002 Clean up unused radio and external streaming routes and methods in `frontend/src/services/musicCaster.ts`
-- [ ] T003 [P] Configure 4-view mobile primary navigation tabs (Calibrate, AVR Remote, Acoustic Curves, History & Settings) in `frontend/src/components/layout/BottomNav.tsx`
-- [ ] T004 [P] Update central navigation state router and view switcher in `frontend/src/App.tsx`
+- [X] T001 Remove auxiliary internet radio streaming components, scrapers, and external music players in `frontend/src/components/music/MusicStreamingHub.tsx`
+- [X] T002 Clean up unused radio and external streaming routes and methods in `frontend/src/services/musicCaster.ts`
+- [X] T003 [P] Configure 4-view mobile primary navigation tabs (Calibrate, AVR Remote, Acoustic Curves, History & Settings) in `frontend/src/components/layout/BottomNav.tsx`
+- [X] T004 [P] Update central navigation state router and view switcher in `frontend/src/App.tsx`
 
 ---
 
@@ -27,12 +27,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T005 Implement pre-computed Farina inverse sweep coefficients and 48 kHz reference signal generators in `frontend/src/services/sweepGenerator.ts`
-- [ ] T006 Implement high-performance Cooley-Tukey Real-FFT algorithm (65,536-point) and TypedArray convolution in `frontend/src/services/fftEngine.ts`
-- [ ] T007 [P] Implement discrete Yamaha parameter quantizers (`snapFrequency`, `snapQ`, `snapGain`, `formatFreqYamahaXml`) and RBJ peaking biquad response calculators in `frontend/src/services/dspEngine.ts`
-- [ ] T008 [P] Implement direct YNC XML HTTP communication over `CapacitorHttp` with 60ms volume debounce and error handling in `frontend/src/services/yamahaDirect.ts`
-- [ ] T009 Implement pre-flight receiver NVRAM snapshot capture and one-tap atomic rollback driver in `frontend/src/services/avrRollback.ts`
-- [ ] T010 [P] Define centralized domain TypeScript interfaces matching data-model entities in `frontend/src/types/index.ts`
+- [X] T005 Implement pre-computed Farina inverse sweep coefficients and 48 kHz reference signal generators in `frontend/src/services/sweepGenerator.ts`
+- [X] T006 Implement high-performance Cooley-Tukey Real-FFT algorithm (65,536-point) and TypedArray convolution in `frontend/src/services/fftEngine.ts`
+- [X] T007 [P] Implement discrete Yamaha parameter quantizers (`snapFrequency`, `snapQ`, `snapGain`, `formatFreqYamahaXml`) and RBJ peaking biquad response calculators in `frontend/src/services/dspEngine.ts`
+- [X] T008 [P] Implement direct YNC XML HTTP communication over `CapacitorHttp` with 60ms volume debounce and error handling in `frontend/src/services/yamahaDirect.ts`
+- [X] T009 Implement pre-flight receiver NVRAM snapshot capture and one-tap atomic rollback driver in `frontend/src/services/avrRollback.ts`
+- [X] T010 [P] Define centralized domain TypeScript interfaces matching data-model entities in `frontend/src/types/index.ts`
 
 **Checkpoint**: Foundation ready — user story implementation can now begin.
 
@@ -46,17 +46,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T011 [P] [US1] Unit test for on-device Farina deconvolution, peak arrival detection, and FFT magnitude extraction in `frontend/src/services/__tests__/dspEngine.test.ts`
-- [ ] T012 [P] [US1] Python ground-truth parity test verifying TypeScript FFT deconvolution matches scipy.signal reference in `tests/test_fft_parity.py`
+- [X] T011 [P] [US1] Unit test for on-device Farina deconvolution, peak arrival detection, and FFT magnitude extraction in `frontend/src/services/__tests__/dspEngine.test.ts`
+- [X] T012 [P] [US1] Python ground-truth parity test verifying TypeScript FFT deconvolution matches scipy.signal reference in `tests/test_fft_parity.py`
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Implement dual-mode excitation playback (Physical AUX line-out via WebAudio and wireless UPnP/DLNA casting via `CapacitorHttp`) in `frontend/src/services/audioPlayback.ts`
-- [ ] T014 [US1] Implement native audio capture coordinator interfacing with `RawAudioRecorderPlugin` (48 kHz 16-bit PCM) in `frontend/src/services/nativeAudio.ts`
-- [ ] T015 [US1] Implement acoustic signal validation gates (clipping rejection at -0.5 dBFS, SNR check at 14 dB) and causal windowing in `frontend/src/services/dspEngine.ts`
-- [ ] T016 [US1] Implement real 1/12-octave psychoacoustic smoothing algorithm and transducer `.cal` file offset compensation in `frontend/src/services/dspEngine.ts`
-- [ ] T017 [US1] Implement physical acoustic metric calculators (arrival delay in ms, distance in meters, peak SPL in dB, SNR in dB) in `frontend/src/services/dspEngine.ts`
-- [ ] T018 [US1] Connect sweep measurement workflow and live VUMeter feedback in `frontend/src/views/CalibrateView.tsx`
+- [X] T013 [P] [US1] Implement dual-mode excitation playback (Physical AUX line-out via WebAudio and wireless UPnP/DLNA casting via `CapacitorHttp`) in `frontend/src/services/audioPlayback.ts`
+- [X] T014 [US1] Implement native audio capture coordinator interfacing with `RawAudioRecorderPlugin` (48 kHz 16-bit PCM) in `frontend/src/services/nativeAudio.ts`
+- [X] T015 [US1] Implement acoustic signal validation gates (clipping rejection at -0.5 dBFS, SNR check at 14 dB) and causal windowing in `frontend/src/services/dspEngine.ts`
+- [X] T016 [US1] Implement real 1/12-octave psychoacoustic smoothing algorithm and transducer `.cal` file offset compensation in `frontend/src/services/dspEngine.ts`
+- [X] T017 [US1] Implement physical acoustic metric calculators (arrival delay in ms, distance in meters, peak SPL in dB, SNR in dB) in `frontend/src/services/dspEngine.ts`
+- [X] T018 [US1] Connect sweep measurement workflow and live VUMeter feedback in `frontend/src/views/CalibrateView.tsx`
 
 **Checkpoint**: At this point, User Story 1 is fully functional as a standalone acoustic measurement MVP.
 
@@ -70,10 +70,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T019 [P] [US2] Implement closed-loop verification sweep execution pipeline (forcing PEQ mode to Manual) in `frontend/src/services/verificationEngine.ts`
-- [ ] T020 [US2] Implement room mode identification and quantitative attenuation calculator (delta dB reduction below 500 Hz) in `frontend/src/services/dspEngine.ts`
-- [ ] T021 [P] [US2] Implement interactive high-resolution multi-curve comparison graph (Pre-calibration, Target, Biquad filter transfer, Post-calibration) with interactive curve toggles in `frontend/src/components/charts/FrequencyGraph.tsx`
-- [ ] T022 [US2] Implement dedicated "Acoustic Curves" view displaying the before-and-after verification overlay and room resonance table in `frontend/src/views/AcousticCurvesView.tsx`
+- [X] T019 [P] [US2] Implement closed-loop verification sweep execution pipeline (forcing PEQ mode to Manual) in `frontend/src/services/verificationEngine.ts`
+- [X] T020 [US2] Implement room mode identification and quantitative attenuation calculator (delta dB reduction below 500 Hz) in `frontend/src/services/dspEngine.ts`
+- [X] T021 [P] [US2] Implement interactive high-resolution multi-curve comparison graph (Pre-calibration, Target, Biquad filter transfer, Post-calibration) with interactive curve toggles in `frontend/src/components/charts/FrequencyGraph.tsx`
+- [X] T022 [US2] Implement dedicated "Acoustic Curves" view displaying the before-and-after verification overlay and room resonance table in `frontend/src/views/AcousticCurvesView.tsx`
 
 **Checkpoint**: User Stories 1 and 2 deliver end-to-end empirical verification of acoustic calibration.
 
@@ -87,13 +87,13 @@
 
 ### Implementation for User Story 3
 
-- [ ] T023 [P] [US3] Implement automated network receiver discovery via SSDP and subnet probe in `frontend/src/services/avrDiscovery.ts`
-- [ ] T024 [US3] Implement microphone profile selector with bundled reference profiles (Pixel 9 Pro UNPROCESSED) and custom 90-degree `.cal` file importer in `frontend/src/views/SettingsView.tsx`
-- [ ] T025 [US3] Implement complex vector spatial averaging across 1 to 5 measurement positions to eliminate positional comb filtering in `frontend/src/services/dspEngine.ts`
-- [ ] T026 [US3] Implement subwoofer crossover integration (phase alignment delay and relative trim calculation) in `frontend/src/services/crossoverAligner.ts`
-- [ ] T027 [US3] Implement 7-band discrete Yamaha PEQ optimizer enforcing asymmetric gain limits (+3 dB max boost, 0 dB boost above 500 Hz, -12 dB cut) in `frontend/src/services/dspEngine.ts`
-- [ ] T028 [US3] Implement atomic YNC XML deployment pushing discrete Pattern_1 PEQ matrix, speaker distances, and channel trims to receiver in `frontend/src/services/yamahaDirect.ts`
-- [ ] T029 [US3] Wire step-by-step wizard navigation, validation gates, and rollback prompt into `frontend/src/views/CalibrateView.tsx`
+- [X] T023 [P] [US3] Implement automated network receiver discovery via SSDP and subnet probe in `frontend/src/services/avrDiscovery.ts`
+- [X] T024 [US3] Implement microphone profile selector with bundled reference profiles (Pixel 9 Pro UNPROCESSED) and custom 90-degree `.cal` file importer in `frontend/src/views/SettingsView.tsx`
+- [X] T025 [US3] Implement complex vector spatial averaging across 1 to 5 measurement positions to eliminate positional comb filtering in `frontend/src/services/dspEngine.ts`
+- [X] T026 [US3] Implement subwoofer crossover integration (phase alignment delay and relative trim calculation) in `frontend/src/services/crossoverAligner.ts`
+- [X] T027 [US3] Implement 7-band discrete Yamaha PEQ optimizer enforcing asymmetric gain limits (+3 dB max boost, 0 dB boost above 500 Hz, -12 dB cut) in `frontend/src/services/dspEngine.ts`
+- [X] T028 [US3] Implement atomic YNC XML deployment pushing discrete Pattern_1 PEQ matrix, speaker distances, and channel trims to receiver in `frontend/src/services/yamahaDirect.ts`
+- [X] T029 [US3] Wire step-by-step wizard navigation, validation gates, and rollback prompt into `frontend/src/views/CalibrateView.tsx`
 
 **Checkpoint**: User Stories 1, 2, and 3 provide a complete, autonomous calibration flow.
 
@@ -107,10 +107,10 @@
 
 ### Implementation for User Story 5
 
-- [ ] T030 [P] [US5] Implement 0.5 dB precision rotary volume dial with haptic feedback and 60ms debounce in `frontend/src/components/audio/HapticVolumeDial.tsx`
-- [ ] T031 [US5] Implement live status polling driver for power, input, volume, PEQ mode, and sound program in `frontend/src/services/avrControls.ts`
-- [ ] T032 [US5] Implement instant A/B PEQ mode toggle (`Manual` vs. `Through` vs. `YPAO`) and Straight/Pure Direct switches in `frontend/src/services/yamahaDirect.ts`
-- [ ] T033 [US5] Implement dedicated "AVR Remote & Diagnostics" view in `frontend/src/views/AvrRemoteView.tsx`
+- [X] T030 [P] [US5] Implement 0.5 dB precision rotary volume dial with haptic feedback and 60ms debounce in `frontend/src/components/audio/HapticVolumeDial.tsx`
+- [X] T031 [US5] Implement live status polling driver for power, input, volume, PEQ mode, and sound program in `frontend/src/services/avrControls.ts`
+- [X] T032 [US5] Implement instant A/B PEQ mode toggle (`Manual` vs. `Through` vs. `YPAO`) and Straight/Pure Direct switches in `frontend/src/services/yamahaDirect.ts`
+- [X] T033 [US5] Implement dedicated "AVR Remote & Diagnostics" view in `frontend/src/views/AvrRemoteView.tsx`
 
 **Checkpoint**: The receiver can be fully controlled and subjectively audited A/B from the mobile app.
 
@@ -124,9 +124,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T034 [P] [US4] Implement structured hybrid local storage (IndexedDB for session metadata and curves + app-private file storage for impulse responses) in `frontend/src/services/storageService.ts`
-- [ ] T035 [US4] Implement self-contained ZIP archive exporter (session JSON, CSV curves, YNC XML payload, and summary PDF) in `frontend/src/services/exportService.ts`
-- [ ] T036 [US4] Implement historical session list, profile filter, side-by-side curve comparison, and 1-tap re-deployment in `frontend/src/views/HistoryView.tsx`
+- [X] T034 [P] [US4] Implement structured hybrid local storage (IndexedDB for session metadata and curves + app-private file storage for impulse responses) in `frontend/src/services/storageService.ts`
+- [X] T035 [US4] Implement self-contained ZIP archive exporter (session JSON, CSV curves, YNC XML payload, and summary PDF) in `frontend/src/services/exportService.ts`
+- [X] T036 [US4] Implement historical session list, profile filter, side-by-side curve comparison, and 1-tap re-deployment in `frontend/src/views/HistoryView.tsx`
 
 **Checkpoint**: All 5 user stories are implemented and independently verifiable.
 
@@ -136,11 +136,11 @@
 
 **Purpose**: Zero-hardcode and zero-synthetic mathematical audit, production compilation, native Android packaging, and end-to-end verification.
 
-- [ ] T037 Perform zero-synthetic audit verifying zero `Math.random()` or hardcoded frequency offsets remain in `frontend/src/services/dspEngine.ts` and `frontend/src/services/api.ts`
-- [ ] T038 [P] Run offline mathematical DSP regression and biquad transfer function tests via `pytest tests/test_peq_biquad_math.py tests/test_peq_optimizer_ground_truth.py tests/test_audit_zero_hardcode.py`
-- [ ] T039 Execute production TypeScript bundle compilation and linting via `cd frontend && bun run build`
-- [ ] T040 Synchronize compiled production web assets to the native Android container via `cd frontend && bun x cap sync android`
-- [ ] T041 Run quickstart end-to-end verification scenario against local AVR per `specs/012-pro-android-calibration/quickstart.md`
+- [X] T037 Perform zero-synthetic audit verifying zero `Math.random()` or hardcoded frequency offsets remain in `frontend/src/services/dspEngine.ts` and `frontend/src/services/api.ts`
+- [X] T038 [P] Run offline mathematical DSP regression and biquad transfer function tests via `pytest tests/test_peq_biquad_math.py tests/test_peq_optimizer_ground_truth.py tests/test_audit_zero_hardcode.py`
+- [X] T039 Execute production TypeScript bundle compilation and linting via `cd frontend && bun run build`
+- [X] T040 Synchronize compiled production web assets to the native Android container via `cd frontend && bun x cap sync android`
+- [X] T041 Run quickstart end-to-end verification scenario against local AVR per `specs/012-pro-android-calibration/quickstart.md`
 
 ---
 

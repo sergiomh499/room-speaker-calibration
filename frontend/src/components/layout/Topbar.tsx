@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sliders, History, Settings, Activity, Volume2, VolumeX, Radio, Music } from 'lucide-react';
+import { Sliders, History, Settings, Activity, Volume2, VolumeX, Radio } from 'lucide-react';
 import { useCalibration, AppView } from '../../context/CalibrationContext';
 import { Pill } from '../ui/Pill';
 
@@ -12,9 +12,9 @@ export const Topbar: React.FC = () => {
       : parseFloat(String(avrStatus.avr_volume_db)) <= -70);
 
   const navItems: Array<{ id: AppView; label: string; icon: React.ReactNode }> = [
-    { id: 'control', label: 'Control', icon: <Radio className="w-4 h-4" /> },
     { id: 'calibrate', label: 'Calibrar', icon: <Sliders className="w-4 h-4" /> },
-    { id: 'music', label: 'Música', icon: <Music className="w-4 h-4" /> },
+    { id: 'remote', label: 'AVR Remote', icon: <Radio className="w-4 h-4" /> },
+    { id: 'curves', label: 'Curvas Reales', icon: <Activity className="w-4 h-4" /> },
     { id: 'history', label: 'Historial', icon: <History className="w-4 h-4" /> },
     { id: 'settings', label: 'Ajustes', icon: <Settings className="w-4 h-4" /> },
   ];
@@ -26,7 +26,7 @@ export const Topbar: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-18 flex items-center justify-between gap-4">
           {/* Brand */}
           <div
-            onClick={() => setView('control')}
+            onClick={() => setView('calibrate')}
             className="flex items-center gap-3 cursor-pointer select-none group"
           >
             <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center group-hover:border-orange-500/60 transition-colors">

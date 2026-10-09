@@ -81,9 +81,87 @@ export interface ChannelTrimData {
   id: string;
   name: string;
   model: string;
-  trim_db: number;
-  measured_spl?: number;
-  distance_m?: number;
-  calibrated_spl?: number;
-  applied?: boolean;
+  current_trim_db: number;
+  suggested_trim_db: number;
+}
+
+/**
+ * Domain Models from Phase 1 Data Model (012-pro-android-calibration)
+ */
+
+export interface ParametricFilterBand {
+  channel: 'Front_L' | 'Front_R';
+  band: number;
+  freqHz: number;
+  q: number;
+  gainDb: number;
+  role: 'room_mode' | 'voicing' | 'tilt' | 'transparent_pass';
+}
+
+export interface AcousticMeasurement {
+  id: string;
+  pointIndex: number;
+  channel: 'Front_L' | 'Front_R' | 'Subwoofer';
+  timestamp: number;
+  sampleRate: number;
+  durationMs: number;
+  peakDbfs: number;
+  snrDb: number;
+  delayMs: number;
+  distanceM: number;
+  splDb: number;
+  freqs: number[];
+  rawResponseDb: number[];
+  smoothedResponseDb: number[];
+  irBufferPath?: string;
+}
+
+export interface ReceiverStateSnapshot {
+  timestamp: number;
+  power: string;
+  input: string;
+  volumeDb: number;
+  peqMode: string;
+  straight?: boolean;
+  pattern1Xml?: string;
+  volumesRawXml?: string;
+  distancesRawXml?: string;
+}
+
+export interface VerificationAuditRecord {
+  timestamp: number;
+  profileId: string;
+  freqs: number[];
+  baselineDb: number[];
+  targetDb: number[];
+  filterResponseDb: number[];
+  verifiedDb: number[];
+  modalAttenuations: Array<{ freqHz: number; reductionDb: number }>;
+  rmsErrorPreDb: number;
+  rmsErrorPostDb: number;
+}
+
+export interface CalibrationSession {
+  id: string;
+  createdAt: string;
+  topology: Topology;
+  numPoints: 1 | 3 | 5;
+  targetProfileId: string;
+  micProfileId: string;
+  points: MeasurementPoint[];
+  spatialAverage?: Record<string, number[]>;
+  optimizedFilters?: Record<string, ParametricFilterBand[]>;
+  crossoverHz?: number;
+  subwooferDelayMs?: number;
+  channelTrims?: Record<string, number>;
+  preFlightSnapshot?: ReceiverStateSnapshot;
+  verification?: VerificationAuditRecord;
+  deployed: boolean;
+}
+
+export interface MicrophoneCalibrationProfile {
+  id: string;
+  name: string;
+  isUsb: boolean;
+  calibrationData?: Array<[number, number]>; // [freq_hz, offset_db]
 }
