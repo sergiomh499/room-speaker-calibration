@@ -17,7 +17,7 @@ export class YamahaDirectController {
   }
 
   getIp(): string {
-    return this.ip;
+    return (typeof localStorage !== 'undefined' && localStorage.getItem('octave_avr_host')) || this.ip || YAMAHA_DEFAULT_IP;
   }
 
   /**
@@ -25,7 +25,7 @@ export class YamahaDirectController {
    * Utiliza CapacitorHttp nativo en Android (sin CORS) o fetch directo.
    */
   async sendYncXml(xml: string): Promise<string> {
-    const url = `http://${this.ip}/YamahaRemoteControl/ctrl`;
+    const url = `http://${this.getIp()}/YamahaRemoteControl/ctrl`;
 
     if (Capacitor.isNativePlatform()) {
       const response = await CapacitorHttp.post({
@@ -45,7 +45,7 @@ export class YamahaDirectController {
     const resp = await fetch('/api/send_cmd', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ xml, host: this.ip })
+      body: JSON.stringify({ xml, host: this.getIp() })
     });
     const json = await resp.json();
     return json.res || '';
@@ -161,7 +161,7 @@ export class YamahaDirectController {
 
     await this.setInput('SERVER');
 
-    const urlCtrl = `http://${this.ip}:8080/AVTransport/ctrl`;
+    const urlCtrl = `http://${this.getIp()}:8080/AVTransport/ctrl`;
 
     // 1. Send Stop first to flush buffer and avoid playing residual sweep audio
     const bodyStop = `<?xml version="1.0" encoding="utf-8"?>
@@ -214,10 +214,59 @@ export class YamahaDirectController {
     const resp = await fetch('/api/stream_to_avr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: audioUrl, host: this.ip, title })
+      body: JSON.stringify({ file: audioUrl, host: this.getIp(), title })
     });
     const res = await resp.json();
     return !!res.ok;
+  }
+
+  /**
+   * Configura la distancia acústica en metros de un canal en el receptor Yamaha RX-V673 (pasos de 5 cm).
+   */
+  async setChannelDistance(ch: string, distanceM: number): Promise<boolean> {
+    const targetTag = ch === 'Subwoofer' ? 'Subwoofer_1' : ch;
+    const steps5cm = Math.round(distanceM / 0.05);
+    const val = Math.max(30, Math.min(2400, Math.round(steps5cm * 5)));
+    const xml = `<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><Distance><Meter><${targetTag}><Val>${val}</Val><Exp>2</Exp><Unit>m</Unit></${targetTag}></Meter></Distance></Pattern_1></Speaker_Preout></System></YAMAHA_AV>`;
+    await this.sendYncXml(xml);
+    return true;
+  }
+
+  /**
+   * Configura el nivel de trim en dB de un canal en el receptor Yamaha RX-V673 (-10.0 a +10.0 dB, pasos de 0.5 dB).
+   */
+  async setChannelLevel(ch: string, levelDb: number): Promise<boolean> {
+    const targetTag = ch === 'Subwoofer' ? 'Subwoofer_1' : ch;
+    const clamped = Math.max(-10.0, Math.min(10.0, Math.round(levelDb * 2) / 2));
+    const val = Math.round(clamped * 10);
+    const xml = `<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><Level><${targetTag}><Val>${val}</Val><Exp>1</Exp><Unit>dB</Unit></${targetTag}></Level></Pattern_1></Speaker_Preout></System></YAMAHA_AV>`;
+    await this.sendYncXml(xml);
+    return true;
+  }
+
+  /**
+   * Configura fase, crossover y extra bass del subwoofer directamente en el Yamaha RX-V673.
+   */
+  async setSubwooferConfig(phase: string = 'Normal', crossoverHz: number = 80.0, extraBass: boolean = false): Promise<boolean> {
+    const phaseStr = ['180', '180°', 'reverse', 'invert', 'invertida'].includes(String(phase).toLowerCase()) ? 'Reverse' : 'Normal';
+    const xoverStr = `${Math.round(crossoverHz)} Hz`;
+    const ebStr = extraBass ? 'On' : 'Off';
+    const xml = `<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><Config><Subwoofer><Subwoofer_1><Type>Use</Type><Phase>${phaseStr}</Phase></Subwoofer_1><Extra_Bass>${ebStr}</Extra_Bass><Cross_Over>${xoverStr}</Cross_Over></Subwoofer></Config></Pattern_1></Speaker_Preout></System></YAMAHA_AV>`;
+    await this.sendYncXml(xml);
+    return true;
+  }
+
+  /**
+   * Despliega la matriz completa de ecualización paramétrica (PEQ) directamente al receptor Yamaha RX-V673 y activa el modo Manual.
+   */
+  async deployPeqMatrix(leftBandsXml: string, rightBandsXml: string): Promise<boolean> {
+    const xmlL = `<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data><Front_L>${leftBandsXml}</Front_L></Manual_Data></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>`;
+    const xmlR = `<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data><Front_R>${rightBandsXml}</Front_R></Manual_Data></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>`;
+    const xmlSel = `<YAMAHA_AV cmd="PUT"><System><Speaker_Preout><Pattern_1><PEQ><Actual><Sel>Manual</Sel></Actual></PEQ></Pattern_1></Speaker_Preout></System></YAMAHA_AV>`;
+    await this.sendYncXml(xmlL);
+    await this.sendYncXml(xmlR);
+    await this.sendYncXml(xmlSel);
+    return true;
   }
 }
 

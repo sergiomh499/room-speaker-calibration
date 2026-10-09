@@ -3,7 +3,6 @@ import { CalibrationProvider, useCalibration } from './context/CalibrationContex
 import { Topbar } from './components/layout/Topbar';
 import { HomeView } from './views/HomeView';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, Loader2 } from 'lucide-react';
-import { MobileAvrRemote } from './components/mobile/MobileAvrRemote';
 import { MusicStreamingHub } from './components/music/MusicStreamingHub';
 
 const CalibrateView = lazy(() => import('./views/CalibrateView').then(m => ({ default: m.CalibrateView })));
@@ -24,17 +23,15 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-surface-0 text-slate-100 selection:bg-indigo-500/30">
       <Topbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4 pb-[calc(5.5rem+max(env(safe-area-inset-bottom,0px),16px))] md:pb-12 safe-left safe-right">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4 pb-[calc(4rem+max(env(safe-area-inset-bottom,0px),16px))] md:pb-12 safe-left safe-right">
         <Suspense fallback={<ViewFallback />}>
-          {view === 'home' && <HomeView />}
+          {view === 'control' && <HomeView />}
           {view === 'calibrate' && <CalibrateView />}
           {view === 'music' && <MusicStreamingHub />}
           {view === 'history' && <HistoryView />}
           {view === 'settings' && <SettingsView />}
         </Suspense>
       </main>
-      {/* Mobile AVR Remote widget */}
-      <MobileAvrRemote />
       {/* Minimalist Floating Pill Toast (iOS Dynamic Island Style) */}
       <div className="fixed top-[max(env(safe-area-inset-top,0px),12px)] left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 pointer-events-none max-w-[90vw] sm:max-w-md w-full px-4">
         {toasts.slice(-2).map(t => (

@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { get, set } from 'idb-keyval';
 import { AVRStatus, Topology, TargetProfile, MeasurementPoint, SubwooferConfig } from '../types';
 import { api } from '../services/api';
 import { avrDiscovery } from '../services/avrDiscovery';
-export type AppView = 'home' | 'calibrate' | 'music' | 'history' | 'settings';
+export type AppView = 'control' | 'calibrate' | 'music' | 'history' | 'settings';
 
 interface CalibrationContextType {
   view: AppView;
@@ -34,6 +33,7 @@ const defaultAVR: AVRStatus = {
   avr_input: 'AV4',
   avr_volume_db: -35.0,
   avr_peq_mode: 'Manual PEQ',
+  avr_mute: 'Off',
   avr_drc: 'Off',
   points_measured: 5,
   points_total: 5,
@@ -52,19 +52,39 @@ const initialPoints: MeasurementPoint[] = [
 const CalibrationContext = createContext<CalibrationContextType | null>(null);
 
 export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [view, setView] = useState<AppView>('home');
-  const [topology, setTopology] = useState<Topology>('2.1');
+  const [view, setView] = useState<AppView>('control');
+  const [topology, setTopology] = useState<Topology>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('octave_topology');
+      if (saved === '2.0' || saved === '2.1') return saved as Topology;
+    }
+    return '2.1';
+  });
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [avrStatus, setAvrStatus] = useState<AVRStatus>(defaultAVR);
   const [points, setPoints] = useState<MeasurementPoint[]>(initialPoints);
-  const [numCalibrationPoints, setNumCalibrationPointsState] = useState<1 | 3 | 5>(5);
+  const [numCalibrationPoints, setNumCalibrationPointsState] = useState<1 | 3 | 5>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const val = Number(localStorage.getItem('octave_num_cal_points'));
+      if (val === 1 || val === 3 || val === 5) return val as 1 | 3 | 5;
+    }
+    return 5;
+  });
 
   const setNumCalibrationPoints = (n: 1 | 3 | 5) => {
     setNumCalibrationPointsState(n);
-    set('octave_num_cal_points', n).catch(() => {});
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('octave_num_cal_points', String(n));
+    }
   };
   const [profiles, setProfiles] = useState<TargetProfile[]>([]);
-  const [activeProfileId, setActiveProfileId] = useState<string>('harman_wide_room');
+  const [activeProfileId, setActiveProfileId] = useState<string>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('octave_active_profile');
+      if (saved) return saved;
+    }
+    return 'harman_wide_room';
+  });
   const [subwooferConfig, setSubwooferConfig] = useState<SubwooferConfig>({
     crossover_hz: 80,
     phase_degrees: 0,
@@ -135,28 +155,16 @@ export const CalibrationProvider: React.FC<{ children: ReactNode }> = ({ childre
       console.error('Error loading measurement points analysis:', err);
     });
   }, []);
-  // Restore saved state from IndexedDB
   useEffect(() => {
-    get<1 | 3 | 5>('octave_num_cal_points').then(val => {
-      if (val && [1, 3, 5].includes(val)) {
-        setNumCalibrationPointsState(val);
-      }
-    }).catch(() => {});
-
-    get<string>('octave_active_profile').then(val => {
-      if (val) setActiveProfileId(val);
-    }).catch(() => {});
-
-    get<Topology>('octave_topology').then(val => {
-      if (val) setTopology(val);
-    }).catch(() => {});
-  }, []);
-  useEffect(() => {
-    set('calibration_topology', topology).catch(() => {});
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('octave_topology', topology);
+    }
   }, [topology]);
 
   useEffect(() => {
-    set('calibration_active_profile', activeProfileId).catch(() => {});
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('octave_active_profile', activeProfileId);
+    }
   }, [activeProfileId]);
 
 

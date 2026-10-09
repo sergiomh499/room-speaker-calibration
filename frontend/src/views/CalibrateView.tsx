@@ -300,9 +300,9 @@ export const CalibrateView: React.FC = () => {
     calibrated_spl?: number;
     applied?: boolean;
   }>>({
-    Front_L: { trim_db: -2.5, spl_measured: 77.5, distance_m: 2.45, calibrated_spl: 75.0, applied: true },
-    Front_R: { trim_db: -3.0, spl_measured: 77.4, distance_m: 2.35, calibrated_spl: 74.8, applied: true },
-    Subwoofer: { trim_db: 3.5, spl_measured: 75.0, distance_m: 3.65, calibrated_spl: 75.0, applied: true },
+    Front_L: { trim_db: 0.0, spl_measured: 75.0, distance_m: 2.45, calibrated_spl: 75.0, applied: true },
+    Front_R: { trim_db: 0.0, spl_measured: 75.0, distance_m: 2.44, calibrated_spl: 75.0, applied: true },
+    Subwoofer: { trim_db: 2.5, spl_measured: 75.0, distance_m: 2.44, calibrated_spl: 75.0, applied: true },
   });
 
   // Local state for Step 4 (Profiles)
@@ -316,7 +316,7 @@ export const CalibrateView: React.FC = () => {
   const [activeAbMode, setActiveAbMode] = useState<string>('peq');
 
   // Step 3 Subwoofer Temporal Alignment state
-  const [subDelayM, setSubDelayM] = useState<number>(3.65);
+  const [subDelayM, setSubDelayM] = useState<number>(2.44);
   const [isAdjustingDelay, setIsAdjustingDelay] = useState<boolean>(false);
 
   const handleAdjustSubDelay = async (newDistanceM: number) => {
@@ -450,6 +450,7 @@ export const CalibrateView: React.FC = () => {
         let countErr = 0;
         let subSquaredErr = 0;
         let subCount = 0;
+        let maxModalReduction = 0;
 
         for (let i = 0; i < freqs.length; i++) {
           const f = freqs[i];
@@ -472,6 +473,13 @@ export const CalibrateView: React.FC = () => {
           if (f >= 35 && f <= 4000 && realPostPEQ !== undefined && tgtVal !== undefined) {
             sumSquaredErr += Math.pow(realPostPEQ - tgtVal, 2);
             countErr++;
+          }
+          // Calculate real modal attenuation between 40 Hz and 200 Hz
+          if (f >= 40 && f <= 200 && realPrePEQ !== undefined && realPostPEQ !== undefined) {
+            const reduction = realPrePEQ - realPostPEQ;
+            if (reduction > maxModalReduction) {
+              maxModalReduction = reduction;
+            }
           }
 
           if (f >= 20 && f <= 180 && subVal !== undefined && tgtVal !== undefined) {
@@ -503,7 +511,7 @@ export const CalibrateView: React.FC = () => {
           verified: true,
           rmsDeviation: Math.round(rms * 10) / 10,
           subRmsDeviation: subRms ? Math.round(subRms * 10) / 10 : null,
-          modalSuppressionDb: 7.8,
+          modalSuppressionDb: Math.round(maxModalReduction * 10) / 10,
           curves: curve,
           subCurves: subCurve.length > 0 ? subCurve : undefined,
           comparativeCurves: comparativeCurves.length > 0 ? comparativeCurves : undefined,
@@ -526,8 +534,8 @@ export const CalibrateView: React.FC = () => {
           }
           setVerificationResult({
             verified: true,
-            rmsDeviation: 1.4,
-            modalSuppressionDb: 8.0,
+            rmsDeviation: measRes.rms_error_db ?? 1.4,
+            modalSuppressionDb: measRes.modal_suppression_db ?? 6.0,
             curves: fallbackCurve,
           });
           toast('✓ Validación completada con medición en directo.', 'success');
@@ -614,31 +622,30 @@ export const CalibrateView: React.FC = () => {
       .catch(() => {});
     return () => { active = false; };
   }, [activeProfileId]);
-  // Fetch initial channel levels from Yamaha NVRAM
+  // Strictly populate speaker distances, delays, and calibration metrics from Step 2 measurements (never from AVR)
   useEffect(() => {
-    api.getChannelLayout().then(res => {
-      if (res && res.levels) {
+    api.getMeasurementAnalysis().then(analysisRes => {
+      if (analysisRes && analysisRes.points && analysisRes.points.length > 0) {
+        const p1 = analysisRes.points[0]?.channels || {};
         setChannelTrims(prev => {
           const updated = { ...prev };
-          const dists = res.distances || {};
-          Object.entries(res.levels).forEach(([ch, lvl]) => {
-            const yKey = ch === 'Subwoofer_1' ? 'Subwoofer' : ch;
-            if (['Front_L', 'Front_R', 'Subwoofer', 'Center', 'Sur_L', 'Sur_R'].includes(yKey)) {
-              const distKey = yKey === 'Subwoofer' ? 'Subwoofer_1' : yKey;
-              const dist_m = dists[distKey] ? dists[distKey] / 100.0 : undefined;
-              updated[yKey] = {
-                trim_db: Number(lvl),
-                distance_m: dist_m,
+          ['Front_L', 'Front_R', 'Subwoofer'].forEach(chKey => {
+            if (p1[chKey]) {
+              const d_m = p1[chKey].distance_m ?? 2.45;
+              const spl = p1[chKey].spl_db ?? 75.0;
+              updated[chKey] = {
+                trim_db: updated[chKey]?.trim_db ?? 0.0,
+                distance_m: d_m,
+                spl_measured: spl,
+                calibrated_spl: spl,
                 applied: true,
-                spl_measured: updated[yKey]?.spl_measured ?? 75.0,
-                calibrated_spl: updated[yKey]?.spl_measured ? Number((updated[yKey].spl_measured! + Number(lvl)).toFixed(1)) : 75.0,
               };
             }
           });
           return updated;
         });
-        if (res.levels.Subwoofer_1 !== undefined) {
-          setSubwooferConfig(prev => ({ ...prev, trim_db: Number(res.levels.Subwoofer_1) }));
+        if (p1.Subwoofer?.distance_m) {
+          setSubDelayM(p1.Subwoofer.distance_m);
         }
       }
     }).catch(() => {});
@@ -1106,14 +1113,14 @@ export const CalibrateView: React.FC = () => {
   return (
     <div className="space-y-6 pb-36 md:pb-12">
       {/* Dynamic Stepper Header */}
-      <div className="bg-surface-1/90 border border-border-subtle rounded-2xl p-4 sm:p-6 backdrop-blur">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+      <div className="bg-zinc-950/90 border border-zinc-800 rounded-lg p-4 sm:p-6 backdrop-blur">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-orange-500/10 text-orange-300 border border-orange-500/30">
                 Paso {wizardStep} de {totalSteps}
               </span>
-              <span className="text-xs text-slate-400 font-mono">
+              <span className="text-xs text-zinc-400 font-mono">
                 {topology === '2.1' ? 'Topología 2.1 (Subwoofer Focal)' : 'Topología 2.0 (Estéreo)'}
               </span>
             </div>
@@ -1154,28 +1161,28 @@ export const CalibrateView: React.FC = () => {
                 key={s.num}
                 type="button"
                 onClick={() => setWizardStep(s.num)}
-                className={`flex items-center gap-2.5 p-2 rounded-xl text-left border transition-all ${
+                className={`flex items-center gap-2.5 p-2 rounded-lg text-left border transition-all ${
                   isCurrent
-                    ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-sm'
+                    ? 'bg-orange-500/10 border-orange-500 text-white shadow-sm'
                     : isDone
-                    ? 'bg-surface-2/60 border-border-subtle text-slate-300 hover:border-slate-500'
-                    : 'bg-surface-0/40 border-border-subtle text-slate-500 hover:text-slate-400'
+                    ? 'bg-zinc-800/60 border-zinc-800 text-zinc-300 hover:border-zinc-600'
+                    : 'bg-zinc-950/40 border-zinc-800 text-zinc-500 hover:text-zinc-400'
                 }`}
               >
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono shrink-0 ${
                     isCurrent
-                      ? 'bg-indigo-500 text-white font-bold'
+                      ? 'bg-orange-500 text-white font-bold'
                       : isDone
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-surface-3 text-slate-400'
+                      : 'bg-zinc-700 text-zinc-400'
                   }`}
                 >
                   {isDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : s.num}
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-medium truncate">{s.title}</div>
-                  <div className="text-[10px] text-slate-400 truncate hidden lg:block">{s.desc}</div>
+                  <div className="text-[10px] text-zinc-400 truncate hidden lg:block">{s.desc}</div>
                 </div>
               </button>
             );
@@ -1192,23 +1199,23 @@ export const CalibrateView: React.FC = () => {
           <Card
             title="1. Topología del Sistema Acústico"
             subtitle="Configura el número de canales para adaptar el algoritmo"
-            icon={<Speaker className="w-5 h-5 text-indigo-400" />}
+            icon={<Speaker className="w-5 h-5 text-orange-400" />}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setTopology('2.1')}
-                className={`p-4 rounded-xl border text-left cursor-pointer transition-all ${
+                className={`p-4 rounded-lg border text-left cursor-pointer transition-all ${
                   topology === '2.1'
-                    ? 'bg-indigo-600/10 border-indigo-500 shadow-md shadow-indigo-500/10'
-                    : 'bg-surface-2/40 border-border-subtle hover:border-slate-600'
+                    ? 'bg-orange-500/10 border-orange-500 shadow-md shadow-orange-500/10'
+                    : 'bg-zinc-800/40 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-white">2.1 Estéreo + Subwoofer</span>
-                  <Pill variant="indigo">Recomendado</Pill>
+                  <Pill variant="neutral" className="border-orange-500/50 text-orange-300">Recomendado</Pill>
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-xs text-zinc-300 mt-1">
                   Q Acoustics 3020i (Small) + Subwoofer Focal Cub Evo con gestión de crossover a 80 Hz y alineación de fase.
                 </p>
               </button>
@@ -1216,17 +1223,17 @@ export const CalibrateView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setTopology('2.0')}
-                className={`p-4 rounded-xl border text-left cursor-pointer transition-all ${
+                className={`p-4 rounded-lg border text-left cursor-pointer transition-all ${
                   topology === '2.0'
-                    ? 'bg-indigo-600/10 border-indigo-500 shadow-md shadow-indigo-500/10'
-                    : 'bg-surface-2/40 border-border-subtle hover:border-slate-600'
+                    ? 'bg-orange-500/10 border-orange-500 shadow-md shadow-orange-500/10'
+                    : 'bg-zinc-800/40 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-white">2.0 Estéreo Puro</span>
                   <Pill variant="neutral">2 Canales</Pill>
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-xs text-zinc-300 mt-1">
                   Frontales en rango completo (Large) sin canal LFE ni gestión de graves dedicada.
                 </p>
               </button>
@@ -1236,23 +1243,23 @@ export const CalibrateView: React.FC = () => {
           <Card
             title="2. Modo de Medición Espacial"
             subtitle="Selecciona el número de posiciones de escucha para la calibración"
-            icon={<Sliders className="w-5 h-5 text-indigo-400" />}
+            icon={<Sliders className="w-5 h-5 text-orange-400" />}
           >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => setNumCalibrationPoints(1)}
-                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                className={`p-3.5 rounded-lg border text-left cursor-pointer transition-all ${
                   numCalibrationPoints === 1
-                    ? 'bg-indigo-600/10 border-indigo-500 shadow-md shadow-indigo-500/10'
-                    : 'bg-surface-2/40 border-border-subtle hover:border-slate-600'
+                    ? 'bg-orange-500/10 border-orange-500 shadow-md shadow-orange-500/10'
+                    : 'bg-zinc-800/40 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-white">1 Punto (Rápido)</span>
                   <Pill variant="neutral" size="sm">Sweet Spot</Pill>
                 </div>
-                <p className="text-[11px] text-slate-300 mt-1">
+                <p className="text-[11px] text-zinc-300 mt-1">
                   Solo posición central primaria. Medición instantánea en ~30s sin mover el teléfono.
                 </p>
               </button>
@@ -1260,17 +1267,17 @@ export const CalibrateView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setNumCalibrationPoints(3)}
-                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                className={`p-3.5 rounded-lg border text-left cursor-pointer transition-all ${
                   numCalibrationPoints === 3
-                    ? 'bg-indigo-600/10 border-indigo-500 shadow-md shadow-indigo-500/10'
-                    : 'bg-surface-2/40 border-border-subtle hover:border-slate-600'
+                    ? 'bg-orange-500/10 border-orange-500 shadow-md shadow-orange-500/10'
+                    : 'bg-zinc-800/40 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-white">3 Puntos (Sofá)</span>
-                  <Pill variant="indigo" size="sm">Recomendado</Pill>
+                  <Pill variant="neutral" className="border-orange-500/50 text-orange-300" size="sm">Recomendado</Pill>
                 </div>
-                <p className="text-[11px] text-slate-300 mt-1">
+                <p className="text-[11px] text-zinc-300 mt-1">
                   Sweet spot + oído izquierdo (+40cm) + oído derecho (+40cm). Ideal para salón/sofá.
                 </p>
               </button>
@@ -1278,17 +1285,17 @@ export const CalibrateView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setNumCalibrationPoints(5)}
-                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                className={`p-3.5 rounded-lg border text-left cursor-pointer transition-all ${
                   numCalibrationPoints === 5
-                    ? 'bg-indigo-600/10 border-indigo-500 shadow-md shadow-indigo-500/10'
-                    : 'bg-surface-2/40 border-border-subtle hover:border-slate-600'
+                    ? 'bg-orange-500/10 border-orange-500 shadow-md shadow-orange-500/10'
+                    : 'bg-zinc-800/40 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-white">5 Puntos (Estudio)</span>
                   <Pill variant="cyan" size="sm">ITU-R</Pill>
                 </div>
-                <p className="text-[11px] text-slate-300 mt-1">
+                <p className="text-[11px] text-zinc-300 mt-1">
                   Cluster completo de 5 posiciones (cruz 3D). Máximo rigor espacial profesional.
                 </p>
               </button>
@@ -1303,7 +1310,7 @@ export const CalibrateView: React.FC = () => {
           >
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-2">
+                <label className="text-xs font-semibold text-zinc-300 block mb-2">
                   Selecciona tu dispositivo o micrófono para compensar la curva de respuesta:
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1317,14 +1324,14 @@ export const CalibrateView: React.FC = () => {
                       key={m.id}
                       type="button"
                       onClick={() => handleSelectMicrophone(m.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                      className={`p-2.5 rounded-lg border text-left transition-all ${
                         selectedMicId === m.id
                           ? 'bg-emerald-600/20 border-emerald-500 text-white ring-1 ring-emerald-500/40 font-bold'
-                          : 'bg-surface-2/40 border-border-subtle text-slate-400 hover:border-slate-500'
+                          : 'bg-zinc-800/40 border-zinc-800 text-zinc-400 hover:border-zinc-600'
                       }`}
                     >
-                      <div className="text-xs font-medium text-slate-200">{m.label}</div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">{m.desc}</div>
+                      <div className="text-xs font-medium text-zinc-200">{m.label}</div>
+                      <div className="text-[10px] text-zinc-400 font-mono mt-0.5">{m.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -1399,7 +1406,7 @@ export const CalibrateView: React.FC = () => {
             }
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1 text-xs font-mono text-slate-300">
+              <div className="space-y-1 text-xs font-mono text-zinc-300">
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   <span>Entrada: <strong className="text-white">{avrCleanState?.input || 'Activa (Emisión Móvil)'}</strong></span>
                   <span>Volumen: <strong className="text-white">-25.0 dB</strong></span>
@@ -1408,7 +1415,7 @@ export const CalibrateView: React.FC = () => {
                   <span>DRC / Enhancer: <strong className="text-emerald-400">Off</strong></span>
                   <span>Crossover: <strong className="text-cyan-400">80 Hz (Front Small)</strong></span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1 font-sans">
+                <p className="text-[11px] text-zinc-400 mt-1 font-sans">
                   Calibración fijada a <strong className="text-white">-25.0 dB</strong> (SNR acústico óptimo). Al finalizar se restaurará automáticamente tu volumen normal de escucha: <strong className="text-amber-400">{savedListeningState?.input || 'AV4'}</strong> a <strong className="text-amber-400">{savedListeningState?.volume || '-35.0 dB'}</strong>.
                 </p>
               </div>
@@ -1438,7 +1445,7 @@ export const CalibrateView: React.FC = () => {
           <Card
             title={`Matriz de Medición Espacial (${numCalibrationPoints} ${numCalibrationPoints === 1 ? 'Punto' : 'Puntos'})`}
             subtitle={`Realiza el sweep logarítmico (20 Hz - 20 kHz) en cada posición requerida (${numCalibrationPoints === 1 ? 'Sweet Spot' : numCalibrationPoints === 3 ? 'Sofá: Centro + L + R' : 'Cluster ITU-R de 5 posiciones'})`}
-            icon={<Sliders className="w-5 h-5 text-indigo-400" />}
+            icon={<Sliders className="w-5 h-5 text-orange-400" />}
             action={
               <div className="flex items-center gap-2">
                 <Button
@@ -1452,7 +1459,7 @@ export const CalibrateView: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  icon={<BarChart3 className="w-4 h-4 text-indigo-400" />}
+                  icon={<BarChart3 className="w-4 h-4 text-orange-400" />}
                   onClick={() => setShowAnalysisModal(true)}
                 >
                   Analizar & Comparar (5 Puntos)
@@ -1461,11 +1468,11 @@ export const CalibrateView: React.FC = () => {
             }
 
           >
-            <div className="mb-4 p-3.5 rounded-xl bg-surface-1 border border-indigo-500/20 text-xs text-slate-300 flex items-start gap-3 shadow-inner">
-              <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+            <div className="mb-4 p-3.5 rounded-lg bg-zinc-900 border border-orange-500/20 text-xs text-zinc-300 flex items-start gap-3 shadow-inner">
+              <Info className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold text-indigo-200">Sincronización Acústica (Estándar REW / Dirac Live):</span>
-                <span className="text-slate-400 block mt-1 leading-relaxed">
+                <span className="font-semibold text-orange-200">Sincronización Acústica (Estándar REW / Dirac Live):</span>
+                <span className="text-zinc-400 block mt-1 leading-relaxed">
                   Para cancelar la latencia y fluctuaciones de red Wi-Fi a 0.0 ms sin cables, cada medición emite un breve bip agudo en el altavoz <strong>Frontal Izquierdo</strong> (faro de referencia temporal). Inmediatamente después, el canal correspondiente reproduce su barrido acústico. En el subwoofer, el cálculo compensa automáticamente el retardo de grupo del filtro crossover (80 Hz) para reportar su distancia física real en sala.
                 </span>
               </div>
@@ -1473,7 +1480,7 @@ export const CalibrateView: React.FC = () => {
             {show3DPreview && (
               <div className="mb-4">
                 <Suspense fallback={
-                  <div className="h-[420px] rounded-xl bg-surface-2/40 border border-border-subtle flex items-center justify-center text-xs text-slate-400 font-mono">
+                  <div className="h-[420px] rounded-lg bg-zinc-800/40 border border-zinc-800 flex items-center justify-center text-xs text-zinc-400 font-mono">
                     Cargando maqueta 3D (Three.js)...
                   </div>
                 }>
@@ -1485,16 +1492,16 @@ export const CalibrateView: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {visiblePoints.map(p => (
                 <div
-                  className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3.5 shadow-sm ${
+                  className={`p-4 rounded-lg border transition-all flex flex-col justify-between gap-3.5 shadow-sm ${
                     p.measured
-                      ? 'bg-surface-2/70 border-emerald-500/40 shadow-emerald-950/20'
-                      : 'bg-surface-2/30 border-border-subtle'
+                      ? 'bg-zinc-800/70 border-emerald-500/40 shadow-emerald-950/20'
+                      : 'bg-zinc-800/30 border-zinc-800'
                   }`}
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-surface-3 border border-border-strong text-xs font-mono font-bold flex items-center justify-center text-white">
+                        <span className="w-6 h-6 rounded-lg bg-zinc-700 border border-zinc-600 text-xs font-mono font-bold flex items-center justify-center text-white">
                           P{p.id}
                         </span>
                         <span className="text-sm font-semibold text-white">{p.label}</span>
@@ -1509,7 +1516,7 @@ export const CalibrateView: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <p className="text-xs text-slate-400 font-mono pl-8">{p.sublabel}</p>
+                    <p className="text-xs text-zinc-400 font-mono pl-8">{p.sublabel}</p>
 
                     {/* Per-channel acoustic verification badges */}
                     {p.channels && (
@@ -1517,12 +1524,12 @@ export const CalibrateView: React.FC = () => {
                         {Object.entries(p.channels).map(([chId, chData]) => (
                           <span
                             key={chId}
-                            className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-surface-1 border border-emerald-500/30 text-emerald-400 flex items-center gap-1 shadow-sm"
+                            className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 border border-emerald-500/30 text-emerald-400 flex items-center gap-1 shadow-sm"
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                             <span className="font-semibold">{chId === 'Subwoofer' ? 'SUB' : chId.replace('Front_', '')}:</span>
                             <span>{chData.spl_db ? `${chData.spl_db} dB` : 'OK'}</span>
-                            {chData.distance_m ? <span className="text-slate-400">({chData.distance_m}m)</span> : null}
+                            {chData.distance_m ? <span className="text-zinc-400">({chData.distance_m}m)</span> : null}
                           </span>
                         ))}
                       </div>
@@ -1530,7 +1537,7 @@ export const CalibrateView: React.FC = () => {
                   </div>
 
                   {/* Actions Area */}
-                  <div className="space-y-2 pt-2 border-t border-border-subtle/60">
+                  <div className="space-y-2 pt-2 border-t border-zinc-800/60">
                     {/* Primary Full Sweep Button */}
                     <Button
                       variant={p.measured ? 'outline' : 'primary'}
@@ -1548,13 +1555,13 @@ export const CalibrateView: React.FC = () => {
                     <div className="flex items-center gap-1.5 justify-between">
                       {/* Single Channel Chips */}
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-mono text-slate-500 mr-0.5">Canal:</span>
+                        <span className="text-[10px] font-mono text-zinc-500 mr-0.5">Canal:</span>
                         <button
                           type="button"
                           disabled={measuringPoint !== null}
                           title="Medir únicamente canal Frontal Izquierdo"
                           onClick={() => handleMeasureSingleChannel(p.id, 'Front_L')}
-                          className="px-2 py-1 rounded bg-surface-3/80 hover:bg-surface-3 border border-border-subtle hover:border-indigo-500/50 text-[11px] font-mono font-semibold text-slate-300 hover:text-white transition-all disabled:opacity-40"
+                          className="px-2 py-1 rounded bg-zinc-700/80 hover:bg-zinc-700 border border-zinc-800 hover:border-orange-500/50 text-[11px] font-mono font-semibold text-zinc-300 hover:text-white transition-all disabled:opacity-40"
                         >
                           L
                         </button>
@@ -1563,7 +1570,7 @@ export const CalibrateView: React.FC = () => {
                           disabled={measuringPoint !== null}
                           title="Medir únicamente canal Frontal Derecho"
                           onClick={() => handleMeasureSingleChannel(p.id, 'Front_R')}
-                          className="px-2 py-1 rounded bg-surface-3/80 hover:bg-surface-3 border border-border-subtle hover:border-indigo-500/50 text-[11px] font-mono font-semibold text-slate-300 hover:text-white transition-all disabled:opacity-40"
+                          className="px-2 py-1 rounded bg-zinc-700/80 hover:bg-zinc-700 border border-zinc-800 hover:border-orange-500/50 text-[11px] font-mono font-semibold text-zinc-300 hover:text-white transition-all disabled:opacity-40"
                         >
                           R
                         </button>
@@ -1573,7 +1580,7 @@ export const CalibrateView: React.FC = () => {
                             disabled={measuringPoint !== null}
                             title="Medir únicamente Subwoofer Focal Cub Evo"
                             onClick={() => handleMeasureSingleChannel(p.id, 'Subwoofer')}
-                            className="px-2 py-1 rounded bg-surface-3/80 hover:bg-surface-3 border border-border-subtle hover:border-emerald-500/50 text-[11px] font-mono font-semibold text-emerald-300 hover:text-emerald-200 transition-all disabled:opacity-40"
+                            className="px-2 py-1 rounded bg-zinc-700/80 hover:bg-zinc-700 border border-zinc-800 hover:border-emerald-500/50 text-[11px] font-mono font-semibold text-emerald-300 hover:text-emerald-200 transition-all disabled:opacity-40"
                           >
                             SUB
                           </button>
@@ -1586,9 +1593,9 @@ export const CalibrateView: React.FC = () => {
                         disabled={measuringPoint !== null}
                         title={`Cargar medición histórica en Punto ${p.id}`}
                         onClick={() => setHistoricalModalPoint(p)}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 hover:text-indigo-200 text-xs font-mono transition-all disabled:opacity-40"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-orange-500/10 hover:bg-orange-500/10 border border-orange-500/30 text-orange-300 hover:text-orange-200 text-xs font-mono transition-all disabled:opacity-40"
                       >
-                        <History className="w-3 h-3 text-indigo-400" />
+                        <History className="w-3 h-3 text-orange-400" />
                         <span>Histórico</span>
                       </button>
                     </div>
@@ -1598,23 +1605,23 @@ export const CalibrateView: React.FC = () => {
             </div>
 
             {measuringPoint !== null && (
-              <div className="mt-4 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30 shadow-lg">
-                <div className="flex justify-between items-center text-xs font-mono text-indigo-300 mb-2">
+              <div className="mt-4 p-4 rounded-lg bg-orange-500/10 border border-orange-500/30 shadow-lg">
+                <div className="flex justify-between items-center text-xs font-mono text-orange-300 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-orange-400 animate-ping inline-block" />
                     <span className="font-semibold text-white">
                       {measuringChannel || `Midiendo Punto ${measuringPoint}...`}
                     </span>
                   </div>
-                  <span className="font-bold text-indigo-200">{sweepProgress}%</span>
+                  <span className="font-bold text-orange-200">{sweepProgress}%</span>
                 </div>
-                <div className="h-2.5 bg-surface-0 rounded-full overflow-hidden p-0.5">
+                <div className="h-2.5 bg-zinc-950 rounded-full overflow-hidden p-0.5">
                   <div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-orange-500 to-emerald-400 rounded-full transition-all duration-300"
                     style={{ width: `${sweepProgress}%` }}
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-2">
+                <p className="text-[11px] text-zinc-400 mt-2">
                   Grabando respuesta de sala y transmitiendo automáticamente señal Farina por cada canal activo.
                 </p>
               </div>
@@ -1655,10 +1662,10 @@ export const CalibrateView: React.FC = () => {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Crossover Frequency Slider */}
-              <div className="p-4 rounded-xl bg-surface-2/40 border border-border-subtle space-y-2">
+              <div className="p-4 rounded-lg bg-zinc-800/40 border border-zinc-800 space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-slate-200">Frecuencia de Cruce (Crossover)</span>
-                  <Pill variant="indigo" size="sm">{subwooferConfig.crossover_hz} Hz</Pill>
+                  <span className="text-xs font-semibold text-zinc-200">Frecuencia de Cruce (Crossover)</span>
+                  <Pill variant="neutral" className="border-orange-500/50 text-orange-300" size="sm">{subwooferConfig.crossover_hz} Hz</Pill>
                 </div>
                 <input
                   type="range"
@@ -1672,21 +1679,21 @@ export const CalibrateView: React.FC = () => {
                       crossover_hz: parseInt(e.target.value, 10),
                     }))
                   }
-                  className="w-full h-2 bg-surface-3 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                  className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
                 />
-                <p className="text-[11px] text-slate-400 font-mono">
+                <p className="text-[11px] text-zinc-400 font-mono">
                   Recomendado para Q Acoustics 3020i: <strong>80 Hz</strong> (HPF 12dB/oct + LPF 24dB/oct).
                 </p>
               </div>
 
               {/* Acoustic Phase Alignment */}
-              <div className="p-4 rounded-xl bg-surface-2/40 border border-border-subtle space-y-2 flex flex-col justify-between">
+              <div className="p-4 rounded-lg bg-zinc-800/40 border border-zinc-800 space-y-2 flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-semibold text-slate-200">Alineación de Fase Acústica</span>
+                    <span className="text-xs font-semibold text-zinc-200">Alineación de Fase Acústica</span>
                     <Pill variant="emerald" size="sm">{subwooferConfig.phase_degrees}°</Pill>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-[11px] text-zinc-400 mt-1">
                     Evaluación de interferencia constructiva en la zona de solape (60–100 Hz).
                   </p>
                 </div>
@@ -1703,14 +1710,14 @@ export const CalibrateView: React.FC = () => {
             </div>
 
             {/* Independent Channel Trim Calibration Matrix */}
-            <div className="mt-6 pt-5 border-t border-border-subtle/80 space-y-4">
+            <div className="mt-6 pt-5 border-t border-zinc-800/80 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <div className="text-xs font-semibold text-white flex items-center gap-2">
                     <Sliders className="w-4 h-4 text-cyan-400" />
                     <span>Calibración Independiente de Trims por Canal (Yamaha NVRAM)</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
                     Ajuste individual de ganancia (-10.0 dB a +10.0 dB en pasos de 0.5 dB) para equilibrar SPL y compensar distancia/paredes.
                   </p>
                 </div>
@@ -1742,7 +1749,7 @@ export const CalibrateView: React.FC = () => {
                   return (
                     <div
                       key={chKey}
-                      className="p-3.5 rounded-xl bg-surface-2/50 border border-border-subtle flex flex-col justify-between space-y-3"
+                      className="p-3.5 rounded-lg bg-zinc-800/50 border border-zinc-800 flex flex-col justify-between space-y-3"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -1750,35 +1757,35 @@ export const CalibrateView: React.FC = () => {
                             <span>{chInfo.icon}</span>
                             <span>{chInfo.name}</span>
                           </div>
-                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                          <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
                             {chInfo.model}
                           </div>
                         </div>
                         <Pill
-                          variant={isBoost ? 'amber' : isCut ? 'indigo' : 'emerald'}
+                          variant={isBoost ? 'amber' : isCut ? 'neutral' : 'emerald'}
                           size="sm"
                         >
                           {trimVal > 0 ? `+${trimVal.toFixed(1)}` : trimVal.toFixed(1)} dB
                         </Pill>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-surface-1/60 p-2 rounded-lg border border-border-subtle/50">
+                      <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-zinc-900/60 p-2 rounded-lg border border-zinc-800/50">
                         <div>
-                          <span className="text-slate-500 block text-[10px]">SPL Medido</span>
-                          <span className="text-slate-200 font-bold">
+                          <span className="text-zinc-500 block text-[10px]">SPL Medido</span>
+                          <span className="text-zinc-200 font-bold">
                             {t.spl_measured ? `${t.spl_measured.toFixed(1)} dB` : '77.5 dB'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block text-[10px]">Distancia</span>
-                          <span className="text-slate-200 font-bold">
+                          <span className="text-zinc-500 block text-[10px]">Distancia</span>
+                          <span className="text-zinc-200 font-bold">
                             {t.distance_m ? `${t.distance_m.toFixed(2)} m` : '2.45 m'}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1 border-t border-border-subtle/40">
-                        <div className="text-[10px] text-slate-400 font-mono">
+                      <div className="flex items-center justify-between pt-1 border-t border-zinc-800/40">
+                        <div className="text-[10px] text-zinc-400 font-mono">
                           Calibrado: <span className="text-emerald-400 font-bold">
                             {t.calibrated_spl ? `${t.calibrated_spl.toFixed(1)} dB` : '75.0 dB'}
                           </span>
@@ -1787,7 +1794,7 @@ export const CalibrateView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleStepTrim(chKey, -0.5)}
-                            className="w-7 h-7 rounded-md bg-surface-3 hover:bg-slate-700 text-white flex items-center justify-center font-bold text-sm transition-colors border border-border-subtle"
+                            className="w-7 h-7 rounded-md bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center font-bold text-sm transition-colors border border-zinc-800"
                             title="Reducir trim 0.5 dB"
                           >
                             −
@@ -1798,7 +1805,7 @@ export const CalibrateView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleStepTrim(chKey, 0.5)}
-                            className="w-7 h-7 rounded-md bg-surface-3 hover:bg-slate-700 text-white flex items-center justify-center font-bold text-sm transition-colors border border-border-subtle"
+                            className="w-7 h-7 rounded-md bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center font-bold text-sm transition-colors border border-zinc-800"
                             title="Aumentar trim 0.5 dB"
                           >
                             +
@@ -1813,13 +1820,13 @@ export const CalibrateView: React.FC = () => {
 
             {/* Subwoofer PEQ Bands Table */}
             <div className="mt-5 space-y-2">
-              <div className="text-xs font-semibold text-slate-300 font-mono">
+              <div className="text-xs font-semibold text-zinc-300 font-mono">
                 Filtros PEQ Calculados para Subwoofer (Focal Cub Evo):
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs font-mono border-collapse">
                   <thead>
-                    <tr className="border-b border-border-subtle text-slate-400">
+                    <tr className="border-b border-zinc-800 text-zinc-400">
                       <th className="py-2 px-3">Banda</th>
                       <th className="py-2 px-3">Frecuencia</th>
                       <th className="py-2 px-3">Factor Q</th>
@@ -1827,14 +1834,14 @@ export const CalibrateView: React.FC = () => {
                       <th className="py-2 px-3">Función Acústica</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border-subtle text-slate-200">
+                  <tbody className="divide-y divide-border-subtle text-zinc-200">
                     {subwooferConfig.peq_bands.map(b => (
-                      <tr key={b.band} className="hover:bg-surface-2/40">
-                        <td className="py-2 px-3 text-indigo-400 font-bold">Sub B{b.band}</td>
+                      <tr key={b.band} className="hover:bg-zinc-800/40">
+                        <td className="py-2 px-3 text-orange-400 font-bold">Sub B{b.band}</td>
                         <td className="py-2 px-3">{b.freq_hz} Hz</td>
                         <td className="py-2 px-3">{b.q.toFixed(2)}</td>
                         <td className="py-2 px-3 font-semibold text-emerald-400">{b.gain_db.toFixed(1)} dB</td>
-                        <td className="py-2 px-3 text-slate-400">
+                        <td className="py-2 px-3 text-zinc-400">
                           {b.gain_db < 0 ? 'Supresión de resonancia modal' : 'Refuerzo de extensión'}
                         </td>
                       </tr>
@@ -1853,12 +1860,12 @@ export const CalibrateView: React.FC = () => {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Distance stepper */}
-              <div className="p-4 rounded-xl bg-surface-2/60 border border-border-subtle space-y-3">
+              <div className="p-4 rounded-lg bg-zinc-800/60 border border-zinc-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-200">Distancia del Subwoofer al Sweet Spot</span>
+                  <span className="text-xs font-semibold text-zinc-200">Distancia del Subwoofer al Sweet Spot</span>
                   <span className="font-mono font-bold text-purple-300 text-sm">{subDelayM.toFixed(2)} m</span>
                 </div>
-                <div className="text-[11px] text-slate-400">
+                <div className="text-[11px] text-zinc-400">
                   {(subDelayM / 343.4 * 1000).toFixed(2)} ms de retardo acústico equivalente.
                 </div>
                 <div className="flex items-center gap-3">
@@ -1882,20 +1889,20 @@ export const CalibrateView: React.FC = () => {
                     +5 cm
                   </Button>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-border-subtle/50">
-                  {[{ label: '3.00 m', val: 3.00 }, { label: '3.65 m', val: 3.65 }, { label: '4.30 m', val: 4.30 }].map(p => (
+                <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-zinc-800/50">
+                  {[{ label: '2.44 m (Sweet Spot)', val: 2.44 }, { label: '2.50 m', val: 2.50 }, { label: '2.60 m', val: 2.60 }].map(p => (
                     <button key={p.label} type="button" disabled={isAdjustingDelay} onClick={() => handleAdjustSubDelay(p.val)}
-                      className={`py-1 rounded-lg text-[10px] font-mono transition-all ${Math.abs(subDelayM - p.val) < 0.03 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold' : 'bg-surface-3/50 text-slate-400 hover:text-slate-200 border border-border-subtle/50'}`}
+                      className={`py-1 rounded-lg text-[10px] font-mono transition-all ${Math.abs(subDelayM - p.val) < 0.03 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold' : 'bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 border border-zinc-800/50'}`}
                     >{p.label}</button>
                   ))}
                 </div>
               </div>
-              <div className="p-4 rounded-xl bg-surface-2/60 border border-border-subtle space-y-3">
-                <div className="text-xs font-semibold text-slate-200">¿Por qué importa la alineación temporal?</div>
-                <div className="text-[11px] text-slate-400 space-y-2 leading-relaxed">
+              <div className="p-4 rounded-lg bg-zinc-800/60 border border-zinc-800 space-y-3">
+                <div className="text-xs font-semibold text-zinc-200">¿Por qué importa la alineación temporal?</div>
+                <div className="text-[11px] text-zinc-400 space-y-2 leading-relaxed">
                   <p>Velocidad del sonido: <span className="text-white font-mono">343.4 m/s</span>. Focal Cub Evo a <span className="text-purple-300 font-mono">{subDelayM.toFixed(2)} m</span> vs Q Acoustics a <span className="text-blue-300 font-mono">2.45 m</span>: el grave tarda <span className="text-amber-300 font-mono">{((subDelayM - 2.45) / 343.4 * 1000).toFixed(1)} ms</span> más.</p>
                   <p>El Yamaha RX-V673 introduce el retardo equivalente en los satélites para que los frentes de onda coincidan constructivamente en el cruce a <span className="text-emerald-300 font-mono">80 Hz</span>.</p>
-                  <p className="text-slate-500 pt-1 border-t border-border-subtle/40">Paso: <span className="text-slate-300">±5 cm</span> = ±0.15 ms. Rango Yamaha: 0.30–10.00 m.</p>
+                  <p className="text-zinc-500 pt-1 border-t border-zinc-800/40">Paso: <span className="text-zinc-300">±5 cm</span> = ±0.15 ms. Rango Yamaha: 0.30–10.00 m.</p>
                 </div>
               </div>
             </div>
@@ -1940,8 +1947,8 @@ export const CalibrateView: React.FC = () => {
                     onClick={() => setSelectedCategory(cat)}
                     className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                       selectedCategory === cat
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'bg-surface-1 border border-border-subtle text-slate-400 hover:text-slate-200'
+                        ? 'bg-orange-600 text-white shadow-sm'
+                        : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
                     {cat}
@@ -1961,25 +1968,25 @@ export const CalibrateView: React.FC = () => {
                       setActiveProfileId(p.id);
                       toast(`Perfil activo: ${p.name}`, 'info');
                     }}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-3 ${
+                    className={`p-4 rounded-lg border cursor-pointer transition-all flex flex-col justify-between gap-3 ${
                       isSelected
-                        ? 'bg-indigo-950/40 border-indigo-500 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/50'
-                        : 'bg-surface-1/80 border-border-subtle hover:border-slate-600'
+                        ? 'bg-orange-500/5 border-orange-500 shadow-lg shadow-orange-500/10 ring-1 ring-orange-500/30'
+                        : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="text-xs font-mono font-bold text-slate-200 truncate">{p.name}</span>
-                        {p.badge && <Pill variant="indigo" size="sm">{p.badge}</Pill>}
+                        <span className="text-xs font-mono font-bold text-zinc-200 truncate">{p.name}</span>
+                        {p.badge && <Pill variant="neutral" className="border-orange-500/50 text-orange-300" size="sm">{p.badge}</Pill>}
                       </div>
-                      <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
                         {p.description}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] pt-2 border-t border-border-subtle font-mono">
-                      <span className="text-slate-400">{p.category}</span>
-                      <span className={isSelected ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
+                    <div className="flex items-center justify-between text-[11px] pt-2 border-t border-zinc-800 font-mono">
+                      <span className="text-zinc-400">{p.category}</span>
+                      <span className={isSelected ? 'text-emerald-400 font-bold' : 'text-zinc-500'}>
                         {isSelected ? '✓ Seleccionado' : 'Elegir'}
                       </span>
                     </div>
@@ -1993,19 +2000,19 @@ export const CalibrateView: React.FC = () => {
           <Card
             title="Optimización y Grabación de PEQ desde Mediciones"
             subtitle="Calcula la solución matemática óptima para este perfil a partir de las mediciones espaciales y la guarda en targets.json"
-            icon={<Sparkles className="w-5 h-5 text-indigo-400" />}
+            icon={<Sparkles className="w-5 h-5 text-orange-400" />}
           >
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 rounded-xl bg-surface-2/60 border border-border-subtle">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 rounded-lg bg-zinc-800/60 border border-zinc-800">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-white">Perfil Seleccionado:</span>
-                  <span className="text-sm font-mono text-indigo-300 font-bold">
+                  <span className="text-sm font-mono text-orange-300 font-bold">
                     {profiles.find(p => p.id === activeProfileId)?.name || activeProfileId}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Ajusta de forma coordinada los canales <strong className="text-slate-200">Frontal Izquierdo</strong>, <strong className="text-slate-200">Frontal Derecho</strong>
-                  {topology === '2.1' && <span className="text-slate-200"> y <strong className="text-indigo-300">Subwoofer Focal Cub Evo</strong></span>} cubriendo <strong className="text-cyan-400">Bajos (&lt;500 Hz)</strong>, <strong className="text-indigo-400">Medios (500-4k Hz)</strong> y <strong className="text-amber-400">Altos (&gt;4k Hz)</strong>.
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Ajusta de forma coordinada los canales <strong className="text-zinc-200">Frontal Izquierdo</strong>, <strong className="text-zinc-200">Frontal Derecho</strong>
+                  {topology === '2.1' && <span className="text-zinc-200"> y <strong className="text-orange-300">Subwoofer Focal Cub Evo</strong></span>} cubriendo <strong className="text-cyan-400">Bajos (&lt;500 Hz)</strong>, <strong className="text-orange-400">Medios (500-4k Hz)</strong> y <strong className="text-amber-400">Altos (&gt;4k Hz)</strong>.
                 </p>
               </div>
               <Button
@@ -2020,7 +2027,7 @@ export const CalibrateView: React.FC = () => {
             </div>
 
             {peqSavedBanner && (
-              <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-300">
+              <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-300">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{peqSavedBanner}</span>
               </div>
@@ -2044,10 +2051,10 @@ export const CalibrateView: React.FC = () => {
           <Card
             title="Parámetros PEQ por Canal a Ajustar (Bajos, Medios, Altos)"
             subtitle="Inspecciona los filtros discretos biquad por canal calculados para el hardware Yamaha RX-V673"
-            icon={<Sliders className="w-5 h-5 text-indigo-400" />}
+            icon={<Sliders className="w-5 h-5 text-orange-400" />}
           >
             {/* Channel Tabs */}
-            <div className="flex items-center gap-2 border-b border-border-subtle pb-3">
+            <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
               {[
                 { id: 'Front_L', label: 'Frontal L (Q Acoustics)', badge: '7 Bandas' },
                 { id: 'Front_R', label: 'Frontal R (Q Acoustics)', badge: '7 Bandas' },
@@ -2059,13 +2066,13 @@ export const CalibrateView: React.FC = () => {
                   onClick={() => setSelectedChannelTab(tab.id as any)}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
                     selectedChannelTab === tab.id
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                      : 'bg-surface-2/40 text-slate-400 hover:text-slate-200 border border-border-subtle'
+                      ? 'bg-orange-600 text-white shadow-sm'
+                      : 'bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
                   }`}
                 >
                   <span>{tab.label}</span>
                   <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                    selectedChannelTab === tab.id ? 'bg-white/20 text-white' : 'bg-surface-3 text-slate-400'
+                    selectedChannelTab === tab.id ? 'bg-white/20 text-white' : 'bg-zinc-700 text-zinc-400'
                   }`}>
                     {tab.badge}
                   </span>
@@ -2080,7 +2087,7 @@ export const CalibrateView: React.FC = () => {
                     <span>📡</span>
                     <span>Gestión de Subwoofer en Yamaha RX-V673</span>
                   </div>
-                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                  <p className="text-zinc-300 text-[11px] leading-relaxed">
                     El receptor Yamaha RX-V673 aplica el control de subwoofer en NVRAM mediante <strong>Nivel de Trim (dB)</strong>, <strong>Retardo Acústico (metros)</strong> y <strong>Cruce a 80 Hz</strong>. Si utilizas Equalizer APO, CamillaDSP, REW o un MiniDSP 2x4 HD externo, puedes copiar estos 3 filtros modales calculados o descargarlos en un archivo de texto.
                   </p>
                 </div>
@@ -2101,7 +2108,7 @@ export const CalibrateView: React.FC = () => {
                   <a
                     href={`/api/export_filters?profile=${activeProfileId}&format=equalizerapo`}
                     download={`equalizer_apo_${activeProfileId}.txt`}
-                    className="px-3 py-1.5 whitespace-nowrap rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 font-mono font-medium text-[11px] transition-all flex items-center gap-1.5"
+                    className="px-3 py-1.5 whitespace-nowrap rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/40 text-orange-200 font-mono font-medium text-[11px] transition-all flex items-center gap-1.5"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Descargar .txt (L+R+Sub)</span>
@@ -2114,7 +2121,7 @@ export const CalibrateView: React.FC = () => {
             <div className="overflow-x-auto mt-3">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-border-subtle text-slate-400 font-mono text-[11px]">
+                  <tr className="border-b border-zinc-800 text-zinc-400 font-mono text-[11px]">
                     <th className="py-2.5 px-3 font-semibold">Banda</th>
                     <th className="py-2.5 px-3 font-semibold">Rango</th>
                     <th className="py-2.5 px-3 font-semibold">Frecuencia</th>
@@ -2133,8 +2140,8 @@ export const CalibrateView: React.FC = () => {
                     const cat = b.category || (b.freq_hz < 500 ? 'Bajos' : (b.freq_hz <= 4000 ? 'Medios' : 'Altos'));
 
                     return (
-                       <tr key={idx} className="hover:bg-surface-2/30 transition-colors">
-                         <td className="py-2.5 px-3 font-mono font-bold text-slate-300">
+                       <tr key={idx} className="hover:bg-zinc-800/30 transition-colors">
+                         <td className="py-2.5 px-3 font-mono font-bold text-zinc-300">
                            Banda {b.band || idx + 1}
                          </td>
                          <td className="py-2.5 px-3">
@@ -2153,7 +2160,7 @@ export const CalibrateView: React.FC = () => {
                          <td className="py-2.5 px-3 font-mono text-white font-semibold">
                            {b.freq_hz} Hz
                          </td>
-                         <td className="py-2.5 px-3 font-mono text-slate-300">
+                         <td className="py-2.5 px-3 font-mono text-zinc-300">
                            {b.q}
                          </td>
                          <td className="py-2.5 px-3 font-mono font-bold">
@@ -2162,19 +2169,19 @@ export const CalibrateView: React.FC = () => {
                                ? 'text-emerald-400'
                                : isCut
                                ? 'text-cyan-400'
-                               : 'text-slate-500'
+                               : 'text-zinc-500'
                            }>
                              {isBoost ? `+${gainVal.toFixed(1)}` : gainVal.toFixed(1)} dB
                            </span>
                          </td>
-                         <td className="py-2.5 px-3 text-slate-300 max-w-xs truncate">
+                         <td className="py-2.5 px-3 text-zinc-300 max-w-xs truncate">
                            {b.desc}
                          </td>
                          <td className="py-2.5 px-3 text-right">
                            <span className={`text-[11px] font-mono px-2 py-0.5 rounded ${
                              !isZero
                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                               : 'bg-surface-2 text-slate-500'
+                               : 'bg-zinc-800 text-zinc-500'
                            }`}>
                              {!isZero ? 'Ajustado' : 'Fase Neutra'}
                            </span>
@@ -2228,22 +2235,22 @@ export const CalibrateView: React.FC = () => {
                   key={sc.num}
                   type="button"
                   onClick={() => setSelectedScene(sc.num)}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  className={`p-3 rounded-lg border text-left transition-all ${
                     selectedScene === sc.num
-                      ? 'bg-indigo-600/20 border-indigo-500 text-white'
-                      : 'bg-surface-2/40 border-border-subtle text-slate-400 hover:border-slate-500'
+                      ? 'bg-orange-500/10 border-orange-500 text-white'
+                      : 'bg-zinc-800/40 border-zinc-800 text-zinc-400 hover:border-zinc-600'
                   }`}
                 >
-                  <div className="text-xs font-mono text-indigo-400 font-bold">Botón {sc.num}</div>
-                  <div className="text-xs font-medium mt-0.5 text-slate-200">{sc.label}</div>
+                  <div className="text-xs font-mono text-orange-400 font-bold">Botón {sc.num}</div>
+                  <div className="text-xs font-medium mt-0.5 text-zinc-200">{sc.label}</div>
                 </button>
               ))}
             </div>
 
-            <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-surface-2/60 border border-border-subtle">
+            <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-lg bg-zinc-800/60 border border-zinc-800">
               <div>
                 <div className="text-sm font-semibold text-white">Despliegue Atómico a NVRAM</div>
-                <div className="text-xs text-slate-400 font-mono mt-0.5">
+                <div className="text-xs text-zinc-400 font-mono mt-0.5">
                   Write-Commit-Readback garantizado sin pérdida al apagar el receptor.
                 </div>
               </div>
@@ -2263,7 +2270,7 @@ export const CalibrateView: React.FC = () => {
           <Card
             title="2. Prueba de Escucha Comparativa A/B en Vivo"
             subtitle="Conmuta instantáneamente entre tu calibración de estudio y los modos de fábrica"
-            icon={<Sliders className="w-5 h-5 text-indigo-400" />}
+            icon={<Sliders className="w-5 h-5 text-orange-400" />}
           >
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
@@ -2284,14 +2291,14 @@ export const CalibrateView: React.FC = () => {
                       toast(`Error al conmutar modo: ${err?.message || 'Fallo de red'}`, 'warn');
                     }
                   }}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  className={`p-3 rounded-lg border text-left transition-all ${
                     activeAbMode === mode.id
                       ? 'bg-emerald-600/20 border-emerald-500 text-white ring-1 ring-emerald-500/50'
-                      : 'bg-surface-2/40 border-border-subtle text-slate-400 hover:border-slate-500'
+                      : 'bg-zinc-800/40 border-zinc-800 text-zinc-400 hover:border-zinc-600'
                   }`}
                 >
-                  <div className="text-xs font-semibold text-slate-200">{mode.label}</div>
-                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">{mode.desc}</div>
+                  <div className="text-xs font-semibold text-zinc-200">{mode.label}</div>
+                  <div className="text-[10px] text-zinc-400 font-mono mt-0.5">{mode.desc}</div>
                 </button>
               ))}
             </div>
@@ -2304,15 +2311,15 @@ export const CalibrateView: React.FC = () => {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Subwoofer Trim Control */}
-              <div className="p-4 rounded-xl bg-surface-2/60 border border-border-subtle flex flex-col justify-between">
+              <div className="p-4 rounded-lg bg-zinc-800/60 border border-zinc-800 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200">Trim Subwoofer (Focal Cub Evo)</span>
+                    <span className="text-xs font-semibold text-zinc-200">Trim Subwoofer (Focal Cub Evo)</span>
                     <span className="text-sm font-mono font-bold text-cyan-300">
                       {liveSubTrim > 0 ? `+${liveSubTrim.toFixed(1)}` : liveSubTrim.toFixed(1)} dB
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1">
+                  <div className="text-[11px] text-zinc-400 mt-1">
                     Ajuste discreto en pasos de 0.5 dB enviado directamente al procesador Yamaha.
                   </div>
                 </div>
@@ -2342,7 +2349,7 @@ export const CalibrateView: React.FC = () => {
                 </div>
 
                 {/* Quick Presets for Subwoofer Trim */}
-                <div className="mt-3 pt-3 border-t border-border-subtle/60 grid grid-cols-4 gap-1.5">
+                <div className="mt-3 pt-3 border-t border-zinc-800/60 grid grid-cols-4 gap-1.5">
                   {[
                     { label: 'Neutro', val: 2.0 },
                     { label: 'Harman', val: 3.5 },
@@ -2357,7 +2364,7 @@ export const CalibrateView: React.FC = () => {
                       className={`py-1 px-1.5 rounded-lg text-[10px] font-mono transition-all ${
                         Math.abs(liveSubTrim - p.val) < 0.25
                           ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                          : 'bg-surface-3/50 text-slate-400 hover:text-slate-200 border border-border-subtle/50'
+                          : 'bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 border border-zinc-800/50'
                       }`}
                     >
                       {p.label} ({p.val > 0 ? `+${p.val}` : p.val})
@@ -2367,15 +2374,15 @@ export const CalibrateView: React.FC = () => {
               </div>
 
               {/* Subwoofer Phase Control */}
-              <div className="p-4 rounded-xl bg-surface-2/60 border border-border-subtle flex flex-col justify-between">
+              <div className="p-4 rounded-lg bg-zinc-800/60 border border-zinc-800 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200">Fase Acústica Subwoofer</span>
-                    <span className="text-xs font-mono font-bold text-indigo-300">
+                    <span className="text-xs font-semibold text-zinc-200">Fase Acústica Subwoofer</span>
+                    <span className="text-xs font-mono font-bold text-orange-300">
                       {liveSubPhase === 'Reverse' ? '180° Invertida' : '0° Normal'}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1">
+                  <div className="text-[11px] text-zinc-400 mt-1">
                     Conmuta la polaridad del subwoofer para evaluar la suma acústica en la zona de cruce (80 Hz).
                   </div>
                 </div>
@@ -2384,31 +2391,31 @@ export const CalibrateView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleSetSubPhase('Normal')}
-                    className={`py-2 px-3 rounded-xl border text-center transition-all ${
+                    className={`py-2 px-3 rounded-lg border text-center transition-all ${
                       liveSubPhase === 'Normal'
-                        ? 'bg-indigo-600/20 border-indigo-500 text-white ring-1 ring-indigo-500/40 font-bold'
-                        : 'bg-surface-3/40 border-border-subtle text-slate-400 hover:text-slate-200'
+                        ? 'bg-orange-500/10 border-orange-500 text-white ring-1 ring-orange-500/40 font-bold'
+                        : 'bg-zinc-700/40 border-zinc-800 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
                     <div className="text-xs">0° Normal</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Fase estándar</div>
+                    <div className="text-[10px] text-zinc-400 mt-0.5">Fase estándar</div>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSetSubPhase('Reverse')}
-                    className={`py-2 px-3 rounded-xl border text-center transition-all ${
+                    className={`py-2 px-3 rounded-lg border text-center transition-all ${
                       liveSubPhase === 'Reverse'
                         ? 'bg-purple-600/20 border-purple-500 text-white ring-1 ring-purple-500/40 font-bold'
-                        : 'bg-surface-3/40 border-border-subtle text-slate-400 hover:text-slate-200'
+                        : 'bg-zinc-700/40 border-zinc-800 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
                     <div className="text-xs">180° Invertida</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Inversión de polaridad</div>
+                    <div className="text-[10px] text-zinc-400 mt-0.5">Inversión de polaridad</div>
                   </button>
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-border-subtle/60 text-[11px] text-slate-400 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                <div className="mt-3 pt-3 border-t border-zinc-800/60 text-[11px] text-zinc-400 flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
                   <span>Si notas mayor pegada y plenitud en 80 Hz al cambiar a 180°, déjala activa.</span>
                 </div>
               </div>
@@ -2422,10 +2429,10 @@ export const CalibrateView: React.FC = () => {
             icon={<Radio className="w-5 h-5 text-emerald-400 animate-pulse" />}
           >
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-surface-2/60 border border-border-subtle">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg bg-zinc-800/60 border border-zinc-800">
                 <div>
                   <div className="text-sm font-semibold text-white">Barrido Físico de Verificación Acústica</div>
-                  <div className="text-xs text-slate-400 mt-0.5">
+                  <div className="text-xs text-zinc-400 mt-0.5">
                     Coloca el micrófono en el punto de escucha principal (Sweet Spot). El sistema emitirá un barrido estéreo y medirá el espectro real con PEQ activo.
                   </div>
                 </div>
@@ -2442,29 +2449,29 @@ export const CalibrateView: React.FC = () => {
 
               {/* Live Sweep Measuring Progress & VU Meter */}
               {verifIsLiveMeasuring && (
-                <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-500/30 space-y-3 animate-in fade-in">
+                <div className="p-4 rounded-lg bg-zinc-950 border border-orange-500/30 space-y-3 animate-in fade-in">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
                       <span className="text-xs font-semibold text-white">Grabando audio acústico en directo</span>
                     </div>
-                    <span className="text-xs font-mono text-indigo-300 font-bold">{verifProgress}%</span>
+                    <span className="text-xs font-mono text-orange-300 font-bold">{verifProgress}%</span>
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="w-full h-2 rounded-full bg-surface-3 overflow-hidden">
+                  <div className="w-full h-2 rounded-full bg-zinc-700 overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-orange-500 to-emerald-400 transition-all duration-300"
                       style={{ width: `${verifProgress}%` }}
                     />
                   </div>
 
-                  <div className="text-xs font-mono text-slate-300">
+                  <div className="text-xs font-mono text-zinc-300">
                     {verifMeasuringChannel || 'Sincronizando con receptor Yamaha...'}
                   </div>
 
                   {/* Real-time VU Meter during sweep */}
-                  <div className="pt-2 border-t border-indigo-500/20">
+                  <div className="pt-2 border-t border-orange-500/20">
                     <VUMeter autoStart={verifIsLiveMeasuring} />
                   </div>
                 </div>
@@ -2475,14 +2482,14 @@ export const CalibrateView: React.FC = () => {
                 <div className="space-y-4 animate-in fade-in duration-300">
                   {/* 4 Metrics Badges */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                    <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
                       <div className="text-[11px] font-medium text-emerald-400">Desviación RMS Residual</div>
                       <div className="text-xl font-mono font-bold text-white mt-1">
                         ±{verificationResult.rmsDeviation.toFixed(1)} dB
                       </div>
                       <div className="text-[10px] text-emerald-300/80 mt-0.5">Rango audible (35–4k Hz)</div>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+                    <div className="p-3.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
                       <div className="text-[11px] font-medium text-cyan-400">Desviación Subwoofer</div>
                       <div className="text-xl font-mono font-bold text-white mt-1">
                         {verificationResult.subRmsDeviation !== null && verificationResult.subRmsDeviation !== undefined
@@ -2491,14 +2498,14 @@ export const CalibrateView: React.FC = () => {
                       </div>
                       <div className="text-[10px] text-cyan-300/80 mt-0.5">Rango sub-grave (20–180 Hz)</div>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                    <div className="p-3.5 rounded-lg bg-blue-500/10 border border-blue-500/30">
                       <div className="text-[11px] font-medium text-blue-400">Supresión Modal</div>
                       <div className="text-xl font-mono font-bold text-white mt-1">
                         -{verificationResult.modalSuppressionDb.toFixed(1)} dB
                       </div>
-                      <div className="text-[10px] text-blue-300/80 mt-0.5">En 49.6 Hz y 62.5 Hz</div>
+                      <div className="text-[10px] text-blue-300/80 mt-0.5">Atenuación modal en graves</div>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                    <div className="p-3.5 rounded-lg bg-purple-500/10 border border-purple-500/30">
                       <div className="text-[11px] font-medium text-purple-400">Cruce Satélites / Sub</div>
                       <div className="text-xl font-mono font-bold text-white mt-1">80 Hz</div>
                       <div className="text-[10px] text-purple-300/80 mt-0.5">Focal Cub Evo + Q3020i</div>
@@ -2514,9 +2521,9 @@ export const CalibrateView: React.FC = () => {
 
                   {/* Subwoofer Specific Graph if available */}
                   {verificationResult.subCurves && verificationResult.subCurves.length > 0 && (
-                    <div className="mt-3 p-4 rounded-xl bg-surface-2/40 border border-border-subtle">
+                    <div className="mt-3 p-4 rounded-lg bg-zinc-800/40 border border-zinc-800">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-slate-200">Respuesta Dedicada de Subwoofer (20–200 Hz)</span>
+                        <span className="text-xs font-semibold text-zinc-200">Respuesta Dedicada de Subwoofer (20–200 Hz)</span>
                         <span className="text-[10px] font-mono text-cyan-400">Focal Cub Evo · Crossover 80 Hz</span>
                       </div>
                       <FrequencyGraph
@@ -2529,15 +2536,15 @@ export const CalibrateView: React.FC = () => {
 
                   {/* YPAO Benchmark Comparison Table */}
                   {verificationResult.comparativeCurves && verificationResult.comparativeCurves.length > 0 && (
-                    <div className="mt-4 p-4 rounded-xl bg-surface-2/40 border border-border-subtle space-y-3">
+                    <div className="mt-4 p-4 rounded-lg bg-zinc-800/40 border border-zinc-800 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-semibold text-white">Comparativa de Rendimiento vs Modos YPAO del Yamaha</div>
-                        <span className="text-[10px] text-slate-400 font-mono">Ordenado por precisión acústica</span>
+                        <span className="text-[10px] text-zinc-400 font-mono">Ordenado por precisión acústica</span>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs font-mono border-collapse">
                           <thead>
-                            <tr className="border-b border-border-subtle text-slate-400">
+                            <tr className="border-b border-zinc-800 text-zinc-400">
                               <th className="py-2 px-3">Modo</th>
                               <th className="py-2 px-3">Desv. RMS</th>
                               <th className="py-2 px-3">RMS Sub (20-180Hz)</th>
@@ -2546,24 +2553,24 @@ export const CalibrateView: React.FC = () => {
                               <th className="py-2 px-3">Resultado</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-border-subtle text-slate-200">
+                          <tbody className="divide-y divide-border-subtle text-zinc-200">
                             {verificationResult.comparativeCurves.map((c: any) => {
                               const isBest = c.id === verificationResult.bestCurve?.id;
                               return (
-                                <tr key={c.id} className={`hover:bg-surface-3/30 transition-colors ${isBest ? 'bg-emerald-500/10' : ''}`}>
+                                <tr key={c.id} className={`hover:bg-zinc-700/30 transition-colors ${isBest ? 'bg-emerald-500/10' : ''}`}>
                                   <td className="py-2 px-3 flex items-center gap-2">
                                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                                    <span className={`font-semibold ${isBest ? 'text-emerald-400' : 'text-slate-200'}`}>{c.name}</span>
+                                    <span className={`font-semibold ${isBest ? 'text-emerald-400' : 'text-zinc-200'}`}>{c.name}</span>
                                   </td>
                                   <td className="py-2 px-3">±{c.rms_avg_db?.toFixed(1) ?? '—'} dB</td>
                                   <td className="py-2 px-3 text-cyan-400">
                                     {c.rms_sub_db !== null && c.rms_sub_db !== undefined ? `±${c.rms_sub_db.toFixed(1)} dB` : '±2.1 dB'}
                                   </td>
                                   <td className="py-2 px-3 font-bold text-white">{c.target_alignment_pct?.toFixed(1) ?? '—'}%</td>
-                                  <td className="py-2 px-3 text-slate-400">{c.modal_peak_119hz_db?.toFixed(1) ?? '—'} dB</td>
+                                  <td className="py-2 px-3 text-zinc-400">{c.modal_peak_119hz_db?.toFixed(1) ?? '—'} dB</td>
                                   <td className="py-2 px-3">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                      isBest ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-surface-3 text-slate-400'
+                                      isBest ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-zinc-700 text-zinc-400'
                                     }`}>
                                       {c.badge || `#${c.rank}`}
                                     </span>
@@ -2619,7 +2626,7 @@ export const CalibrateView: React.FC = () => {
               >
                 Exportar Informe PDF
               </Button>
-              <span className="text-[11px] text-slate-500 font-mono">
+              <span className="text-[11px] text-zinc-500 font-mono">
                 El PDF incluye gráfica de respuesta en frecuencia, tiempos de reverberación EDT/T20/T30/T60, frecuencia de Schroeder y filtros PEQ activos.
               </span>
             </div>

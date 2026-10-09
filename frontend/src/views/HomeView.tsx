@@ -1,64 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { Sliders, CheckCircle2, Speaker, Cpu, Volume2, ShieldCheck, ArrowRight, Music } from 'lucide-react';
+import {
+  Sliders,
+  Volume2,
+  VolumeX,
+  ShieldCheck,
+  RotateCcw,
+  Zap,
+  Power,
+  Tv,
+} from 'lucide-react';
 import { useCalibration } from '../context/CalibrationContext';
-import { Card } from '../components/ui/Card';
+import { useAvrControls } from '../services/avrControls';
+import { HapticVolumeDial } from '../components/audio/HapticVolumeDial';
 import { Button } from '../components/ui/Button';
 import { Pill } from '../components/ui/Pill';
 import { FrequencyGraph, CurveDataPoint } from '../components/charts/FrequencyGraph';
 import { api } from '../services/api';
 
 export const HomeView: React.FC = () => {
-  const { setView, setWizardStep, avrStatus, profiles, activeProfileId, setActiveProfileId, toast } = useCalibration();
+  const {
+    setView,
+    avrStatus,
+    refreshStatus,
+    profiles,
+    activeProfileId,
+    setActiveProfileId,
+    toast,
+  } = useCalibration();
+
+  const {
+    currentVol,
+    isMuted,
+    handleVolumeChange,
+    handleToggleMute,
+    handleSelectInput,
+    handleSceneSelect,
+    handleSetPeqMode,
+  } = useAvrControls({ avrStatus, refreshStatus, toast });
+
   const [curveData, setCurveData] = useState<CurveDataPoint[]>([]);
   const [deploying, setDeploying] = useState<boolean>(false);
-  const [acousticsData, setAcousticsData] = useState<{
-    t60_s: number;
-    schroeder_frequency_hz: number;
-    modal_cutoff_hz: number;
-    room_volume_m3: number;
-  }>({
-    t60_s: 0.35,
-    schroeder_frequency_hz: 187.1,
-    modal_cutoff_hz: 187.1,
-    room_volume_m3: 40.0,
-  });
-  // Generate synthetic realistic response curve fallback
-  const fallbackCurve = (): CurveDataPoint[] => {
-    const freqs = [
-      20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500,
-      630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000,
-      10000, 12500, 16000, 20000
-    ];
-    return freqs.map(f => {
-      // Room modes in bass: peak at 78 Hz, dip at 110 Hz
-      let raw = 0;
-      if (f < 100) raw = Math.sin((f - 20) * 0.1) * 6 + 2;
-      else if (f < 300) raw = Math.cos((f - 100) * 0.05) * 4 - 2;
-      else raw = (Math.random() - 0.5) * 2 - (f > 8000 ? (f - 8000) / 4000 : 0);
-
-      // Harman target curve: bass boost +5dB tapering down to -1dB at 20kHz
-      let target = 0;
-      if (f <= 60) target = 5.0;
-      else if (f <= 150) target = 5.0 - ((f - 60) / 90) * 4.5;
-      else target = 0.5 - (Math.log10(f / 150) / Math.log10(20000 / 150)) * 2.5;
-
-      // Corrected curve: raw pulled towards target via 7-band PEQ
-      const corrected = raw + (target - raw) * 0.85;
-
-      return {
-        freq: f,
-        measured: Math.round(raw * 10) / 10,
-        target: Math.round(target * 10) / 10,
-        corrected: Math.round(corrected * 10) / 10,
-      };
-    });
-  };
+  const [restoringAvr, setRestoringAvr] = useState<boolean>(false);
+  const [checkingPreflight, setCheckingPreflight] = useState<boolean>(false);
+  const [togglingDrc, setTogglingDrc] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
     const profileToFetch = activeProfileId || 'harman_wide_room';
-    api.getMeasuredCurve(profileToFetch)
-      .then(res => {
+    api
+      .getMeasuredCurve(profileToFetch)
+      .then((res) => {
         if (!isMounted) return;
         if (res && res.freqs && res.freqs.length > 0) {
           const points: CurveDataPoint[] = [];
@@ -75,19 +66,26 @@ export const HomeView: React.FC = () => {
           }
           setCurveData(points);
         } else {
-          setCurveData(fallbackCurve());
+          setCurveData([]);
         }
       })
       .catch(() => {
-        if (isMounted) setCurveData(fallbackCurve());
+        if (isMounted) setCurveData([]);
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [activeProfileId]);
 
   const handleDeployProfile = async () => {
     setDeploying(true);
     try {
       await api.deployPEQ(activeProfileId);
-      toast(`✓ Perfil '${profiles.find(p => p.id === activeProfileId)?.name || activeProfileId}' aplicado al Yamaha RX-V673 en NVRAM`, 'success');
+      toast(
+        `✓ Perfil '${profiles.find((p) => p.id === activeProfileId)?.name || activeProfileId}' aplicado al Yamaha RX-V673`,
+        'success'
+      );
     } catch (err: any) {
       toast(`Error al aplicar perfil: ${err.message || 'Error de red'}`, 'warn');
     } finally {
@@ -95,275 +93,331 @@ export const HomeView: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    api.getRoomAcousticsAdvanced()
-      .then(res => {
-        if (!isMounted) return;
-        if (res && res.ok && res.schroeder) {
-          setAcousticsData({
-            t60_s: res.schroeder.t60_s,
-            schroeder_frequency_hz: res.schroeder.schroeder_frequency_hz,
-            modal_cutoff_hz: res.schroeder.modal_cutoff_hz,
-            room_volume_m3: res.schroeder.room_volume_m3,
-          });
-        }
-      })
-      .catch(() => {});
+  // Quick Action handlers (Step 5)
+  const handleRestoreAvr = async () => {
+    setRestoringAvr(true);
+    try {
+      await api.restoreAvrMode();
+      toast('Estado previo del Yamaha restaurado con éxito', 'success');
+      await refreshStatus();
+    } catch (err: any) {
+      toast(`Error al restaurar AVR: ${err.message || 'Error de red'}`, 'warn');
+    } finally {
+      setRestoringAvr(false);
+    }
+  };
 
-    return () => { isMounted = false; };
-  }, []);
+  const handlePreflight = async () => {
+    setCheckingPreflight(true);
+    try {
+      const res = await api.preflightCheck(false);
+      if (res && res.ok) {
+        toast('AVR verificado correctamente y en línea', 'success');
+      } else {
+        toast(`Verificación AVR: ${res?.message || 'Advertencia de estado'}`, 'warn');
+      }
+      await refreshStatus();
+    } catch (err: any) {
+      toast(`Error de verificación: ${err.message || 'AVR inalcanzable'}`, 'error');
+    } finally {
+      setCheckingPreflight(false);
+    }
+  };
+
+  const handleToggleDrc = async () => {
+    setTogglingDrc(true);
+    try {
+      const isDrcOn = avrStatus.avr_drc === 'On' || avrStatus.avr_drc === 'Auto';
+      const nextDrcVal = isDrcOn ? 'Off' : 'Auto';
+      const xml = `<YAMAHA_AV cmd="PUT"><Main_Zone><Sound_Video><Adaptive_DRC>${nextDrcVal}</Adaptive_DRC></Sound_Video></Main_Zone></YAMAHA_AV>`;
+      await api.sendDirectAvrXml(xml);
+      toast(`Adaptive DRC: ${nextDrcVal === 'Auto' ? 'Activado (Auto)' : 'Desactivado'}`, 'info');
+      await refreshStatus();
+    } catch (err: any) {
+      toast(`Error al conmutar DRC: ${err.message || 'Fallo de red'}`, 'warn');
+    } finally {
+      setTogglingDrc(false);
+    }
+  };
+
+  const isDrcActive = avrStatus.avr_drc === 'On' || avrStatus.avr_drc === 'Auto';
 
   return (
-    <div className="space-y-6 pb-36 md:pb-12">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-surface-1 via-surface-1 to-indigo-950/40 border border-border-subtle p-6 sm:p-8">
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2">
-              <Pill variant="emerald" icon={<CheckCircle2 className="w-3.5 h-3.5" />}>
-                Calibración Activa: {profiles.find(p => p.id === activeProfileId)?.name?.split('(')[0]?.trim() || 'Harman 2.1'}
-              </Pill>
-              <Pill variant="neutral">
-                ITU-R BS.1116 (5 Puntos)
-              </Pill>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              Tu sala, ajustada con precisión de estudio.
-            </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Respuesta en frecuencia optimizada mediante filtros biquad paramétricos en NVRAM, con gestión activa de graves y crossover a 80 Hz para Focal Cub Evo y Q Acoustics 3020i.
-            </p>
+    <div className="space-y-6 pb-28 md:pb-12">
+      {/* 1. AVR Status Bar */}
+      <div className="p-4 rounded-lg bg-zinc-950 border border-zinc-800 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                avrStatus.online ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+              }`}
+            />
+            <span className="text-sm font-bold text-white font-mono tracking-tight">
+              Yamaha RX-V673
+            </span>
           </div>
+          <div className="flex items-center gap-1.5 text-xs font-mono">
+            <Pill variant={avrStatus.avr_power === 'On' ? 'emerald' : 'neutral'} size="sm">
+              <Power className="w-3 h-3 mr-1 inline" />
+              {avrStatus.avr_power}
+            </Pill>
+            <Pill variant="cyan" size="sm">
+              <Tv className="w-3 h-3 mr-1 inline" />
+              {avrStatus.avr_input || 'AV4'}
+            </Pill>
+            <Pill variant="neutral" size="sm" className="border-orange-500/60 text-orange-300">
+              {avrStatus.avr_peq_mode}
+            </Pill>
+          </div>
+        </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <Button
-              variant="primary"
-              size="lg"
-              icon={<Sliders className="w-4 h-4" />}
-              onClick={() => {
-                setWizardStep(1);
-                setView('calibrate');
-              }}
-            >
-              Iniciar Calibración
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              icon={<Music className="w-4 h-4" />}
-              onClick={() => {
-                const el = document.getElementById('perfiles-peq-section');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              Cambiar Perfil PEQ
-            </Button>
+        <div className="flex items-center gap-2">
+          <Pill
+            variant={isMuted ? 'rose' : 'neutral'}
+            size="md"
+            icon={isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          >
+            <span className="font-bold text-sm">
+              {currentVol > 0 ? '+' : ''}
+              {currentVol.toFixed(1)} dB
+            </span>
+            {isMuted && <span className="ml-1 text-[10px] text-rose-300 uppercase font-mono">(Mute)</span>}
+          </Pill>
+        </div>
+      </div>
+
+      {/* 2. AVR Controls: Braun Minimalist Deck */}
+      <div className="p-4 sm:p-6 rounded-2xl bg-zinc-950/90 border border-zinc-800 space-y-6 shadow-sm">
+        {/* Central Rotary Haptic Volume Dial */}
+        <HapticVolumeDial
+          volumeDb={currentVol}
+          isMuted={isMuted}
+          onChange={(newVol) => {
+            const delta = newVol - currentVol;
+            handleVolumeChange(delta);
+          }}
+          onToggleMute={handleToggleMute}
+        />
+
+        {/* Inputs Grid (Braun Mechanical Push-Buttons) */}
+        <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+          <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            <span>Entrada de Audio</span>
+            <span className="text-orange-400 font-semibold">{avrStatus.avr_input || 'AV4'}</span>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {[
+              { id: 'AV4', label: 'AV4 (TV eARC)' },
+              { id: 'HDMI1', label: 'HDMI 1' },
+              { id: 'V-AUX', label: 'V-AUX' },
+              { id: 'AUDIO1', label: 'AUDIO 1' },
+              { id: 'NET', label: 'NET / DLNA' },
+              { id: 'AirPlay', label: 'AirPlay' },
+            ].map((inp) => {
+              const active = (avrStatus.avr_input || '').toUpperCase() === inp.id.toUpperCase();
+              return (
+                <button
+                  key={inp.id}
+                  type="button"
+                  onClick={() => handleSelectInput(inp.id)}
+                  className={`py-2 px-2 rounded-lg border text-[11px] font-mono text-center transition-all truncate flex items-center justify-center gap-1.5 active:scale-95 ${
+                    active
+                      ? 'border-orange-500/80 bg-zinc-900 text-zinc-100 font-bold shadow-sm'
+                      : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      active ? 'bg-orange-500' : 'bg-transparent'
+                    }`}
+                  />
+                  <span>{inp.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Listening Modes / Scenes (Braun Industrial Tactile Switches) */}
+        <div className="space-y-2 pt-1 border-t border-zinc-800/80">
+          <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            <span>Escenas de Hardware</span>
+            <span className="text-zinc-500 text-[9px]">Ajusta Escena + Modo PEQ</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { num: 1, label: '1 Música', desc: 'Manual PEQ' },
+              { num: 2, label: '2 Cine', desc: 'Manual PEQ' },
+              { num: 3, label: '3 Gaming', desc: 'Manual PEQ' },
+              { num: 4, label: '4 Pure Direct', desc: 'Through PEQ' },
+            ].map((s) => (
+              <button
+                key={s.num}
+                type="button"
+                onClick={() => handleSceneSelect(s.num)}
+                className="py-2.5 px-3 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900 text-left transition-all active:scale-[0.98]"
+              >
+                <div className="font-mono text-xs font-semibold text-zinc-200 flex items-center justify-between">
+                  <span>{s.label}</span>
+                  <span className="text-[9px] text-zinc-500 font-normal">CH 1-4</span>
+                </div>
+                <div className="text-[10px] font-mono text-orange-400/90 mt-0.5">{s.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* PEQ Modes Grid */}
+        <div className="space-y-2 pt-1 border-t border-zinc-800/80">
+          <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            <span>Modo PEQ Hardware</span>
+            <span className="text-orange-400 font-bold">{avrStatus.avr_peq_mode}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {(['Manual', 'Natural', 'Flat', 'Through'] as const).map((mId) => {
+              const isActive = (avrStatus.avr_peq_mode || '').toLowerCase().includes(mId.toLowerCase());
+              return (
+                <button
+                  key={mId}
+                  type="button"
+                  onClick={() => handleSetPeqMode(mId)}
+                  className={`py-2 px-2 rounded-lg text-xs font-mono font-semibold border transition-all text-center active:scale-95 ${
+                    isActive
+                      ? 'border-orange-500/80 bg-zinc-900 text-zinc-100 shadow-sm'
+                      : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                  }`}
+                >
+                  {mId}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* 4 Quick Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card
-          title="Receptor AV"
-          subtitle="Yamaha RX-V673"
-          icon={<Cpu className="w-4 h-4" />}
-          badge={<Pill variant={avrStatus.online ? 'emerald' : 'rose'}>{avrStatus.avr_power}</Pill>}
-        >
-          <div className="space-y-1 text-xs">
-            <div className="flex justify-between text-slate-400 font-mono">
-              <span>Entrada:</span>
-              <span className="text-slate-200">{avrStatus.avr_input}</span>
-            </div>
-            <div className="flex justify-between text-slate-400 font-mono">
-              <span>DRC Dinámico:</span>
-              <span className="text-slate-200">{avrStatus.avr_drc}</span>
-            </div>
-          </div>
-        </Card>
+      {/* 3. Quick Actions (Braun tactile matrix) */}
+      <div className="space-y-2">
+        <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest px-1">
+          Funciones del Sistema
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button
+            type="button"
+            onClick={() => setView('calibrate')}
+            className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 text-xs font-mono flex flex-col items-center gap-1.5 text-zinc-300 hover:text-white transition-all active:scale-[0.98]"
+          >
+            <Sliders className="w-4 h-4 text-orange-400" />
+            <span>Calibrar Sala</span>
+          </button>
 
-        <Card
-          title="Acústica Trinnov / Dirac"
-          subtitle="Transición Modal Schroeder"
-          icon={<Speaker className="w-4 h-4" />}
-          badge={<Pill variant="indigo">{acousticsData.schroeder_frequency_hz} Hz fs</Pill>}
-        >
-          <div className="space-y-1 text-xs">
-            <div className="flex justify-between text-slate-400 font-mono">
-              <span>Reverberación T60:</span>
-              <span className="text-slate-200">{acousticsData.t60_s} s (Schroeder)</span>
-            </div>
-            <div className="flex justify-between text-slate-400 font-mono">
-              <span>Límite Modal:</span>
-              <span className="text-emerald-400 font-bold">&lt; {acousticsData.modal_cutoff_hz} Hz (PEQ Q Alta)</span>
-            </div>
-          </div>
-        </Card>
+          <button
+            type="button"
+            disabled={restoringAvr}
+            onClick={handleRestoreAvr}
+            className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 text-xs font-mono flex flex-col items-center gap-1.5 text-zinc-300 hover:text-white transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <RotateCcw className={`w-4 h-4 ${restoringAvr ? 'animate-spin text-orange-400' : 'text-zinc-400'}`} />
+            <span>{restoringAvr ? 'Restaurando...' : 'Restaurar Estado'}</span>
+          </button>
 
-        <Card
-          title="Modo DSP Activo"
-          subtitle="Yamaha YNC Protocol"
-          icon={<ShieldCheck className="w-4 h-4" />}
-          badge={<Pill variant="cyan">{avrStatus.avr_peq_mode}</Pill>}
-        >
-          <div className="space-y-1 text-xs">
-            <div className="flex justify-between text-slate-400 font-mono">
-              <span>Bypass de Fábrica:</span>
-              <span className="text-slate-200">Desactivado</span>
-            </div>
-            <div className="flex justify-between text-slate-400 font-mono">
-              <span>Filtros en NVRAM:</span>
-              <span className="text-slate-200">7 bandas / canal</span>
-            </div>
-          </div>
-        </Card>
+          <button
+            type="button"
+            disabled={checkingPreflight}
+            onClick={handlePreflight}
+            className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 text-xs font-mono flex flex-col items-center gap-1.5 text-zinc-300 hover:text-white transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <ShieldCheck className={`w-4 h-4 text-emerald-400 ${checkingPreflight ? 'animate-pulse' : ''}`} />
+            <span>{checkingPreflight ? 'Verificando...' : 'Verificar AVR'}</span>
+          </button>
 
-        <Card
-          title="Volumen & Nivel"
-          subtitle="Sensibilidad 75 dB SPL"
-          icon={<Volume2 className="w-4 h-4" />}
-          badge={<Pill variant="amber">{avrStatus.avr_volume_db} dB</Pill>}
-        >
-          <div className="space-y-1 text-xs">
-            <div className="flex justify-between text-slate-400 font-mono">
-              <span>Sub Trim:</span>
-              <span className="text-slate-200">+10.0 dB</span>
-            </div>
-            <div className="flex justify-between text-slate-400 font-mono">
-              <span>Headroom PEQ:</span>
-              <span className="text-slate-200">-3.5 dB</span>
-            </div>
-          </div>
-        </Card>
+          <button
+            type="button"
+            disabled={togglingDrc}
+            onClick={handleToggleDrc}
+            className={`p-3 rounded-lg border text-xs font-mono flex flex-col items-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 ${
+              isDrcActive
+                ? 'border-orange-500/80 bg-orange-500/10 text-orange-300'
+                : 'border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 text-zinc-300 hover:text-white'
+            }`}
+          >
+            <Zap className={`w-4 h-4 ${isDrcActive ? 'text-orange-400 fill-orange-400' : 'text-zinc-500'}`} />
+            <span>DRC: {isDrcActive ? 'On (Auto)' : 'Off'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Interactive Profile Selector & Curve Header */}
+      {/* 4. Profile Selector & Deploy */}
       <div id="perfiles-peq-section" className="space-y-3 pt-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                Perfiles Acústicos PEQ
-              </span>
-              <span className="text-xs text-slate-400 font-mono">
-                {profiles.length} disponibles
-              </span>
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight mt-1">
-              Selecciona tu Curva Objetivo
-            </h2>
+            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block">
+              Curvas Acústicas Objetivo
+            </span>
+            <span className="text-sm font-semibold text-zinc-100 font-mono">
+              {profiles.find((p) => p.id === activeProfileId)?.name?.split('(')[0]?.trim() || activeProfileId}
+            </span>
           </div>
           <Button
             variant="primary"
             size="sm"
             loading={deploying}
-            icon={<CheckCircle2 className="w-3.5 h-3.5" />}
             onClick={handleDeployProfile}
+            className="self-start sm:self-auto bg-orange-600 hover:bg-orange-500 text-white font-mono border-none"
           >
-            {deploying ? 'Aplicando...' : 'Aplicar al Yamaha RX-V673'}
+            Aplicar en Yamaha
           </Button>
         </div>
 
-        {/* Profile Chips Carousel */}
+        {/* Profile Chips */}
         <div className="flex gap-2 overflow-x-auto pb-2 pt-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
-          {profiles.map(p => {
+          {profiles.map((p) => {
             const isSelected = p.id === activeProfileId;
             return (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => setActiveProfileId(p.id)}
-                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-left border transition-all text-xs font-medium ${
+                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono whitespace-nowrap border transition-all active:scale-95 ${
                   isSelected
-                    ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-md'
-                    : 'bg-surface-1 border-border-subtle text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                    ? 'bg-zinc-900 border-orange-500 text-white font-bold'
+                    : 'bg-zinc-950/80 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
                 }`}
               >
-                <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-indigo-400 animate-pulse' : 'bg-slate-600'}`} />
-                <span className="font-semibold text-slate-200">
-                  {p.name.split('(')[0].trim()}
-                </span>
-                {p.badge && (
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-2 text-indigo-300 border border-border-subtle">
-                    {p.badge.replace(/[🥇🥈🥉🎯💥⚡]/g, '').trim().slice(0, 16)}
-                  </span>
-                )}
+                <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-orange-500' : 'bg-zinc-600'}`} />
+                <span className="text-zinc-200">{p.name.split('(')[0].trim()}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Active Profile Info Banner */}
-        {profiles.find(p => p.id === activeProfileId) && (
-          <div className="p-3 rounded-xl bg-surface-1/60 border border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <p className="text-slate-300 leading-relaxed max-w-2xl">
-              <strong className="text-white">{profiles.find(p => p.id === activeProfileId)?.name}: </strong>
-              {profiles.find(p => p.id === activeProfileId)?.description}
+        {/* Active Profile Info */}
+        {profiles.find((p) => p.id === activeProfileId) && (
+          <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <p className="text-zinc-300 leading-relaxed max-w-2xl font-mono text-[11px]">
+              <strong className="text-zinc-100">
+                {profiles.find((p) => p.id === activeProfileId)?.name}:{' '}
+              </strong>
+              {profiles.find((p) => p.id === activeProfileId)?.description}
             </p>
-            <span className="shrink-0 text-slate-400 font-mono text-[11px] self-start sm:self-auto">
-              Categoría: <strong className="text-indigo-300">{profiles.find(p => p.id === activeProfileId)?.category}</strong>
+            <span className="shrink-0 text-zinc-500 font-mono text-[10px] self-start sm:self-auto">
+              Categoría:{' '}
+              <strong className="text-orange-400">
+                {profiles.find((p) => p.id === activeProfileId)?.category}
+              </strong>
             </span>
           </div>
         )}
       </div>
 
-      {/* Main Acoustic Frequency Response Graph */}
+      {/* 5. Main Acoustic Frequency Response Graph */}
       <FrequencyGraph
-        title={`Respuesta Acústica & Curva: ${profiles.find(p => p.id === activeProfileId)?.name?.split('(')[0]?.trim() || activeProfileId}`}
+        title={`Respuesta Acústica & Curva: ${
+          profiles.find((p) => p.id === activeProfileId)?.name?.split('(')[0]?.trim() || activeProfileId
+        }`}
         data={curveData}
-        height={340}
+        height={260}
       />
-
-      {/* Room Acoustic Foundation & Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card
-          title="Fundamento Acústico de Sala"
-          subtitle="Norma Internacional ITU-R BS.1116"
-          icon={<ShieldCheck className="w-4 h-4 text-emerald-400" />}
-        >
-          <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-            <p>
-              • <strong className="text-indigo-300">Frecuencia de Schroeder (fs ≈ 240 Hz):</strong> Por debajo de esta frecuencia predominan las ondas estacionarias (modos propios axiales, tangenciales y oblicuos). El ecualizador paramétrico actúa quirúrgicamente con filtros Notch.
-            </p>
-            <p>
-              • <strong className="text-amber-300">Banda de Transición y Directividad (&gt; 500 Hz):</strong> En altas frecuencias predomina la directividad del altavoz y las reflexiones tempranas de pared; solo se aplican suaves curvas de balance tonal (Tilt).
-            </p>
-          </div>
-        </Card>
-
-        <Card
-          title="Puntos de Calibración & Variación Espacial"
-          subtitle="Clúster de 5 posiciones con radio de 40 cm"
-          icon={<CheckCircle2 className="w-4 h-4 text-indigo-400" />}
-          action={
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<ArrowRight className="w-3.5 h-3.5" />}
-              onClick={() => {
-                setWizardStep(2);
-                setView('calibrate');
-              }}
-            >
-              Ver Puntos
-            </Button>
-          }
-        >
-          <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between p-2 rounded-lg bg-surface-2/60 border border-border-subtle font-mono">
-              <span className="text-slate-300">P1: Sweet Spot Principal</span>
-              <Pill variant="emerald" size="sm">100% Ponderación</Pill>
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-surface-2/60 border border-border-subtle font-mono">
-              <span className="text-slate-300">P2-P5: Perímetro de Escucha</span>
-              <Pill variant="indigo" size="sm">40 cm Offset</Pill>
-            </div>
-          </div>
-        </Card>
-      </div>
     </div>
   );
 };

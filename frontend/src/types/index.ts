@@ -22,6 +22,7 @@ export interface AVRStatus {
   avr_input: string;
   avr_volume_db: string | number;
   avr_peq_mode: string;
+  avr_mute?: string;
   avr_drc: string;
   points_measured: number;
   points_total: number;
