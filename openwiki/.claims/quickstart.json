@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:4d4b56b89a353e9c4c4ef822b10a355a18ca9fc2150b1da1d4b5e07a9323a4ae",
+  "claims": [
+    {
+      "id": "claim_b167d8d9413045d0a962805057d7ee8d",
+      "statement": "The standalone mobile calibration workflow executes without external PC dependencies, programming discrete PEQ filters into Yamaha NVRAM and validating post-calibration response via an empirical verification sweep.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/views/CalibrateView.tsx#L1075-L1140",
+          "version": "repo-lines-v1:sha256:fda7877cc4b2e5f61feba09940e9543bbf6736dd5f096dd5ae3a426a7960624e:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5Y2ZhMjViODA5ZGU5MDRlZGQ5ODE4ZTEwMjhhODk3YmE2MDBiMTJhOGI0Y2U0ODFjNWZlOGE4YjJkNDQwZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2YTU0MzQ4MjFlYjE0NDBmNzk1MzExMjcyZWQ5NGU1MmUwYWQyOGRmZmEwNjQ1NWZiYTFlZDI1NjQ3MzNhNmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJkMDAzZTc4ODVhNmQ4OTgxZmJhYWMwN2NiNzM1NzBjNTc1MGU4MTBmNjUxOTIxNDQxNWNiYzZjNzM5NmNmMjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ3MmE1ZDE0MWE4ZjkxM2U4NGI5Y2M4ZGIxMTFiMjhiZmFlNjE0NWVkMGQwZGIzYjBlM2QyMzg4YzU4NDFkZWIifQ"
+        },
+        {
+          "resource": "repo://specs/012-pro-android-calibration/quickstart.md#L45-L75",
+          "version": "repo-lines-v1:sha256:51542b01a3535686392463c7b762dbd00e9f257c66f913590f19ff9652461d2c:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwYWI5NjcyYTQxMDE5ODExZjFkZTQ1Nzk1MmUwMDdhZWM1YjdhN2E3MWZkM2I0MmE1YzE3MzI3Y2U1NzA2Y2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxM2UzYTgzNzcxOTBjNjMwODZhMzRkY2ZkNzEyM2VlMTE5NmUxNTU1MmJjZDZiZTliOWM5NmFmZGYzNWU5OTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQwZmMzYWQzMTc4OTEzYzY5OTRiNDEyZjQ5NGI0MzkxMmJlNTQzNmJlOTk1YzAwYmMxY2I4M2ZjMzVjZDRlMGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_24dfe8f2dd0a49eea6481bc21f6132f4",
+      "statement": "The system provides disaster recovery state restoration by capturing a pre-calibration snapshot of receiver NVRAM settings before calibration and restoring it upon cancellation.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/services/avrRollback.ts#L18-L90",
+          "version": "repo-lines-v1:sha256:531ac79fc53c7e9f754f541579619ec89891905d776b5894408c0410d4228da6:eyJzZWxlY3RlZExpbmVDb3VudCI6NzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI4YTZmZDc4NjlkM2FjMzZjZTdlZjY4YTM1ZGZhMWUzZjVhNWNlNDVjNjVkOWI1ZDUxNWJhYjA4ZTI5NjFhZGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxYjUxYTE2NDhjMzY0NzI3M2UzNzFkZGRiYzY2MDY0MTc0YzIxYzNhNDMzNThjYWEwNjI0NWY2MDc1NjliOTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkyZjJmZGVjYTA0MjQ3N2Y2MTYzYzMzZmYwNGIwYjViMzQ0OTM2Y2MzODE2YTU5NzBjMTczYTQ5MDQyYzNiZWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY1Mjk0MWM3Njg1N2QyYmIzMzcxMTFmZmVjYWY0M2NiMTZkZjMxZDc1NTE5MzA4MDY0MjExNWEwNWJmMzJmODgifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T22:03:18.374Z"
+  }
+}

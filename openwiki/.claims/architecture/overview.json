@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:39bc64ff3ec0b69fc29f845f4e448b0fca42a2164964244e9ac91579c9660381",
+  "claims": [
+    {
+      "id": "claim_6df4b549f39b409d801925ac3a3b9491",
+      "statement": "The application executes on-device Farina logarithmic sine sweep deconvolution and 65,536-point Real-FFT analysis directly in TypeScript using Float32Array typed arrays to extract room impulse responses without external server dependencies.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/services/dspEngine.ts#L170-L280",
+          "version": "repo-lines-v1:sha256:5fdead470184fd6751ea85a11545284fb7d3eda7f3979a10e8a9170802ff927e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTExLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIxN2E2MDBmNGFlNDA0NDI0NTY0Mzc1N2U3ODkwNDU0ZjQ4OTQzNDEwYjIzN2I2NGE2MjYxODgzZGYzMWNiOGM4IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4NTE1ZGRlNWE1YTBlMzhjNWQwNTYwODc1YzBiNDdjYmExZWY2MDdjOThjNWQ5NmQzM2YxZmU1OGQyYjVmNDEwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJiNTU0ZTA5YzE1YzFjNWE0Mjc1OWRlYTliYjEzM2U1MzZmNDFmYmIxZGNkYTRlZWE2NmM2NDJlZTJlMDMyMjY5In0"
+        },
+        {
+          "resource": "repo://frontend/src/services/fftEngine.ts#L99-L130",
+          "version": "repo-lines-v1:sha256:fd9426659c72920c1fe3b180a5c8d2082c87a7b64be0da618ec5280c3ff16a34:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0YmNhM2JlNzQ5Y2NiMmJmOGZkNDgwNTdmMTYxM2ZjM2U4ZmU5Zjg4ZTkwYTk3NWE0ZDdiMjRhNDExMjhhYzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3Njk4MDZmMTM1MWEyM2JiNDcxZGM1Mzg3YTY3MWNlMDM5NjUyOTc0ZmE3ZGE0OTg2OWZmODRjOWZlZjU2MTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzMzQyNGQ0YzMyNDU0OTgyYmJhMjY1NjY1N2I5ZDRiZjJiZDAwMzUyNWYxYjk3MTM5NmQxZjM2ZGEzNDAxZTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fa23ca8de65c4cebbb27692b5010e744",
+      "statement": "Parametric EQ filter generation strictly quantizes center frequencies to 28 discrete Yamaha bands, Q factors to 14 discrete values, and gains to 0.5 dB steps clamped between -12.0 dB and +3.0 dB with zero boost permitted above the 500 Hz Schroeder transition frequency.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/services/dspEngine.ts#L310-L360",
+          "version": "repo-lines-v1:sha256:6d86d1a624e0981ecbe81fc71e1740dfb98c0cf569b97f53ede60c3c1bff5387:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiZmY0NjU0MmIyY2NmZThmODY5ZjgyYzc1MWYzMGMwZmVlZjgzYTk5MzhjYjYyZjVmZDU3OGMzZjliMzRkZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJlYjlkYTNhYWFiYWE4ZWJlM2EzNGM4MDM5MjljMTg5Y2YzOWI4MWQzZWI2YWM2Y2VkNmIxZjI2YWE5ZGQyMGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ2NTZkODk3ZjhhMTI4YmUwMjkzN2I2MDQ1NzQ1M2RkZmQ1YzlmNzEzMzcwMWM4ZWVhYmRmOTgwMjRiMTFkNWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkzODg3OTEwODNiZjg0MThjMjFkMDM5OWEyMzNiYjY3M2ZmMTZmN2ZmMzhlNWJkY2JhZGYyMDBjNWFmYjJhMjkifQ"
+        },
+        {
+          "resource": "repo://frontend/src/services/dspEngine.ts#L4-L37",
+          "version": "repo-lines-v1:sha256:346043c1e5ff26f2dd27c38eeedb7401b7899f4a1637c589792786a9ef633977:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzOGEzNDMxMDY0Zjg3ZmY4MjdhMDc4YzdlYTFkYzNiOTdhYjY1M2UyMzc4MjcxZjM3NTgzMGIzNDBiOTAzNjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc2NTVjNDI1MzllMTYxMzEyODBhMDg2OWVjNDc4MDFmYjdkMmNkZDcwNzMxY2VmNzgyNWU0Njk0MTA0ZGFhOWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwZDVlNjJlOGI5MmQyNDA1NGM2NWRhZDdjNGMzYWQ0NjJlMTI1MjMyNTE2ZGNjMDY3Y2M5Mzg3NzQ3YTUzZjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e11d166de910449595101d71114e66ca",
+      "statement": "The mobile application transmits discrete YNC XML commands directly to the Yamaha RX-V673 receiver over HTTP via CapacitorHttp without requiring an external proxy or desktop backend.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/services/yamahaDirect.ts#L27-L52",
+          "version": "repo-lines-v1:sha256:109f52bb5ab85e196c881fba1a234aa6ff2a49020230cfe0358bcc7ecbe3b224:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1NWVkZTViM2Q2NzQxNzM0MmY4MDg0MzYwNmM3ZjhmYzk3M2VkMWU0OTk0Yzk0ODM0NTk3NWM3ZmFjOWI1MTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI5ZjA1ZGE3YzM2YmI0M2M2ODk0M2Q1OTQ0ZTNiZWEyODljZDU4ZDc3ZDU3ZjExODFkMTNlZWJkZDJmMTk5NWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM5NzAwZDM5ZWIwMWFhM2FlZmFhM2FiZTFlZGQwNzRiN2E5YTYxNmUwOWM4N2FiODVkZjI4MDQxYjkzNTM4NTgifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T22:03:18.374Z"
+  }
+}
