@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/011-multi-target-validation/plan.md
+at specs/012-pro-android-calibration/plan.md
 <!-- SPECKIT END -->
 
 # Repository Guidelines
